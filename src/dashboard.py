@@ -19,13 +19,21 @@ dashboard.py — HTML 대시보드 생성기 (팀 단기 전력)
 
 import base64
 import json
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 import requests
 
 import config
+
+# 한국 표준시 (GitHub Actions는 UTC로 도므로 갱신 시각을 KST로 환산해 표시)
+KST = timezone(timedelta(hours=9))
+
+
+def _gen_stamp() -> str:
+    """대시보드 생성(갱신) 시각을 'YYYY-MM-DD HH:MM KST'로."""
+    return datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
 
 # 시즌 흐름 라인 차트는 10개 선을 색으로 구분해야 해서 팀 상징색 유지
 TEAM_COLORS = {
@@ -184,12 +192,16 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
         "season": config.SEASON, "today": str(date.today()),
     }
 
+    # 반영된 최신 경기일 (팀 로그의 마지막 날짜)
+    latest_game = max((g[-1]["d"] for g in games.values() if g), default="-")
+
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__SEASON__", str(config.SEASON))
-    html = html.replace("__TODAY__", str(date.today()))
+    html = html.replace("__STAMP__", _gen_stamp())
+    html = html.replace("__LATEST__", latest_game)
     html = _inject_headers(html)
 
     out = Path(config.DATA_DIR) / "dashboard.html"
@@ -229,7 +241,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   body { margin: 0; padding: 24px; background: var(--bg); color: var(--text);
     font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
   h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
+  .sub .stamp { color: var(--text); }
+  .sub .stamp b { color: var(--green); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card { background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 18px; min-width: 0; }  /* min-width:0 → 표 가로스크롤이 카드 안에서 작동 */
@@ -329,8 +343,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <body>
 
 <h1>⚾ KBO __SEASON__ 단기 전력 대시보드</h1>
-<div class="sub">생성일 __TODAY__ · 데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
-  <b>아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</b></div>
+<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+  데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
+  아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
 
 <div class="controls">
   <div class="ctl">

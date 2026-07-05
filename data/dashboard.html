@@ -12,7 +12,9 @@
   body { margin: 0; padding: 24px; background: var(--bg); color: var(--text);
     font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
   h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
+  .sub .stamp { color: var(--text); }
+  .sub .stamp b { color: var(--green); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card { background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 18px; min-width: 0; }  /* min-width:0 → 표 가로스크롤이 카드 안에서 작동 */
@@ -112,8 +114,9 @@
 <body>
 
 <h1>⚾ KBO 2026 단기 전력 대시보드</h1>
-<div class="sub">생성일 2026-07-05 · 데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
-  <b>아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</b></div>
+<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-05 13:47 KST · <b>2026-07-04 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+  데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
+  아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
 
 <div class="controls">
   <div class="ctl">

@@ -109,8 +109,9 @@ def main() -> None:
     pitchers.to_csv(p_csv, index=False, encoding="utf-8-sig", float_format="%.3f")
     batters.to_csv(b_csv, index=False, encoding="utf-8-sig", float_format="%.3f")
 
+    latest_game = box["date"].max() if len(box) else None
     html = player_dashboard.save_player_dashboard(
-        pitchers, batters, p_screens, b_screens, lg_era)
+        pitchers, batters, p_screens, b_screens, lg_era, latest_game)
 
     print(f"\nCSV 저장 완료 → {p_csv}, {b_csv}")
     print(f"대시보드 저장 완료 → {html}")

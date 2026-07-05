@@ -20,7 +20,7 @@ from pathlib import Path
 import pandas as pd
 
 import config
-from dashboard import TEAM_COLORS, logo_map  # 팀 색/로고 재사용
+from dashboard import TEAM_COLORS, logo_map, _gen_stamp  # 팀 색/로고/갱신시각 재사용
 
 COLLAPSE_AT = 8  # 스크리닝 테이블 접기 기준
 
@@ -122,8 +122,12 @@ def _more(n, tb):
     return f'<button class="more" data-tb="{tb}">＋ 더 보기 ({n - COLLAPSE_AT}명 더)</button>'
 
 
-def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era):
-    """선수 평가 대시보드를 data/players.html 로 저장합니다."""
+def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
+                          latest_game=None):
+    """선수 평가 대시보드를 data/players.html 로 저장합니다.
+
+    latest_game : 반영된 최신 경기일(투수 박스스코어 기준). 자막에 표시.
+    """
 
     def pit_rec(r):
         return {
@@ -174,7 +178,8 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era):
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
     html = html.replace("__SEASON__", str(config.SEASON))
-    html = html.replace("__TODAY__", str(date.today()))
+    html = html.replace("__STAMP__", _gen_stamp())
+    html = html.replace("__LATEST__", latest_game or "-")
     html = html.replace("__LG_ERA__", f"{lg_era:.2f}")
 
     for key, scr, tb in [
@@ -223,7 +228,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   body { margin: 0; padding: 24px; background: var(--bg); color: var(--text);
     font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
   h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
+  .sub .stamp { color: var(--text); }
+  .sub .stamp b { color: var(--green); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--line);
@@ -306,8 +313,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <body>
 
 <h1>⚾ KBO __SEASON__ 선수 평가 대시보드</h1>
-<div class="sub">투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 ·
-  생성일 __TODAY__ · 리그 평균 ERA __LG_ERA__ ·
+<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+  투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 · 리그 평균 ERA __LG_ERA__ ·
   <b>지표 이름 호버=공식, 그래프 클릭=랜덤 선수 상세</b></div>
 
 <div class="grid">
