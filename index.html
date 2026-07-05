@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KBO 세이버메트릭스 대시보드</title>
+<style>
+  :root { --bg:#10141c; --card:#1a212e; --line:#2a3345; --text:#e8ecf3; --muted:#8a94a8; --green:#3ecf8e; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:22px; padding:40px 20px; background:var(--bg); color:var(--text);
+    font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
+  h1 { font-size:26px; margin:0; text-align:center; }
+  .sub { color:var(--muted); font-size:13px; text-align:center; margin-top:-10px; }
+  .cards { display:flex; flex-wrap:wrap; gap:16px; justify-content:center; }
+  a.card { text-decoration:none; color:var(--text); background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:26px 30px; width:300px; transition:.15s; }
+  a.card:hover { border-color:var(--green); transform:translateY(-3px); }
+  a.card .ico { font-size:34px; }
+  a.card h2 { font-size:18px; margin:12px 0 6px; }
+  a.card p { color:var(--muted); font-size:13px; margin:0; line-height:1.5; }
+  .foot { color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>⚾ KBO 세이버메트릭스 대시보드</h1>
+  <div class="sub">네이버 스포츠(경기결과) + KBO Talent(kbostuff.app) 데이터 · 매일 오전 8시(KST) 자동 갱신</div>
+  <div class="cards">
+    <a class="card" href="data/dashboard.html">
+      <div class="ico">📊</div>
+      <h2>팀 단기 전력</h2>
+      <p>피타고리안 기대승률·괴리율·모멘텀. 경기 수 슬라이더, 선발 로테이션 토글, 시즌 흐름.</p>
+    </a>
+    <a class="card" href="data/players.html">
+      <div class="ico">🧢</div>
+      <h2>선수 평가</h2>
+      <p>투수 구위×성적 사분면·구종 아스널, 타자 5툴 레이더·BABIP 운, FCB 승리기여.</p>
+    </a>
+  </div>
+  <div class="foot">개인 분석용 · 세이버메트릭스 학습 프로젝트</div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# KBO 단기 전력 예측 파이프라인 의존성
+# 설치: pip install -r requirements.txt
+requests>=2.31    # HTTP 요청 (네이버 API, Supabase API 호출)
+pandas>=2.2       # 표 데이터 가공 (groupby.apply의 include_groups=False는 2.2+)
+numpy>=1.24       # 수치 계산 (z-score 표준화)

@@ -1,0 +1,11 @@
+# 파이썬
+.venv/
+__pycache__/
+*.pyc
+
+# 데이터 폴더는 캐시·CSV로 지저분하므로 통째로 무시하되,
+# GitHub Pages가 서빙할 '생성된 대시보드 HTML' 2개만 예외로 추적합니다.
+# (로고는 HTML에 base64로 내장돼 있어 logos/ 폴더는 서빙에 불필요)
+data/*
+!data/dashboard.html
+!data/players.html

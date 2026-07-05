@@ -1,0 +1,51 @@
+name: KBO 대시보드 자동 갱신
+
+# 매일 오전 8시(KST) — GitHub Actions는 UTC 기준이라 23:00 UTC = 다음날 08:00 KST
+on:
+  schedule:
+    - cron: "0 23 * * *"
+  workflow_dispatch: {}   # GitHub 화면에서 수동 실행 버튼도 제공
+
+permissions:
+  contents: write         # 갱신된 HTML을 저장소에 커밋하려면 쓰기 권한 필요
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 경기 데이터(월별 게임·박스스코어·로고)를 실행 사이에 재사용해
+      # 매번 수백 경기를 새로 받지 않도록 캐시합니다.
+      - name: 데이터 캐시
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: kbo-data-${{ github.run_id }}
+          restore-keys: kbo-data-
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 파이프라인 실행 (데이터 갱신 + 대시보드 재생성)
+        run: |
+          python main.py
+          python players.py
+
+      - name: 갱신된 대시보드 커밋 & 푸시
+        run: |
+          git config user.name "kbo-forecast-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f data/dashboard.html data/players.html
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: 대시보드 자동 갱신 ($(date -u +%Y-%m-%d))"
+            git push
+          fi
