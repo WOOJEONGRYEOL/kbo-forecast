@@ -136,8 +136,8 @@ def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
         name = config.TEAM_NAMES.get(team, team)
         starters = rotation_detail.get(team, [])
         chips = "".join(
-            f'<div class="sp">{s["name"]} <span class="spx">{s["starts"]}선발 · '
-            f'구위 {s["stuff"]} · {s["top"]}</span></div>'
+            f'<div class="sp">{s["name"]} <span class="spx">선발 {s["starts"]}회 · '
+            f'구위 {s["stuff"]} · 주무기 {s["top"]}</span></div>'
             for s in starters
         ) or '<div class="spx">식별된 선발 없음</div>'
         cards.append(
