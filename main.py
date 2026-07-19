@@ -47,6 +47,7 @@ def main() -> None:
     if args.backtest:
         games = naver_games.fetch_season_games(args.season)
         games = naver_games.filter_regular_season(games)
+        games = naver_games.filter_official_teams(games)
         team_log = naver_games.build_team_game_log(games)
         backtest.print_report(team_log)
         return
@@ -55,6 +56,7 @@ def main() -> None:
     print(f"\n[1/4] {args.season} 시즌 경기 결과 수집 (네이버 스포츠 API)")
     games = naver_games.fetch_season_games(args.season)
     games = naver_games.filter_regular_season(games)  # 시범경기 제거
+    games = naver_games.filter_official_teams(games)  # 올스타전 등 제외
     team_log = naver_games.build_team_game_log(games)
     n_games = len(team_log) // 2  # 행 2개 = 경기 1개
     print(f"  → 완료된 경기 {n_games}개, 팀 로그 {len(team_log)}행")
