@@ -177,6 +177,28 @@ def filter_regular_season(games: list[dict]) -> list[dict]:
     return regular
 
 
+def filter_official_teams(games: list[dict]) -> list[dict]:
+    """
+    정규 10개 구단이 아닌 팀이 낀 경기를 제거합니다.
+
+    [왜 필요한가?]
+      7월 올스타 브레이크 기간에 네이버 KBO 일정(categoryId=kbo)에는
+      '올스타전'이 함께 들어옵니다. 이 경기의 두 팀(나눔/드림 올스타)은
+      정규 10개 구단 코드가 아니어서, 그대로 두면 팀당 1경기짜리
+      '유령 팀' 2개가 만들어져 대시보드 차트와 박스스코어 집계를
+      오염시키고 파이프라인을 멈추게 합니다.
+      config.TEAM_NAMES(공식 10개 팀 코드)에 없는 팀이 낀 경기는 버립니다.
+    """
+    official = set(config.TEAM_NAMES)
+    kept = [g for g in games
+            if g.get("homeTeamCode") in official
+            and g.get("awayTeamCode") in official]
+    dropped = len(games) - len(kept)
+    if dropped:
+        print(f"  → 비(非)정규구단 경기 {dropped}건 제외 (올스타전 등)")
+    return kept
+
+
 def build_team_game_log(games: list[dict]) -> pd.DataFrame:
     """
     네이버 원본 경기 목록 → "팀 관점의 경기 로그"로 변환합니다.
