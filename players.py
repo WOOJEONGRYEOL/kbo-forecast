@@ -53,6 +53,7 @@ def main() -> None:
     print(f"\n[1/3] {args.season} 시즌 데이터 수집")
     games = naver_games.fetch_season_games(args.season)
     games = naver_games.filter_regular_season(games)  # 시범경기 제거
+    games = naver_games.filter_official_teams(games)  # 올스타전 등 제외
     box = boxscore.collect_season_pitching(games)
     season_stats = boxscore.season_pitcher_stats(box)
     print(f"  → 투수 시즌 성적 {len(season_stats)}명 (박스스코어 합산)")
