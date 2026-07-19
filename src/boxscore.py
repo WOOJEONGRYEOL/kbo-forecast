@@ -28,6 +28,8 @@ boxscore.py — 경기별 박스스코어 수집기 (투수 기록)
 """
 
 import json
+import re
+import sys
 import time
 from pathlib import Path
 
@@ -100,24 +102,47 @@ def fetch_game_pitchers(game_id: str, session: requests.Session) -> list[dict]:
 _FRACTION_OUTS = {"⅓": 1, "⅔": 2, "1/3": 1, "2/3": 2}
 
 
-def _innings_to_outs(inn_str: str) -> int:
+def _innings_to_outs(inn_str) -> int:
     """
     "5 ⅔" 같은 이닝 문자열을 아웃카운트(정수)로 바꿉니다.
     이닝을 소수(5.67)로 다루면 합산할 때 오차가 쌓이므로,
     세이버메트릭스에서는 항상 아웃카운트로 계산하는 것이 정석입니다.
 
-    ⚠️ 처음 구현 때 "2/3" 형태만 처리하고 유니코드 분수(⅔)를
-      조용히 버리는 바람에 이닝이 전부 내림되는 버그가 있었습니다.
-      알 수 없는 표기는 버리지 말고 에러를 내도록 바꿨습니다.
+    지원 표기:
+      - "5 ⅔" / "⅔" / "5"        공백으로 분리된 정수+유니코드 분수
+      - "5⅔"                    공백 없이 붙은 형태 (자동 분리)
+      - "6.1" / "6.2"              KBO 소수 이닝 표기(.1=⅓, .2=⅔)
+      - "" / None / "0"            0아웃
+
+    ⚠️ 이전 구현은 알 수 없는 표기에서 ValueError를 던져
+      경기 하나만 이상해도 파이프라인 전체가 멈췄습니다.
+      이제는 경고만 남기고 그 값을 0아웃으로 건너뛰어,
+      매일 도는 자동 갱신이 한 경기 때문에 죽지 않게 합니다.
     """
+    if inn_str is None:
+        return 0
+    s = str(inn_str).strip()
+    if not s:
+        return 0
+
+    # KBO 소수 이닝 표기: 6.1 = 6⅓, 6.2 = 6⅔ (드물게 API가 이 형식을 줌)
+    m = re.fullmatch(r"(\d+)\.([012])", s)
+    if m:
+        return int(m.group(1)) * 3 + int(m.group(2))
+
+    # 정수와 유니코드 분수가 공백 없이 붙은 형태를 분리: "5⅔" -> "5 ⅔"
+    s = re.sub(r"(?<=\d)(?=[⅓⅔])", " ", s)
+
     outs = 0
-    for part in str(inn_str).strip().split():
-        if part in _FRACTION_OUTS:          # 분수 부분: "⅔" → 2아웃
+    for part in s.split():
+        if part in _FRACTION_OUTS:          # 분수 부분: "⅔" -> 2아웃
             outs += _FRACTION_OUTS[part]
-        elif part.isdigit():                # 정수 부분: "5" → 15아웃
+        elif part.isdigit():                # 정수 부분: "5" -> 15아웃
             outs += int(part) * 3
         else:
-            raise ValueError(f"해석할 수 없는 이닝 표기: {inn_str!r}")
+            # 알 수 없는 표기는 버리되, 경기 전체를 죽이지 않습니다
+            print(f"  [경고] 해석할 수 없는 이닝 표기 무시: {inn_str!r}",
+                  file=sys.stderr)
     return outs
 
 
