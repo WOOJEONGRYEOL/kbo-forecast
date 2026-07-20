@@ -89,7 +89,7 @@ FORMULAS = {
     "타선+": "팀 타선 순수 wRC+ (타석수 가중평균, 파크팩터·비거리 보정, 100=리그평균).",
     "클러치": "FCB 팀 승리기여 합. ⚠️ 클러치는 잘 지속되지 않아 미래 예측이 아닌 "
               "'지금까지 승부처에 강했나'를 보여주는 설명형 지표(모멘텀 미반영).",
-    "모멘텀": "0.5×z(괴리율) + 0.25×z(구위+) + 0.25×z(타선+). z=표준점수. "
+    "모멘텀": f"{config.momentum_formula()}. z=표준점수. "
               "윈도우를 바꾸면 괴리율이 바뀌어 모멘텀도 실시간 재계산됩니다.",
     "진단": "괴리율이 ±0.05를 넘으면 반등/하락으로 판정.",
 }
@@ -199,6 +199,10 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
+    html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
+    html = html.replace("__W_GAP__", str(config.MOMENTUM_W_GAP))
+    html = html.replace("__W_STUFF__", str(config.MOMENTUM_W_STUFF))
+    html = html.replace("__W_BAT__", str(config.MOMENTUM_W_BAT))
     html = html.replace("__SEASON__", str(config.SEASON))
     html = html.replace("__STAMP__", _gen_stamp())
     html = html.replace("__LATEST__", latest_game)
@@ -427,10 +431,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
       <div class="fblock">
         <h3>종합 모멘텀 지수</h3>
-        <div class="eq">모멘텀 = 0.50·z(괴리율) + 0.25·z(구위+) + 0.25·z(타선+)</div>
-        <div class="note">단기 예측의 지배 신호는 '운의 되돌림'이라 괴리율에 절반, 투타 실력에 각 1/4.
+        <div class="eq">모멘텀 = __MOMENTUM_EQ__</div>
+        <div class="note">가중치는 2021~2025 5시즌 point-in-time 백테스트로 정했습니다.
+          과거 승률을 통제했을 때 구위 항의 기여(편상관 +0.08~0.13)가
+          괴리율(+0.03~0.06)의 2~3배라, 예전의 '괴리율 0.5' 배분을 뒤집었습니다.
           '선발 로테이션' 토글을 켜면 구위+가 선발진 K-Stuff+로 교체됩니다.
-          가중치는 출발점일 뿐 — 백테스트로 캘리브레이션 대상.</div>
+          단, 절대 예측력은 여전히 약합니다(미래 R² 0.02~0.05) — 단기 야구의 한계.</div>
       </div>
 
       <div class="fblock">
@@ -602,7 +608,7 @@ function render() {
     gapC.textContent = (s.gap >= 0 ? "+" : "") + s.gap.toFixed(3);
     gapC.className = "c-gap " + (s.gap > TH ? "pos" : (s.gap < -TH ? "neg" : ""));
     tr.querySelector(".c-stuff").textContent = (rot ? meta[c].stuffRot : meta[c].stuffAll).toFixed(1);
-    const mom = 0.5 * zGap[c] + 0.25 * zStuff[c] + 0.25 * zBat[c];
+    const mom = __W_GAP__ * zGap[c] + __W_STUFF__ * zStuff[c] + __W_BAT__ * zBat[c];
     calc[c].mom = mom;
     const momC = tr.querySelector(".c-mom");
     momC.textContent = (mom >= 0 ? "+" : "") + mom.toFixed(2);

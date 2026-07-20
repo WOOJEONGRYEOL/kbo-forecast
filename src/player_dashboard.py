@@ -45,6 +45,8 @@ def _arsenal(details) -> list:
             "code": code, "group": d.get("group", ""),
             "usage": round(usage, 1),
             "stuff": round(d.get("k_stuff_v2", 0) or 0, 1),
+            "loc": round(d.get("k_location_v3", 0) or 0, 1),
+            "heart": round((d.get("heart_pct", 0) or 0) * 100, 1),
             "whiff": round((d.get("whiff", 0) or 0) * 100, 1),
             "speed": d.get("speed"),
         })
@@ -138,6 +140,13 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
             "era": _round(r["era"], 2), "fip": _round(r["fip"], 2),
             "gap": _round(r["era_fip_gap"], 2), "ip": _round(r["ip"], 1),
             "type": r["type"],
+            # 로케이션(Gap 축) — K-Location+ 와 구위·로케이션 격차
+            "loc": _round(r.get("k_location"), 1),
+            "locGap": _round(r.get("stuff_loc_gap"), 1),
+            "locType": r.get("loc_type", ""),
+            "heart": _round((r.get("heart_pct") or 0) * 100, 1),
+            "edge": _round((r.get("edge_pct") or 0) * 100, 1),
+            "waste": _round((r.get("waste_pct") or 0) * 100, 1),
             "whiff": _round((r.get("whiff_rate") or 0) * 100, 1),
             "csw": _round((r.get("csw_rate") or 0) * 100, 1),
             "speed": _round(r.get("avg_speed"), 1),
@@ -579,7 +588,7 @@ function renderArsenal(elId, d) {
     <div class="ars-row">
       <span class="ars-name">${a.group}</span>
       <span class="ars-bar"><span class="ars-fill" style="width:${(a.usage/max*100).toFixed(0)}%"></span></span>
-      <span class="ars-num">구사 ${a.usage}% · 구위 ${a.stuff} · 헛스윙 ${a.whiff}%</span>
+      <span class="ars-num">구사 ${a.usage}% · 구위 ${a.stuff} · 로케이션 ${a.loc} · 한가운데 ${a.heart}% · 헛스윙 ${a.whiff}%</span>
     </div>`).join("");
 }
 
@@ -606,7 +615,8 @@ const quad = new Chart(document.getElementById("quadChart"), {
     ctx.fillText("리그 평균 ERA " + DATA.lgEra, a.left + 6, ye - 6); ctx.restore(); }}]
 });
 attachRandomPick(quad, "pick_quad_info",
-  d => infoHtml(d, `이닝 ${d.ip} · ERA ${d.era} · FIP ${d.fip} · 구위+ ${d.stuff} · 제구+ ${d.control} · 평균구속 ${d.speed} · ${d.type}`),
+  d => infoHtml(d, `이닝 ${d.ip} · ERA ${d.era} · FIP ${d.fip} · 구위+ ${d.stuff} · 제구+ ${d.control} · 평균구속 ${d.speed} · ${d.type}`
+    + (d.loc != null ? `<br><span style="color:var(--muted)">로케이션+ ${d.loc} · Gap(구위−로케이션) ${d.locGap>0?'+':''}${d.locGap} · 한가운데 ${d.heart}% · 보더라인 ${d.edge}% — ${d.locType}</span>` : "")),
   d => renderArsenal("arsenal_quad", d));
 
 // ── ② ERA-FIP 격차 막대 ──
