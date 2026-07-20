@@ -15,6 +15,39 @@ import pandas as pd
 import config
 
 
+def print_standings_sim(table: pd.DataFrame, season: int) -> None:
+    """시즌 최종 순위 몬테카를로 결과를 콘솔에 출력합니다."""
+    played = int(table["played"].mean())
+    pct = played / 144 * 100
+    print("\n" + "=" * 92)
+    print(f"  KBO {season} 최종 순위 시뮬레이션  —  진행률 {pct:.0f}% "
+          f"(팀당 평균 {played}경기)")
+    print("=" * 92)
+    print(f"{'':2}{'팀':<12}{'현재승률':>8}{'피타강도':>8}{'잔여':>5}"
+          f"{'예상최종':>9}{'1위%':>7}{'가을%':>7}{'순위(중앙)':>9}{'90%구간':>10}")
+    print("-" * 92)
+    for i, (team, r) in enumerate(table.iterrows(), 1):
+        name = config.TEAM_NAMES.get(team, team)
+        band = f"{r['rank_lo']}~{r['rank_hi']}"
+        print(f"{i:>2}{name:<12}{r['cur_wpct']:>8.3f}{r['pyth']:>8.3f}"
+              f"{int(r['remaining']):>5}{r['proj_wpct']:>9.3f}"
+              f"{r['p_first']*100:>6.1f}%{r['p_playoff']*100:>6.1f}%"
+              f"{int(r['rank_median']):>7}{band:>12}")
+    print("-" * 92)
+    print("""
+[읽는 법]
+  피타강도  득실점 기반 피타고리안 기대승률 = 팀 실력 추정치 (log5 시뮬 입력)
+  예상최종  남은 경기를 강도대로 시뮬한 최종 승률의 평균 (20,000회)
+  1위 / 가을%  정규시즌 1위 / 5위 안(가을야구) 진입 확률
+  90%구간   시뮬 순위의 5~95% 범위. 좁으면 굳었고, 넓으면 아직 유동적
+
+  ※ 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원했습니다.
+    일정(날짜)이 아직 안 나와도 순위 확률에는 영향이 없습니다.
+  ※ 순위는 승률 서열이라 중위권(가을야구 경계)은 몇 승 차로 뒤집힙니다.
+    단정하지 말고 확률·구간으로 보세요.
+""")
+
+
 def print_report(df: pd.DataFrame, window: int) -> None:
     """콘솔에 팀별 단기 전력 진단표를 출력합니다."""
 

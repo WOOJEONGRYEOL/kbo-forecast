@@ -127,6 +127,39 @@ def _table_rows(standings: pd.DataFrame, logos: dict) -> str:
     return "".join(rows)
 
 
+def _standings_sim_rows(sim_table, logos) -> str:
+    """
+    최종 순위 시뮬 표의 행들을 만듭니다.
+    가을야구(top5) 확률을 막대 배경으로, 순위 90% 구간을 함께 보여줍니다.
+    """
+    if sim_table is None or sim_table.empty:
+        return ""
+    rows = []
+    for i, (team, r) in enumerate(sim_table.iterrows(), start=1):
+        name = config.TEAM_NAMES.get(team, team)
+        pf = r["p_first"] * 100
+        pp = r["p_playoff"] * 100
+        band = f"{int(r['rank_lo'])}~{int(r['rank_hi'])}"
+        # 가을야구 확률에 따른 막대 폭 (배경)
+        cut = TEAM_COLORS.get(team, "#4a90d9")
+        rows.append(f"""
+        <tr>
+          <td class="rank">{i}</td>
+          <td class="team"><img class="logo" src="{logos[team]}" alt="">{name}</td>
+          <td>{r['cur_wpct']:.3f}</td>
+          <td>{r['pyth']:.3f}</td>
+          <td>{r['proj_wpct']:.3f}</td>
+          <td>{pf:.0f}%</td>
+          <td class="barcell">
+            <div class="bar" style="width:{pp:.0f}%;background:{cut}"></div>
+            <span class="barlabel">{pp:.0f}%</span>
+          </td>
+          <td>{int(r['rank_median'])}</td>
+          <td class="muted">{band}</td>
+        </tr>""")
+    return "".join(rows)
+
+
 def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
     """선발 로테이션 카드: 팀별 선발진(이름·선발수·구위·주무기)."""
     if not rotation_detail:
@@ -149,14 +182,17 @@ def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
 
 
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
-                   rotation_detail: dict | None = None) -> Path:
+                   rotation_detail: dict | None = None,
+                   standings: "pd.DataFrame | None" = None) -> Path:
     """
     대시보드 HTML을 data/dashboard.html 로 저장하고 경로를 돌려줍니다.
 
     df         : model.combine() 결과 (고정 지표 + 현재 순위)
     team_log   : 원시 팀 경기 로그 (JS 즉석 계산의 재료)
     window     : 슬라이더 초기값
+    standings  : standings_sim.run() 결과 (최종 순위 시뮬). None이면 카드 생략.
     """
+    sim_table = standings
     standings = df.sort_values("season_wpct", ascending=False)
     logos = logo_map()
     order = list(standings.index)
@@ -197,6 +233,7 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
+    html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
@@ -273,6 +310,11 @@ _TEMPLATE = r"""<!DOCTYPE html>
   td.diag { text-align: left; font-size: 12px; }
   td.rank { color: var(--muted); }
   td.team { font-weight: 600; }
+  td.muted { color: var(--muted); }
+  td.barcell { position: relative; min-width: 90px; }
+  td.barcell .bar { position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    height: 18px; border-radius: 3px; opacity: 0.35; }
+  td.barcell .barlabel { position: relative; font-variant-numeric: tabular-nums; }
   .pos { color: var(--green); font-weight: 700; }
   .neg { color: var(--red); font-weight: 700; }
   .logo { width: 20px; height: 20px; object-fit: contain; margin-right: 8px; vertical-align: -5px; }
@@ -397,6 +439,25 @@ _TEMPLATE = r"""<!DOCTYPE html>
       <tbody>__TABLE_ROWS__</tbody>
     </table>
     </div>
+  </div>
+
+  <div class="card wide" id="standingsSimCard">
+    <h2>🏁 시즌 최종 순위 예측 <span style="color:var(--muted);font-weight:400">— 몬테카를로 20,000회</span></h2>
+    <p class="hint">잔여 매치업을 'KBO 팀당 상대별 16경기' 규칙으로 복원해, 남은 경기를
+      팀 강도(피타고리안)대로 시뮬한 결과. <b>단기 예측(다음 10경기)은 못 맞춰도
+      최종 순위는 잘 맞습니다</b> — 5시즌 백테스트 스피어만 0.80(61% 시점)~0.92(75% 시점).
+      막대 = 가을야구(5위 안) 확률.</p>
+    <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>#</th><th>팀</th><th>현재승률</th><th>피타강도</th><th>예상최종</th>
+        <th>1위%</th><th>가을야구%</th><th>순위(중앙)</th><th>90%구간</th>
+      </tr></thead>
+      <tbody>__STANDINGS_ROWS__</tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin-top:8px">※ 순위는 승률 서열이라 중위권(가을야구 경계)은 몇 승 차로 뒤집힙니다.
+      단정 대신 확률·구간으로 보세요. 잔여 일정(날짜)이 아직 안 나와도 순위 확률엔 영향 없습니다.</p>
   </div>
 
   <div class="card">

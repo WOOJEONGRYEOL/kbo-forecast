@@ -32,6 +32,7 @@ import kbostuff_client
 import model
 import naver_games
 import report
+import standings_sim
 
 
 def main() -> None:
@@ -49,6 +50,8 @@ def main() -> None:
     parser.add_argument("--matchup-backtest", action="store_true",
                         help="선발 매치업(구위차)이 팀 폼보다 개별 경기를 "
                              "잘 맞추는지 검증 (당일 카드 go/no-go)")
+    parser.add_argument("--standings-sim", action="store_true",
+                        help="시즌 최종 순위 몬테카를로 시뮬 (잔여 매치업 복원)")
     parser.add_argument("--seasons", type=int, nargs="+",
                         default=[2021, 2022, 2023, 2024, 2025],
                         help="--skill-backtest에 쓸 시즌들 "
@@ -98,6 +101,16 @@ def main() -> None:
             backtest.print_matchup_report(g, box, gl, label=f"— {s}")
         return
 
+    # 최종 순위 시뮬: 경기 결과만 있으면 됩니다.
+    if args.standings_sim:
+        games = naver_games.filter_official_teams(
+            naver_games.filter_regular_season(
+                naver_games.fetch_season_games(args.season)))
+        team_log = naver_games.build_team_game_log(games)
+        table = standings_sim.run(games, team_log)
+        report.print_standings_sim(table, args.season)
+        return
+
     # ── 1단계: 경기 결과 수집 ──
     print(f"\n[1/4] {args.season} 시즌 경기 결과 수집 (네이버 스포츠 API)")
     games = naver_games.fetch_season_games(args.season)
@@ -132,6 +145,11 @@ def main() -> None:
     season_sum = model.season_summary(team_log)
     result = model.combine(pythag, season_sum, pitching, batting, team_fcb,
                            pitching_rot)
+    # 최종 순위 시뮬 (잔여 매치업 복원 + 몬테카를로)
+    sim_table = standings_sim.run(games, team_log)
+    print(f"  → 최종 순위 시뮬 완료 (1위 유력: "
+          f"{config.TEAM_NAMES.get(sim_table.index[0], sim_table.index[0])} "
+          f"{sim_table.iloc[0]['p_first']*100:.0f}%)")
 
     # ── 4단계: 리포트 (콘솔 + CSV + HTML 대시보드) ──
     print("\n[4/4] 리포트 생성")
@@ -142,7 +160,8 @@ def main() -> None:
     # 대시보드는 원시 경기 로그를 받아 JS에서 임의 윈도우로 즉석 계산합니다
     # (슬라이더로 경기 수를 자유롭게 바꾸는 인터랙션을 위해)
     html_path = dashboard.save_dashboard(result, team_log, window=args.window,
-                                         rotation_detail=rotation_detail)
+                                         rotation_detail=rotation_detail,
+                                         standings=sim_table)
     print(f"대시보드 저장 완료 → {html_path}")
     print("  (브라우저에서 열기: open " + str(html_path) + ")\n")
 
