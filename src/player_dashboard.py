@@ -248,6 +248,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .nav a:hover { color: var(--text); border-color: #3a4560; }
   .nav a.active { background: var(--green); color: #0b0e14; border-color: var(--green); }
   .nav a.home { font-weight: 400; padding: 7px 12px; }
+  .refresh-btn { margin-left: auto; padding: 7px 14px; border-radius: 999px; font-size: 13px;
+    font-weight: 700; border: 1px solid #3a4560; color: var(--text); background: var(--card);
+    cursor: pointer; font-family: inherit; }
+  .refresh-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+  .refresh-btn:disabled { opacity: 0.55; cursor: progress; }
+  .refresh-msg { font-size: 12px; color: var(--muted); align-self: center; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--line);
@@ -333,6 +339,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a class="active" href="players.html">🧢 선수 평가</a>
+  <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
+  <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO __SEASON__ 선수 평가 대시보드</h1>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
@@ -499,6 +507,38 @@ FIP = (13×피홈런 + 3×(볼넷+사구) − 2×삼진) ÷ 이닝 + C</div>
 </div>
 
 <script>
+// ── 🔄 수동 갱신 (serve.py 로컬 서버가 있을 때만 작동) ──
+(function () {
+  const b = document.getElementById("btnRefresh");
+  const m = document.getElementById("refreshMsg");
+  if (!b) return;
+  b.onclick = async () => {
+    try {
+      b.disabled = true;
+      m.textContent = "갱신 중… 최신 경기 반영 (1~2분)";
+      const r = await fetch("/refresh", { method: "POST" });
+      if (!r.ok) throw new Error();
+    } catch (e) {
+      b.disabled = false;
+      m.textContent = "⚠️ 갱신은 바탕화면 런처로 열었을 때만 됩니다 (file:// 은 불가)";
+      return;
+    }
+    const poll = setInterval(async () => {
+      let s;
+      try { s = await (await fetch("/status")).json(); } catch (e) { return; }
+      if (s.status === "done") {
+        clearInterval(poll);
+        m.textContent = "✅ 완료! 새로고침합니다…";
+        setTimeout(() => location.reload(), 600);
+      } else if (s.status === "error") {
+        clearInterval(poll);
+        b.disabled = false;
+        m.textContent = "❌ 오류: " + (s.message || "파이프라인 실패");
+      }
+    }, 2000);
+  };
+})();
+
 const DATA = __DATA__;
 Chart.defaults.color = "#8a94a8";
 Chart.defaults.borderColor = "#2a3345";
