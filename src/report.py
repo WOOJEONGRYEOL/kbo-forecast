@@ -16,35 +16,40 @@ import config
 
 
 def print_standings_sim(table: pd.DataFrame, season: int) -> None:
-    """시즌 최종 순위 몬테카를로 결과를 콘솔에 출력합니다."""
+    """우승·가을야구 확률 시뮬 결과를 콘솔에 출력합니다."""
     played = int(table["played"].mean())
     pct = played / 144 * 100
+    cur_rank = table["cur_wpct"].rank(ascending=False, method="min")
+    pyth_rank = table["pyth"].rank(ascending=False, method="min")
     print("\n" + "=" * 92)
-    print(f"  KBO {season} 최종 순위 시뮬레이션  —  진행률 {pct:.0f}% "
+    print(f"  KBO {season} 우승·가을야구 확률  —  진행률 {pct:.0f}% "
           f"(팀당 평균 {played}경기)")
     print("=" * 92)
-    print(f"{'':2}{'팀':<12}{'현재승률':>8}{'피타강도':>8}{'잔여':>5}"
-          f"{'예상최종':>9}{'1위%':>7}{'가을%':>7}{'순위(중앙)':>9}{'90%구간':>10}")
+    print(f"{'예상#':>4} {'팀':<12}{'우승%':>7}{'가을%':>7}{'90%구간':>9}"
+          f"   {'득실점 평가(현재순위 대비)':<20}")
     print("-" * 92)
     for i, (team, r) in enumerate(table.iterrows(), 1):
         name = config.TEAM_NAMES.get(team, team)
         band = f"{r['rank_lo']}~{r['rank_hi']}"
-        print(f"{i:>2}{name:<12}{r['cur_wpct']:>8.3f}{r['pyth']:>8.3f}"
-              f"{int(r['remaining']):>5}{r['proj_wpct']:>9.3f}"
-              f"{r['p_first']*100:>6.1f}%{r['p_playoff']*100:>6.1f}%"
-              f"{int(r['rank_median']):>7}{band:>12}")
+        cur = int(cur_rank[team])
+        pyr = int(pyth_rank[team])
+        delta = cur - pyr
+        tag = (f"▲ 저평가 (득실점은 {pyr}위급)" if delta >= 1
+               else f"▼ 고평가 (득실점은 {pyr}위급)" if delta <= -1 else "—")
+        print(f"{i:>4} {name:<12}{r['p_first']*100:>6.1f}%{r['p_playoff']*100:>6.1f}%"
+              f"{band:>9}   {tag:<20}")
     print("-" * 92)
     print("""
-[읽는 법]
-  피타강도  득실점 기반 피타고리안 기대승률 = 팀 실력 추정치 (log5 시뮬 입력)
-  예상최종  남은 경기를 강도대로 시뮬한 최종 승률의 평균 (20,000회)
-  1위 / 가을%  정규시즌 1위 / 5위 안(가을야구) 진입 확률
-  90%구간   시뮬 순위의 5~95% 범위. 좁으면 굳었고, 넓으면 아직 유동적
-
-  ※ 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원했습니다.
-    일정(날짜)이 아직 안 나와도 순위 확률에는 영향이 없습니다.
-  ※ 순위는 승률 서열이라 중위권(가을야구 경계)은 몇 승 차로 뒤집힙니다.
-    단정하지 말고 확률·구간으로 보세요.
+[이 표를 어떻게 읽나 — 정직 코너]
+  순위 '서열' 자체는 시즌 중반 이후엔 이미 현재 순위와 거의 같습니다.
+  (백테스트: 61% 진행 시점이면 현재 순위만으로도 스피어만 0.82 — 시뮬이
+   서열을 더 맞히지는 못합니다.) 그래서 이 표의 값어치는 서열이 아니라:
+    · 우승 / 가을야구(5위 안) 진출 '확률'          ← 순위표엔 없는 정보
+    · 90% 구간이 좁으면 확정적, 넓으면 아직 유동적   ← 불확실성 정량화
+    · ▲저평가 / ▼고평가 = 득실점 기준으로 현재 순위와 다르게 평가되는 팀
+      (▲는 반등 여지, ▼는 거품 주의)
+  예측 가치는 '시즌 초반'일수록 큽니다(운을 걷어내므로). 잔여 매치업은
+  'KBO 팀당 상대별 16경기' 규칙으로 복원 — 일정(날짜)이 없어도 확률 불변.
 """)
 
 

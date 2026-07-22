@@ -129,33 +129,43 @@ def _table_rows(standings: pd.DataFrame, logos: dict) -> str:
 
 def _standings_sim_rows(sim_table, logos) -> str:
     """
-    최종 순위 시뮬 표의 행들을 만듭니다.
-    가을야구(top5) 확률을 막대 배경으로, 순위 90% 구간을 함께 보여줍니다.
+    확률 카드의 행들을 만듭니다. 순위 서열은 현재 순위와 거의 같으므로,
+    강조점은 (1) 우승·가을야구 확률 (2) 90% 구간의 불확실성 (3) 득실점
+    기준으로 현재 순위와 '다르게' 평가되는 팀(저평가/고평가)에 둡니다.
     """
     if sim_table is None or sim_table.empty:
         return ""
+    # 현재 승률 순위 vs 피타고리안(득실점 강도) 순위 — 이 차이가 저평가/고평가
+    cur_rank = sim_table["cur_wpct"].rank(ascending=False, method="min")
+    pyth_rank = sim_table["pyth"].rank(ascending=False, method="min")
     rows = []
     for i, (team, r) in enumerate(sim_table.iterrows(), start=1):
         name = config.TEAM_NAMES.get(team, team)
         pf = r["p_first"] * 100
         pp = r["p_playoff"] * 100
         band = f"{int(r['rank_lo'])}~{int(r['rank_hi'])}"
-        # 가을야구 확률에 따른 막대 폭 (배경)
+        cur = int(cur_rank[team])
+        pyr = int(pyth_rank[team])
+        # 득실점 강도가 현재 승률 순위보다 높으면(위) 저평가, 낮으면 고평가
+        delta = cur - pyr
+        if delta >= 1:
+            valu = f'<span class="pos">▲ 저평가 (득실점은 {pyr}위급)</span>'
+        elif delta <= -1:
+            valu = f'<span class="neg">▼ 고평가 (득실점은 {pyr}위급)</span>'
+        else:
+            valu = '<span class="muted">—</span>'
         cut = TEAM_COLORS.get(team, "#4a90d9")
         rows.append(f"""
         <tr>
           <td class="rank">{i}</td>
           <td class="team"><img class="logo" src="{logos[team]}" alt="">{name}</td>
-          <td>{r['cur_wpct']:.3f}</td>
-          <td>{r['pyth']:.3f}</td>
-          <td>{r['proj_wpct']:.3f}</td>
-          <td>{pf:.0f}%</td>
+          <td><b>{pf:.0f}%</b></td>
           <td class="barcell">
             <div class="bar" style="width:{pp:.0f}%;background:{cut}"></div>
             <span class="barlabel">{pp:.0f}%</span>
           </td>
-          <td>{int(r['rank_median'])}</td>
           <td class="muted">{band}</td>
+          <td style="text-align:left;font-size:12px">{valu}</td>
         </tr>""")
     return "".join(rows)
 
@@ -450,22 +460,23 @@ _TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <div class="card wide" id="standingsSimCard">
-    <h2>🏁 시즌 최종 순위 예측 <span style="color:var(--muted);font-weight:400">— 몬테카를로 20,000회</span></h2>
-    <p class="hint">잔여 매치업을 'KBO 팀당 상대별 16경기' 규칙으로 복원해, 남은 경기를
-      팀 강도(피타고리안)대로 시뮬한 결과. <b>단기 예측(다음 10경기)은 못 맞춰도
-      최종 순위는 잘 맞습니다</b> — 5시즌 백테스트 스피어만 0.80(61% 시점)~0.92(75% 시점).
-      막대 = 가을야구(5위 안) 확률.</p>
+    <h2>🎲 우승·가을야구 확률 <span style="color:var(--muted);font-weight:400">— 몬테카를로 20,000회</span></h2>
+    <p class="hint"><b>순위 서열 자체는 이미 현재 순위와 거의 같습니다</b>(시즌 중반 이후). 그래서 이 카드는
+      순위를 '맞히는' 게 아니라 순위표에 <b>없는 3가지</b>를 보여줍니다:
+      ① <b>우승·가을야구 진출 확률</b> ② <b>얼마나 굳었나</b>(90% 구간이 좁을수록 확정적)
+      ③ 득실점 기준으로 현재 순위와 <b>다르게 평가되는 팀</b>(<span class="pos">▲저평가</span>=반등 여지,
+      <span class="neg">▼고평가</span>=거품 주의). 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원했습니다.</p>
     <div class="table-scroll">
     <table>
       <thead><tr>
-        <th>#</th><th>팀</th><th>현재승률</th><th>피타강도</th><th>예상최종</th>
-        <th>1위%</th><th>가을야구%</th><th>순위(중앙)</th><th>90%구간</th>
+        <th>예상#</th><th>팀</th><th>우승%</th><th>가을야구%</th><th>순위 90%구간</th><th>득실점 평가</th>
       </tr></thead>
       <tbody>__STANDINGS_ROWS__</tbody>
     </table>
     </div>
-    <p class="hint" style="margin-top:8px">※ 순위는 승률 서열이라 중위권(가을야구 경계)은 몇 승 차로 뒤집힙니다.
-      단정 대신 확률·구간으로 보세요. 잔여 일정(날짜)이 아직 안 나와도 순위 확률엔 영향 없습니다.</p>
+    <p class="hint" style="margin-top:8px">※ 예측력은 <b>시즌 초반일수록</b> 큽니다(운을 걷어내므로).
+      중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
+      잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
   </div>
 
   <div class="card">
