@@ -81,13 +81,11 @@
   .pick-info .nm { font-weight: 700; font-size: 14px; }
   .pick-info .meta { color: var(--muted); font-size: 12px; line-height: 1.5; }
   .radar-wrap { position: relative; height: 200px; margin-top: 6px; }
-  /* 투수 아스널 막대 */
-  .arsenal { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-  .ars-row { display: flex; align-items: center; gap: 9px; font-size: 11.5px; }
-  .ars-name { width: 82px; color: var(--text); flex: none; }
-  .ars-bar { flex: 1; height: 15px; background: #131a26; border-radius: 4px; overflow: hidden; }
-  .ars-fill { height: 100%; background: var(--blue); }
-  .ars-num { width: 150px; text-align: right; color: var(--muted); flex: none; }
+  /* 투수 아스널 도넛 */
+  .arsenal-wrap { position: relative; height: 200px; margin-top: 10px; }
+  .ars-detail { margin-top: 8px; font-size: 12px; color: var(--muted);
+    text-align: center; min-height: 34px; line-height: 1.5; }
+  .ars-hint { color: #5b647a; font-size: 11px; }
 
   /* ── 모바일(좁은 폰) 최적화 ── */
   @media (max-width: 560px) {
@@ -121,7 +119,7 @@
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO 2026 선수 평가 대시보드</h1>
-<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-22 23:14 KST · <b>2026-07-22 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-22 23:38 KST · <b>2026-07-22 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
   투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 · 리그 평균 ERA 4.60 ·
   <b>지표 이름 호버=공식, 그래프 클릭=랜덤 선수 상세</b></div>
 
@@ -134,7 +132,8 @@
     <div class="chart-box"><canvas id="quadChart"></canvas></div>
     <div class="pick">
       <div class="pick-info" id="pick_quad_info"></div>
-      <div class="arsenal" id="arsenal_quad"></div>
+      <div class="arsenal-wrap"><canvas id="arsenal_quad"></canvas></div>
+      <div class="ars-detail" id="arsenal_detail"></div>
     </div>
   </div>
 
@@ -397,17 +396,79 @@ function updateRadar(radar, d) {
   radar.data.datasets[0].pointBackgroundColor = d.color;
   radar.update();
 }
-// 투수 아스널 막대 렌더
-function renderArsenal(elId, d) {
-  const el = document.getElementById(elId);
-  if (!d.arsenal || !d.arsenal.length) { el.innerHTML = ""; return; }
-  const max = Math.max(...d.arsenal.map(a => a.usage));
-  el.innerHTML = d.arsenal.map(a => `
-    <div class="ars-row">
-      <span class="ars-name">${a.group}</span>
-      <span class="ars-bar"><span class="ars-fill" style="width:${(a.usage/max*100).toFixed(0)}%"></span></span>
-      <span class="ars-num">구사 ${a.usage}% · 구위 ${a.stuff} · 로케이션 ${a.loc} · 한가운데 ${a.heart}% · 헛스윙 ${a.whiff}%</span>
-    </div>`).join("");
+// ── 투수 아스널 도넛 ──
+// 슬라이스 = 구종별 구사율, 가운데 = 투수 유형, 호버/클릭 = 그 구종의 효율
+const PITCH_NAME = { FF:"포심", FA:"직구", FT:"투심", SI:"싱커", FC:"커터",
+  SL:"슬라이더", ST:"스위퍼", CU:"커브", KC:"너클커브", SV:"슬러브",
+  CH:"체인지업", FS:"스플리터", FO:"포크", SC:"스크류", EP:"이퍼스", KN:"너클볼" };
+const PITCH_COLOR = { FF:"#e6543c", FA:"#e6543c", FT:"#e8874a", SI:"#e8a04a",
+  FC:"#d4a24a", SL:"#4a90d9", ST:"#5bc0de", CU:"#7b6cd9", KC:"#9a6cd9",
+  SV:"#6a7ad9", CH:"#45b97c", FS:"#3ba58a", FO:"#3ba58a", SC:"#2fa39a",
+  EP:"#8891a5", KN:"#8891a5" };
+const _fallbackPal = ["#4a90d9","#e6543c","#45b97c","#e8a04a","#7b6cd9","#5bc0de","#d4a24a"];
+function pitchName(a) { return PITCH_NAME[a.code] || a.group || a.code; }
+function pitchColor(a, i) { return PITCH_COLOR[a.code] || _fallbackPal[i % _fallbackPal.length]; }
+
+// 도넛 가운데에 투수 유형을 그리는 플러그인
+const arsenalCenter = { id: "arsenalCenter", afterDraw(ch) {
+  const t = ch.$centerText; if (!t) return;
+  const { ctx, chartArea: { left, right, top, bottom } } = ch;
+  const cx = (left + right) / 2, cy = (top + bottom) / 2;
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#5b647a"; ctx.font = "10px sans-serif";
+  ctx.fillText("유형", cx, cy - 16);
+  ctx.fillStyle = "#e8ecf3"; ctx.font = "600 13px sans-serif";
+  ctx.fillText(t, cx, cy + 2);
+  ctx.restore();
+}};
+
+let arsenalChart = null;
+function renderArsenal(canvasId, detailId, d) {
+  const det = document.getElementById(detailId);
+  const A = (d.arsenal || []).slice().sort((a, b) => b.usage - a.usage);
+  if (!A.length) {
+    if (arsenalChart) { arsenalChart.destroy(); arsenalChart = null; }
+    if (det) det.innerHTML = "";
+    return;
+  }
+  const colors = A.map((a, i) => pitchColor(a, i));
+  const setDetail = i => {
+    const a = A[i];
+    det.innerHTML =
+      `<b style="color:${colors[i]}">${pitchName(a)}</b> · 구사 <b>${a.usage}%</b>`
+      + ` · 구위 ${a.stuff} · 로케이션 ${a.loc} · 헛스윙 ${a.whiff}% · 한가운데 ${a.heart}%`
+      + (a.speed ? ` · ${a.speed}km/h` : "")
+      + `<br><span class="ars-hint">구종 조각에 마우스를 올리면(모바일은 탭) 그 구종의 효율이 바뀝니다</span>`;
+  };
+  if (!arsenalChart) {
+    arsenalChart = new Chart(document.getElementById(canvasId), {
+      type: "doughnut",
+      data: { labels: A.map(pitchName),
+        datasets: [{ data: A.map(a => a.usage), backgroundColor: colors,
+          borderColor: "#0e1420", borderWidth: 2, hoverOffset: 8 }] },
+      options: { maintainAspectRatio: false, cutout: "60%",
+        // 5초마다 자동 순환하므로 긴 부채꼴 애니메이션은 산만 → 짧게
+        animation: { duration: 300 },
+        onHover: (e, els) => { if (els && els.length) setDetail(els[0].index); },
+        onClick: (e, els) => { if (els && els.length) setDetail(els[0].index); },
+        plugins: {
+          legend: { position: "right",
+            labels: { color: "#b8c0d0", font: { size: 11 }, boxWidth: 12, padding: 8 } },
+          tooltip: { callbacks: { label: c => {
+            const a = A[c.dataIndex];
+            return `${pitchName(a)} 구사 ${a.usage}% · 구위 ${a.stuff} · 헛스윙 ${a.whiff}%`; } } }
+        } },
+      plugins: [arsenalCenter]
+    });
+  } else {
+    arsenalChart.data.labels = A.map(pitchName);
+    arsenalChart.data.datasets[0].data = A.map(a => a.usage);
+    arsenalChart.data.datasets[0].backgroundColor = colors;
+  }
+  // 가운데 유형: 괄호 설명은 떼고 핵심만 (예: "📈 억울한 투수")
+  arsenalChart.$centerText = d.type ? d.type.replace(/\s*\(.*\)\s*/, "") : "";
+  arsenalChart.update();
+  setDetail(0);   // 기본: 주무기(구사율 1위)
 }
 
 // ── ① 투수 사분면 ──
@@ -435,7 +496,7 @@ const quad = new Chart(document.getElementById("quadChart"), {
 attachRandomPick(quad, "pick_quad_info",
   d => infoHtml(d, `이닝 ${d.ip} · ERA ${d.era} · FIP ${d.fip} · 구위+ ${d.stuff} · 제구+ ${d.control} · 평균구속 ${d.speed} · ${d.type}`
     + (d.loc != null ? `<br><span style="color:var(--muted)">로케이션+ ${d.loc} · Gap(구위−로케이션) ${d.locGap>0?'+':''}${d.locGap} · 한가운데 ${d.heart}% · 보더라인 ${d.edge}% — ${d.locType}</span>` : "")),
-  d => renderArsenal("arsenal_quad", d));
+  d => renderArsenal("arsenal_quad", "arsenal_detail", d));
 
 // ── ② ERA-FIP 격차 막대 ──
 const victims = [...DATA.pitchers].sort((a,b) => b.gap - a.gap).slice(0, 12);
