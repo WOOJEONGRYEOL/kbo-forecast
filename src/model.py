@@ -159,13 +159,14 @@ def combine(pythag: pd.DataFrame,
     """
     모든 재료를 한 표로 합치고 '종합 모멘텀 지수'를 계산합니다.
 
-    종합 모멘텀 = 0.5 × z(괴리율)          ← 단기 운 요소 (반등/하락 에너지)
-               + 0.25 × z(팀 K-Stuff+)     ← 투수진의 순수 구위
-               + 0.25 × z(팀 타선 wRC+pure) ← 타선의 순수 생산력
+    종합 모멘텀 = W_GAP   × z(괴리율)          ← 단기 운 요소 (반등/하락 에너지)
+               + W_STUFF × z(팀 K-Stuff+)     ← 투수진의 순수 구위
+               + W_BAT   × z(팀 타선 wRC+pure) ← 타선의 순수 생산력
 
-    가중치 근거: 단기 예측에서는 '최근 폼과 운의 되돌림(regression)'이
-    가장 강한 신호라서 절반을 주고, 나머지 절반을 투타 실력에
-    균등 배분했습니다. 실측 검증 후 조절해 보세요. (README 참고)
+    가중치는 config.MOMENTUM_W_* 에 있습니다. 예전에는 "운의 되돌림이
+    가장 강한 신호일 것"이라는 가정으로 괴리율에 0.5를 주었으나,
+    2021~2025 백테스트 결과 구위 항이 괴리율의 2~3배 기여를 하는 것으로
+    나와 비중을 뒤집었습니다. 근거와 한계는 config.py의 주석 참고.
     """
     df = pythag.join(season)
     df["team_stuff_plus"] = pitching
@@ -182,9 +183,9 @@ def combine(pythag: pd.DataFrame,
 
     # 전체 투수진 기준 모멘텀 (기본)
     df["momentum"] = (
-        0.50 * _zscore(df["gap"])
-        + 0.25 * _zscore(df["team_stuff_plus"])
-        + 0.25 * _zscore(df["bat_wrc_pure"])
+        config.MOMENTUM_W_GAP * _zscore(df["gap"])
+        + config.MOMENTUM_W_STUFF * _zscore(df["team_stuff_plus"])
+        + config.MOMENTUM_W_BAT * _zscore(df["bat_wrc_pure"])
     )
 
     # 선발 로테이션 기준 모멘텀 (토글용).
@@ -193,9 +194,9 @@ def combine(pythag: pd.DataFrame,
     if pitching_rot is not None:
         df["team_stuff_rot"] = pitching_rot
         df["momentum_rot"] = (
-            0.50 * _zscore(df["gap"])
-            + 0.25 * _zscore(df["team_stuff_rot"])
-            + 0.25 * _zscore(df["bat_wrc_pure"])
+            config.MOMENTUM_W_GAP * _zscore(df["gap"])
+            + config.MOMENTUM_W_STUFF * _zscore(df["team_stuff_rot"])
+            + config.MOMENTUM_W_BAT * _zscore(df["bat_wrc_pure"])
         )
     else:
         df["team_stuff_rot"] = df["team_stuff_plus"]

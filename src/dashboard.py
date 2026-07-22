@@ -89,7 +89,7 @@ FORMULAS = {
     "타선+": "팀 타선 순수 wRC+ (타석수 가중평균, 파크팩터·비거리 보정, 100=리그평균).",
     "클러치": "FCB 팀 승리기여 합. ⚠️ 클러치는 잘 지속되지 않아 미래 예측이 아닌 "
               "'지금까지 승부처에 강했나'를 보여주는 설명형 지표(모멘텀 미반영).",
-    "모멘텀": "0.5×z(괴리율) + 0.25×z(구위+) + 0.25×z(타선+). z=표준점수. "
+    "모멘텀": f"{config.momentum_formula()}. z=표준점수. "
               "윈도우를 바꾸면 괴리율이 바뀌어 모멘텀도 실시간 재계산됩니다.",
     "진단": "괴리율이 ±0.05를 넘으면 반등/하락으로 판정.",
 }
@@ -127,6 +127,49 @@ def _table_rows(standings: pd.DataFrame, logos: dict) -> str:
     return "".join(rows)
 
 
+def _standings_sim_rows(sim_table, logos) -> str:
+    """
+    확률 카드의 행들을 만듭니다. 순위 서열은 현재 순위와 거의 같으므로,
+    강조점은 (1) 우승·가을야구 확률 (2) 90% 구간의 불확실성 (3) 득실점
+    기준으로 현재 순위와 '다르게' 평가되는 팀(저평가/고평가)에 둡니다.
+    """
+    if sim_table is None or sim_table.empty:
+        return ""
+    # 현재 승률 순위 vs 피타고리안(득실점 강도) 순위 — 이 차이가 저평가/고평가
+    cur_rank = sim_table["cur_wpct"].rank(ascending=False, method="min")
+    pyth_rank = sim_table["pyth"].rank(ascending=False, method="min")
+    rows = []
+    for i, (team, r) in enumerate(sim_table.iterrows(), start=1):
+        name = config.TEAM_NAMES.get(team, team)
+        pf = r["p_first"] * 100
+        pp = r["p_playoff"] * 100
+        band = f"{int(r['rank_lo'])}~{int(r['rank_hi'])}"
+        cur = int(cur_rank[team])
+        pyr = int(pyth_rank[team])
+        # 득실점 강도가 현재 승률 순위보다 높으면(위) 저평가, 낮으면 고평가
+        delta = cur - pyr
+        if delta >= 1:
+            valu = f'<span class="pos">▲ 저평가 (득실점은 {pyr}위급)</span>'
+        elif delta <= -1:
+            valu = f'<span class="neg">▼ 고평가 (득실점은 {pyr}위급)</span>'
+        else:
+            valu = '<span class="muted">—</span>'
+        cut = TEAM_COLORS.get(team, "#4a90d9")
+        rows.append(f"""
+        <tr>
+          <td class="rank">{i}</td>
+          <td class="team"><img class="logo" src="{logos[team]}" alt="">{name}</td>
+          <td><b>{pf:.0f}%</b></td>
+          <td class="barcell">
+            <div class="bar" style="width:{pp:.0f}%;background:{cut}"></div>
+            <span class="barlabel">{pp:.0f}%</span>
+          </td>
+          <td class="muted">{band}</td>
+          <td style="text-align:left;font-size:12px">{valu}</td>
+        </tr>""")
+    return "".join(rows)
+
+
 def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
     """선발 로테이션 카드: 팀별 선발진(이름·선발수·구위·주무기)."""
     if not rotation_detail:
@@ -149,14 +192,17 @@ def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
 
 
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
-                   rotation_detail: dict | None = None) -> Path:
+                   rotation_detail: dict | None = None,
+                   standings: "pd.DataFrame | None" = None) -> Path:
     """
     대시보드 HTML을 data/dashboard.html 로 저장하고 경로를 돌려줍니다.
 
     df         : model.combine() 결과 (고정 지표 + 현재 순위)
     team_log   : 원시 팀 경기 로그 (JS 즉석 계산의 재료)
     window     : 슬라이더 초기값
+    standings  : standings_sim.run() 결과 (최종 순위 시뮬). None이면 카드 생략.
     """
+    sim_table = standings
     standings = df.sort_values("season_wpct", ascending=False)
     logos = logo_map()
     order = list(standings.index)
@@ -197,8 +243,13 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
+    html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
+    html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
+    html = html.replace("__W_GAP__", str(config.MOMENTUM_W_GAP))
+    html = html.replace("__W_STUFF__", str(config.MOMENTUM_W_STUFF))
+    html = html.replace("__W_BAT__", str(config.MOMENTUM_W_BAT))
     html = html.replace("__SEASON__", str(config.SEASON))
     html = html.replace("__STAMP__", _gen_stamp())
     html = html.replace("__LATEST__", latest_game)
@@ -252,6 +303,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .nav a:hover { color: var(--text); border-color: #3a4560; }
   .nav a.active { background: var(--green); color: #0b0e14; border-color: var(--green); }
   .nav a.home { font-weight: 400; padding: 7px 12px; }
+  .refresh-btn { margin-left: auto; padding: 7px 14px; border-radius: 999px; font-size: 13px;
+    font-weight: 700; border: 1px solid #3a4560; color: var(--text); background: var(--card);
+    cursor: pointer; font-family: inherit; }
+  .refresh-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+  .refresh-btn:disabled { opacity: 0.55; cursor: progress; }
+  .refresh-msg { font-size: 12px; color: var(--muted); align-self: center; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card { background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 18px; min-width: 0; }  /* min-width:0 → 표 가로스크롤이 카드 안에서 작동 */
@@ -269,6 +326,11 @@ _TEMPLATE = r"""<!DOCTYPE html>
   td.diag { text-align: left; font-size: 12px; }
   td.rank { color: var(--muted); }
   td.team { font-weight: 600; }
+  td.muted { color: var(--muted); }
+  td.barcell { position: relative; min-width: 90px; }
+  td.barcell .bar { position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    height: 18px; border-radius: 3px; opacity: 0.35; }
+  td.barcell .barlabel { position: relative; font-variant-numeric: tabular-nums; }
   .pos { color: var(--green); font-weight: 700; }
   .neg { color: var(--red); font-weight: 700; }
   .logo { width: 20px; height: 20px; object-fit: contain; margin-right: 8px; vertical-align: -5px; }
@@ -354,6 +416,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a class="home" href="../index.html">🏠</a>
   <a class="active" href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
+  <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
+  <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO __SEASON__ 단기 전력 대시보드</h1>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
@@ -395,6 +459,26 @@ _TEMPLATE = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="card wide" id="standingsSimCard">
+    <h2>🎲 우승·가을야구 확률 <span style="color:var(--muted);font-weight:400">— 몬테카를로 20,000회</span></h2>
+    <p class="hint"><b>순위 서열 자체는 이미 현재 순위와 거의 같습니다</b>(시즌 중반 이후). 그래서 이 카드는
+      순위를 '맞히는' 게 아니라 순위표에 <b>없는 3가지</b>를 보여줍니다:
+      ① <b>우승·가을야구 진출 확률</b> ② <b>얼마나 굳었나</b>(90% 구간이 좁을수록 확정적)
+      ③ 득실점 기준으로 현재 순위와 <b>다르게 평가되는 팀</b>(<span class="pos">▲저평가</span>=반등 여지,
+      <span class="neg">▼고평가</span>=거품 주의). 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원했습니다.</p>
+    <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>예상#</th><th>팀</th><th>우승%</th><th>가을야구%</th><th>순위 90%구간</th><th>득실점 평가</th>
+      </tr></thead>
+      <tbody>__STANDINGS_ROWS__</tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin-top:8px">※ 예측력은 <b>시즌 초반일수록</b> 큽니다(운을 걷어내므로).
+      중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
+      잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
+  </div>
+
   <div class="card">
     <h2>종합 모멘텀 지수</h2>
     <p class="hint">막대가 길수록 단기 미래가 밝음. 현재 순위 순 (위=1위)</p>
@@ -427,10 +511,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
       <div class="fblock">
         <h3>종합 모멘텀 지수</h3>
-        <div class="eq">모멘텀 = 0.50·z(괴리율) + 0.25·z(구위+) + 0.25·z(타선+)</div>
-        <div class="note">단기 예측의 지배 신호는 '운의 되돌림'이라 괴리율에 절반, 투타 실력에 각 1/4.
+        <div class="eq">모멘텀 = __MOMENTUM_EQ__</div>
+        <div class="note">가중치는 2021~2025 5시즌 point-in-time 백테스트로 정했습니다.
+          과거 승률을 통제했을 때 구위 항의 기여(편상관 +0.08~0.13)가
+          괴리율(+0.03~0.06)의 2~3배라, 예전의 '괴리율 0.5' 배분을 뒤집었습니다.
           '선발 로테이션' 토글을 켜면 구위+가 선발진 K-Stuff+로 교체됩니다.
-          가중치는 출발점일 뿐 — 백테스트로 캘리브레이션 대상.</div>
+          단, 절대 예측력은 여전히 약합니다(미래 R² 0.02~0.05) — 단기 야구의 한계.</div>
       </div>
 
       <div class="fblock">
@@ -486,6 +572,38 @@ _TEMPLATE = r"""<!DOCTYPE html>
 </div>
 
 <script>
+// ── 🔄 수동 갱신 (serve.py 로컬 서버가 있을 때만 작동) ──
+(function () {
+  const b = document.getElementById("btnRefresh");
+  const m = document.getElementById("refreshMsg");
+  if (!b) return;
+  b.onclick = async () => {
+    try {
+      b.disabled = true;
+      m.textContent = "갱신 중… 최신 경기 반영 (1~2분)";
+      const r = await fetch("/refresh", { method: "POST" });
+      if (!r.ok) throw new Error();
+    } catch (e) {
+      b.disabled = false;
+      m.textContent = "⚠️ 갱신은 바탕화면 런처로 열었을 때만 됩니다 (file:// 은 불가)";
+      return;
+    }
+    const poll = setInterval(async () => {
+      let s;
+      try { s = await (await fetch("/status")).json(); } catch (e) { return; }
+      if (s.status === "done") {
+        clearInterval(poll);
+        m.textContent = "✅ 완료! 새로고침합니다…";
+        setTimeout(() => location.reload(), 600);
+      } else if (s.status === "error") {
+        clearInterval(poll);
+        b.disabled = false;
+        m.textContent = "❌ 오류: " + (s.message || "파이프라인 실패");
+      }
+    }, 2000);
+  };
+})();
+
 const DATA = __DATA__;
 Chart.defaults.color = "#8a94a8";
 Chart.defaults.borderColor = "#2a3345";
@@ -602,7 +720,7 @@ function render() {
     gapC.textContent = (s.gap >= 0 ? "+" : "") + s.gap.toFixed(3);
     gapC.className = "c-gap " + (s.gap > TH ? "pos" : (s.gap < -TH ? "neg" : ""));
     tr.querySelector(".c-stuff").textContent = (rot ? meta[c].stuffRot : meta[c].stuffAll).toFixed(1);
-    const mom = 0.5 * zGap[c] + 0.25 * zStuff[c] + 0.25 * zBat[c];
+    const mom = __W_GAP__ * zGap[c] + __W_STUFF__ * zStuff[c] + __W_BAT__ * zBat[c];
     calc[c].mom = mom;
     const momC = tr.querySelector(".c-mom");
     momC.textContent = (mom >= 0 ? "+" : "") + mom.toFixed(2);

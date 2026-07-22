@@ -59,6 +59,7 @@ def main() -> None:
     print(f"  → 투수 시즌 성적 {len(season_stats)}명 (박스스코어 합산)")
 
     stuff = kbostuff_client.fetch_pitching_metrics(args.season)
+    location = kbostuff_client.summarize_location(stuff)
     bat_metrics = kbostuff_client.fetch_batter_metrics(args.season)
     bat_wrc = kbostuff_client.fetch_batter_wrc(args.season)
     fcb = kbostuff_client.fetch_fcb(args.season)
@@ -67,7 +68,7 @@ def main() -> None:
 
     # ── 2. 평가 모델 ──
     print("\n[2/3] 평가 모델 계산")
-    pitchers = player_eval.evaluate_pitchers(season_stats, stuff)
+    pitchers = player_eval.evaluate_pitchers(season_stats, stuff, location)
     batters = player_eval.evaluate_batters(bat_metrics, bat_wrc, fcb)
     p_screens = player_eval.pitcher_screens(pitchers)
     b_screens = player_eval.batter_screens(batters)
@@ -87,6 +88,14 @@ def main() -> None:
     _print_screen("🛡️ 수비/운 피해자 (ERA − FIP > 0.7)",
                   p_screens["defense_victim"],
                   ["name", "team_name", "ip", "era", "fip", "era_fip_gap"])
+    _print_screen("🎯 제구만 잡으면 반등 (억울한 투수 중 구위≫로케이션 → 교정 여지)",
+                  p_screens["fixable"],
+                  ["name", "team_name", "era", "k_stuff_v2", "k_location",
+                   "stuff_loc_gap"])
+    _print_screen("⚠️ 한가운데 실투 경계 (heart% 높음 → 피장타 예비군)",
+                  p_screens["meatball"],
+                  ["name", "team_name", "era", "k_stuff_v2", "heart_pct",
+                   "waste_pct"])
 
     bcols = ["player_name", "team_name", "n_pa", "overall_plus",
              "babip", "luck", "wrc_plus_pure"]
