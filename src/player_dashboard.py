@@ -133,6 +133,7 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
 
     def pit_rec(r):
         return {
+            "pcode": str(r["pcode"]),
             "name": r["name"], "team": r["team"],
             "teamName": config.TEAM_NAMES.get(r["team"], r["team"]),
             "color": TEAM_COLORS.get(r["team"], "#888"),
@@ -155,6 +156,7 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
 
     def bat_rec(r):
         return {
+            "pcode": str(r["pcode"]),
             "name": r["player_name"], "team": r["team_code"],
             "teamName": config.TEAM_NAMES.get(r["team_code"], r["team_code"]),
             "color": TEAM_COLORS.get(r["team_code"], "#888"),
@@ -254,6 +256,23 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .refresh-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
   .refresh-btn:disabled { opacity: 0.55; cursor: progress; }
   .refresh-msg { font-size: 12px; color: var(--muted); align-self: center; }
+  /* 팀 토글 + 검색 필터바 */
+  .filterbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 14px; padding: 10px 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; }
+  .psearch { flex: 0 0 220px; padding: 7px 11px; border-radius: 8px;
+    border: 1px solid var(--line); background: #131a26; color: var(--text);
+    font-size: 13px; font-family: inherit; }
+  .psearch:focus { outline: none; border-color: var(--blue); }
+  .teamtoggles { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tbtn { padding: 3px; border: 1px solid var(--line); border-radius: 7px;
+    background: #131a26; cursor: pointer; line-height: 0; }
+  .tbtn img { width: 22px; height: 22px; object-fit: contain; display: block; }
+  .tbtn.off { opacity: 0.28; filter: grayscale(1); }
+  .tbtn-all { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--line); background: #131a26; color: var(--muted);
+    cursor: pointer; font-family: inherit; }
+  .tbtn-all:hover { color: var(--text); border-color: #3a4560; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--line);
@@ -344,6 +363,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
   투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 · 리그 평균 ERA __LG_ERA__ ·
   <b>지표 이름 호버=공식, 그래프 클릭=랜덤 선수 상세</b></div>
+
+<div class="filterbar">
+  <input id="playerSearch" class="psearch" type="search" placeholder="🔍 선수 이름 검색 (예: 오스틴)" autocomplete="off">
+  <div class="teamtoggles" id="teamToggles"></div>
+  <button id="teamAll" class="tbtn-all">전체</button>
+</div>
 
 <div class="grid">
 
@@ -570,25 +595,47 @@ const hlPlugin = {
 
 // 그래프 클릭 → 랜덤 선수(점 클릭 시 그 선수). 5초마다 자동 순환.
 // 선택된 선수는 상세 카드 + 그래프 하이라이트로 표시.
-function attachRandomPick(chart, infoId, fmt, onPick) {
+// source(전체 선수 배열) + buildPoint(선수→산점도 좌표)를 받아, 팀 토글·검색으로
+// 표시 대상(view)을 좁히거나 특정 선수를 포커스할 수 있는 컨트롤러를 돌려줍니다.
+function attachRandomPick(chart, infoId, source, buildPoint, fmt, onPick) {
   const info = document.getElementById(infoId);
-  const arr = chart.data.datasets[0].data;
+  let view = source.slice();
   let timer = null;
+  function apply() {
+    const ds = chart.data.datasets[0];
+    ds.data = view.map(buildPoint);
+    ds.pointBackgroundColor = view.map(p => p.color + "cc");
+    chart.update("none");
+  }
   function show(i) {
+    if (!view.length) {
+      chart._sel = -1;
+      info.innerHTML = '<div class="meta" style="padding:6px 0">표시할 선수가 없습니다 (팀/검색 필터 확인)</div>';
+      chart.update("none");
+      return;
+    }
+    i = ((i % view.length) + view.length) % view.length;
     chart._sel = i;
-    const d = arr[i];
+    const d = chart.data.datasets[0].data[i];
     info.innerHTML = fmt(d);
     if (onPick) onPick(d);
     chart.update("none");           // 애니메이션 없이 하이라이트만 갱신
   }
-  function rnd() { show(Math.floor(Math.random() * arr.length)); }
+  function rnd() { if (view.length) show(Math.floor(Math.random() * view.length)); }
   function restart() { clearInterval(timer); timer = setInterval(rnd, 5000); }
   chart.options.onClick = (e, els) => {
-    show((els && els.length) ? els[0].index : Math.floor(Math.random() * arr.length));
+    show((els && els.length) ? els[0].index : Math.floor(Math.random() * view.length));
     restart();                      // 수동 클릭하면 타이머 리셋
   };
-  rnd();       // 처음에 한 명
-  restart();   // 5초 자동 순환 시작
+  apply(); rnd(); restart();
+  return {
+    setView(v) { view = v; apply(); show(0); restart(); },   // 필터 적용
+    focus(pred) {                                            // 특정 선수 선택 + 자동순환 정지
+      const idx = view.findIndex(pred);
+      if (idx < 0) return false;
+      show(idx); clearInterval(timer); return true;
+    },
+  };
 }
 function infoHtml(d, lines) {
   return `<img src="${DATA.logos[d.team]}" alt="">
@@ -715,7 +762,8 @@ const quad = new Chart(document.getElementById("quadChart"), {
     ctx.fillStyle = "#8a94a8"; ctx.font = "11px sans-serif";
     ctx.fillText("리그 평균 ERA " + DATA.lgEra, a.left + 6, ye - 6); ctx.restore(); }}]
 });
-attachRandomPick(quad, "pick_quad_info",
+const quadCtl = attachRandomPick(quad, "pick_quad_info",
+  DATA.pitchers, p => ({x: p.stuff, y: p.era, r: rIp(p.ip), ...p}),
   d => infoHtml(d, `이닝 ${d.ip} · ERA ${d.era} · FIP ${d.fip} · 구위+ ${d.stuff} · 제구+ ${d.control} · 평균구속 ${d.speed} · ${d.type}`
     + (d.loc != null ? `<br><span style="color:var(--muted)">로케이션+ ${d.loc} · Gap(구위−로케이션) ${d.locGap>0?'+':''}${d.locGap} · 한가운데 ${d.heart}% · 보더라인 ${d.edge}% — ${d.locType}</span>` : "")),
   d => renderArsenal("arsenal_quad", "arsenal_detail", d));
@@ -755,7 +803,8 @@ const batLuck = new Chart(document.getElementById("batLuckChart"), {
     ctx.fillText("리그 BABIP " + DATA.lgBabip, px + 5, a.top + 12); ctx.restore(); }}]
 });
 const radarLuck = makeRadar("radar_luck");
-attachRandomPick(batLuck, "pick_luck_info",
+const batLuckCtl = attachRandomPick(batLuck, "pick_luck_info",
+  bats, b => ({x: b.babip, y: b.woba, r: rPa(b.pa), ...b}),
   d => infoHtml(d, `타석 ${d.pa} · BABIP ${d.babip} · wOBA ${d.woba} · 종합+ ${d.overall} · 유인구스윙 ${d.chase}% · 컨택 ${d.contact}% · ${d.luckType}`),
   d => updateRadar(radarLuck, d));
 
@@ -781,9 +830,62 @@ const power = new Chart(document.getElementById("powerChart"), {
     ctx.restore(); }}]
 });
 const radarPower = makeRadar("radar_power");
-attachRandomPick(power, "pick_power_info",
+const powerCtl = attachRandomPick(power, "pick_power_info",
+  pw, b => ({x: b.power, y: b.hr, r: rPa(b.pa), ...b}),
   d => infoHtml(d, `타석 ${d.pa} · Power+ ${d.power} · HR+ ${d.hr} · ISO ${d.iso} · ${d.powerType}`),
   d => updateRadar(radarPower, d));
+
+// ── 팀 토글 + 선수 검색 + 링크 포커스 ──────────────────────
+(function setupFilters() {
+  // 팀 목록 (로고맵 순서 유지)
+  const ALL = Object.keys(DATA.logos).filter(t =>
+    DATA.pitchers.some(p => p.team === t) || DATA.batters.some(b => b.team === t));
+  const enabled = new Set(ALL);
+  let q = "";
+  const togglesEl = document.getElementById("teamToggles");
+  ALL.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "tbtn"; b.title = t;
+    b.innerHTML = `<img src="${DATA.logos[t]}" alt="${t}">`;
+    b.onclick = () => {
+      enabled.has(t) ? enabled.delete(t) : enabled.add(t);
+      b.classList.toggle("off", !enabled.has(t));
+      apply();
+    };
+    togglesEl.appendChild(b);
+  });
+  document.getElementById("teamAll").onclick = () => {
+    ALL.forEach(t => enabled.add(t));
+    [...togglesEl.children].forEach(c => c.classList.remove("off"));
+    document.getElementById("playerSearch").value = ""; q = "";
+    apply();
+  };
+  const se = document.getElementById("playerSearch");
+  se.addEventListener("input", () => { q = se.value.trim(); apply(); });
+
+  const ok = p => enabled.has(p.team) && (q === "" || p.name.includes(q));
+  function apply() {
+    const qv = DATA.pitchers.filter(ok);
+    const bv = bats.filter(ok);
+    const pv = pw.filter(ok);
+    quadCtl.setView(qv);
+    batLuckCtl.setView(bv);
+    powerCtl.setView(pv);
+    // 검색 중이면 첫 매치를 포커스(자동순환 정지)해 바로 보이게
+    if (q) {
+      if (qv.length) quadCtl.focus(p => p.name.includes(q));
+      if (bv.length) batLuckCtl.focus(p => p.name.includes(q));
+      if (pv.length) powerCtl.focus(p => p.name.includes(q));
+    }
+  }
+
+  // 팀 대시보드 로테이션 카드에서 넘어온 특정 투수 포커스 (?p=pcode)
+  const pc = new URLSearchParams(location.search).get("p");
+  if (pc && quadCtl.focus(p => p.pcode === pc)) {
+    const card = document.getElementById("quadChart").closest(".card");
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+})();
 
 // ── '더 보기' 토글 ──
 document.querySelectorAll(".more").forEach(btn => {

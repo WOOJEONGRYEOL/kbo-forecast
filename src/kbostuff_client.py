@@ -476,7 +476,7 @@ def summarize_location(pit: pd.DataFrame) -> pd.DataFrame:
     ⚠️ edge + heart + waste 는 1이 되지 않습니다 (2026 평균 합 0.70).
       나머지는 별도 구간이라, 세 값을 구성비로 정규화하면 틀립니다.
 
-    반환: pitcher_pcode, k_location, edge_pct, heart_pct, waste_pct, top_pitch
+    반환: pitcher_pcode, k_location, edge_pct, heart_pct, waste_pct
       (모두 구종별 투구 수 n 으로 가중평균)
     """
     rows = []
@@ -498,17 +498,39 @@ def summarize_location(pit: pd.DataFrame) -> pd.DataFrame:
             "edge_pct": wavg("edge_pct"),
             "heart_pct": wavg("heart_pct"),
             "waste_pct": wavg("waste_pct"),
-            "top_pitch": _top_pitch(d),
         })
     return pd.DataFrame(rows)
 
 
-def _top_pitch(details) -> str:
-    """구종 상세 JSON에서 구사율 1위 구종 그룹 이름을 뽑습니다."""
+# 구종 코드 → 한글 이름 (선수 대시보드 JS의 PITCH_NAME과 동일하게 유지)
+PITCH_KR = {
+    "FF": "포심", "FA": "직구", "FT": "투심", "SI": "싱커", "FC": "커터",
+    "SL": "슬라이더", "ST": "스위퍼", "CU": "커브", "KC": "너클커브",
+    "SV": "슬러브", "CH": "체인지업", "FS": "스플리터", "FO": "포크",
+    "SC": "스크류", "EP": "이퍼스", "KN": "너클볼",
+}
+
+
+def _out_pitch(details) -> dict:
+    """
+    투수의 '결정구'를 뽑습니다.
+
+    기존에는 구사율 1위 구종의 '그룹'(Fastball/Breaking…)을 반환해,
+    거의 모든 투수가 "패스트볼"로만 나와 변별력이 없었습니다. 야구에서
+    투수의 진짜 무기는 '헛스윙을 가장 많이 유발하는 구종(out pitch)'이므로,
+    충분히 던진 구종 중 whiff(헛스윙률)가 가장 높은 것을 결정구로 봅니다.
+
+    반환: {"name": 한글구종명, "whiff": 헛스윙률(%)}  또는 name="-"
+    """
     if not isinstance(details, dict) or not details:
-        return "-"
-    best = max(details.values(), key=lambda d: d.get("usage_pct", 0) or 0)
-    return best.get("group", "-")
+        return {"name": "-", "whiff": None}
+    # 표본이 될 만큼 던진 구종만(구사율 8%+). 없으면 전체에서.
+    cand = {c: d for c, d in details.items()
+            if (d.get("usage_pct", 0) or 0) >= 8} or details
+    code = max(cand, key=lambda c: cand[c].get("whiff", 0) or 0)
+    d = cand[code]
+    return {"name": PITCH_KR.get(code, d.get("group", code)),
+            "whiff": round((d.get("whiff", 0) or 0) * 100, 1)}
 
 
 def team_rotation(season: int, rotation: pd.DataFrame):
@@ -538,14 +560,16 @@ def team_rotation(season: int, rotation: pd.DataFrame):
 
     detail = {}
     for team, g in m.sort_values("starts", ascending=False).groupby("team"):
-        detail[team] = [
-            {
+        rows = []
+        for _, r in g.iterrows():
+            out = _out_pitch(r["pitch_type_details"])
+            rows.append({
+                "pcode": str(r["pcode"]),
                 "name": r["name"], "starts": int(r["starts"]),
                 "stuff": round(float(r["k_stuff_v2"]), 1),
-                "top": _top_pitch(r["pitch_type_details"]),
-            }
-            for _, r in g.iterrows()
-        ]
+                "out_pitch": out["name"], "out_whiff": out["whiff"],
+            })
+        detail[team] = rows
     return score, detail
 
 

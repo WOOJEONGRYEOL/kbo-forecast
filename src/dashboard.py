@@ -178,11 +178,22 @@ def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
     for team, r in standings.iterrows():
         name = config.TEAM_NAMES.get(team, team)
         starters = rotation_detail.get(team, [])
-        chips = "".join(
-            f'<div class="sp">{s["name"]} <span class="spx">선발 {s["starts"]}회 · '
-            f'구위 {s["stuff"]} · 주무기 {s["top"]}</span></div>'
-            for s in starters
-        ) or '<div class="spx">식별된 선발 없음</div>'
+
+        def _chip(s):
+            out = s.get("out_pitch", "-")
+            whiff = s.get("out_whiff")
+            wtxt = f" {whiff}%" if whiff is not None else ""
+            body = (f'{s["name"]} <span class="spx">선발 {s["starts"]}회 · '
+                    f'구위 {s["stuff"]} · 결정구 {out}{wtxt}</span>')
+            pcode = s.get("pcode")
+            # 투수 이름 클릭 → 선수 대시보드의 해당 투수 상세로
+            if pcode:
+                return (f'<a class="sp sp-link" href="players.html?p={pcode}" '
+                        f'title="{s["name"]} 상세 지표 보기">{body}</a>')
+            return f'<div class="sp">{body}</div>'
+
+        chips = "".join(_chip(s) for s in starters) \
+            or '<div class="spx">식별된 선발 없음</div>'
         cards.append(
             f'<div class="rot-team"><div class="rot-head">'
             f'<img class="logo" src="{logos[team]}" alt="">{name} '
@@ -364,6 +375,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .rot-head .logo { width: 17px; height: 17px; vertical-align: -4px; margin-right: 5px; }
   .rot-team .sp { font-size: 12px; padding: 3px 0; border-top: 1px solid #222a3a; }
   .rot-team .spx { color: var(--muted); font-size: 11px; font-weight: 400; }
+  a.sp-link { display: block; text-decoration: none; color: var(--text); }
+  a.sp-link:hover { color: var(--green); }
+  a.sp-link:hover .spx { color: var(--green); }
+  a.sp-link::after { content: " ›"; color: #5b647a; }
 
   /* 로고 범례 */
   .logo-legend { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 14px; }
