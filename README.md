@@ -117,6 +117,18 @@ Gemini 기획 대화의 [추천 1: 피칭 모델링]과 [추천 2: 타자 스킬
 |---|---|---|
 | 네이버 스포츠 API | 경기별 득점/실점/승패 | 공개 JSON API, 인증 불필요 |
 | kbostuff.app (KBO Talent) | K-Stuff+, Batter Metrics+, 순수 wRC+ | Supabase REST API (공개 anon 키) |
+| Statiz | WAR·oWAR·dWAR·불펜(세이브/홀드/FIP) | 별도 크롤러(외부) → `build_statiz.py`로 요약 커밋 |
+
+**Statiz 데이터 활용** — kbostuff엔 없는 **WAR·수비(dWAR)·불펜 개인 기록**을 보탭니다.
+Statiz 원본은 리포 밖(로그인·Cloudflare)이라, 필요한 열만 추린 스냅샷을
+`data/statiz_*.csv`·`data/bullpen_*.csv`로 커밋해 두고 파이프라인이 읽습니다
+(자동 갱신 아님 → 재크롤 시 `python build_statiz.py`). 이 데이터로 붙인 것:
+- **공격×수비 사분면**(oWAR×dWAR) — 수비 가치가 대시보드에 처음 등장.
+- **불펜 리더보드** — 마무리·셋업 식별, 릴리프 WAR, ERA-FIP 회귀 플래그.
+- **순위 카드 불펜 회귀 신호**(팀 불펜 ERA-FIP).
+> ⚠️ Statiz 팀 표기는 KIA·KT가 텍스트로 둘 다 'K'라 겹칩니다. 크롤러가
+> 팀 배경색(`TeamColor`)을 보존하도록 패치해 색으로 구분합니다(`build_statiz.py`
+> 의 색→팀코드 맵). 팀명 변경·소멸도 색으로 대응 가능.
 
 처음 기획에서 후보였던 **스탯티즈는 2026년 현재 일정 페이지가 로그인제로 바뀌었고**,
 KBO 공식 홈페이지의 Schedule 엔드포인트도 막혀 있어 위 조합으로 확정했습니다.

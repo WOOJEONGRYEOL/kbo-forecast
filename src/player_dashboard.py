@@ -124,6 +124,48 @@ def _more(n, tb):
     return f'<button class="more" data-tb="{tb}">＋ 더 보기 ({n - COLLAPSE_AT}명 더)</button>'
 
 
+def _load_statiz(season):
+    """
+    build_statiz.py가 만든 data/statiz_*.csv (Statiz WAR 스냅샷)를 읽어
+    대시보드 레코드로 만든다. 파일이 없으면(CI에 Statiz 없음) 빈 리스트 반환.
+
+    반환: (batters, relievers) — 각각 색·팀명이 붙은 dict 리스트
+    """
+    import csv as _csv
+
+    def _rows(name):
+        p = Path(config.DATA_DIR) / f"{name}_{season}.csv"
+        if not p.exists():
+            return []
+        return list(_csv.DictReader(open(p, encoding="utf-8-sig")))
+
+    def _dec(rows, fields):
+        out = []
+        for r in rows:
+            code = r["team"]
+            rec = {"name": r["name"], "team": code,
+                   "teamName": config.TEAM_NAMES.get(code, code),
+                   "color": TEAM_COLORS.get(code, "#888")}
+            for f in fields:
+                try:
+                    rec[f] = float(r[f])
+                except (ValueError, KeyError):
+                    rec[f] = r.get(f)
+            out.append(rec)
+        return out
+
+    bats = _dec(_rows("statiz_batters"),
+                ["pos", "owar", "dwar", "war", "pa", "wrcplus"])
+    for b in bats:
+        b["pa"] = int(b["pa"]) if b["pa"] is not None else 0
+    rel = _dec(_rows("statiz_relievers"),
+               ["war", "era", "fip", "ip", "g", "gf", "sv", "hd"])
+    for r in rel:
+        for k in ("g", "gf", "sv", "hd"):
+            r[k] = int(r[k]) if r.get(k) is not None else 0
+    return bats, rel
+
+
 def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
                           latest_game=None):
     """선수 평가 대시보드를 data/players.html 로 저장합니다.
@@ -178,6 +220,7 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
             "avgSrc": _round(r.get("avg_src_per_game"), 2),
         }
 
+    statiz_bats, relievers = _load_statiz(config.SEASON)
     data = {
         "generated": str(date.today()), "season": config.SEASON,
         "lgEra": round(lg_era, 2), "stuffHigh": 105, "stuffLow": 97,
@@ -185,6 +228,9 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
         "logos": logo_map(),
         "pitchers": [pit_rec(r) for _, r in pitchers.iterrows()],
         "batters": [bat_rec(r) for _, r in batters.iterrows()],
+        # Statiz WAR 스냅샷 (있을 때만; 없으면 빈 리스트 → 카드 자동 숨김)
+        "statizBatters": statiz_bats,
+        "relievers": relievers,
     }
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
@@ -411,6 +457,27 @@ _TEMPLATE = r"""<!DOCTYPE html>
       <div class="pick-info" id="pick_power_info"></div>
       <div class="radar-wrap"><canvas id="radar_power"></canvas></div>
     </div>
+  </div>
+
+  <div class="card" id="warQuadCard">
+    <h2>공격 × 수비 — <span class="tip" data-tip="oWAR: 공격으로 번 승리 기여. dWAR: 수비로 번 승리 기여. Statiz WAR 기준.">oWAR vs dWAR</span>
+      <span style="color:var(--muted);font-weight:400">— Statiz</span></h2>
+    <p class="hint">→공격 좋음 ↑수비 좋음. <b>오른쪽 위 = 공수겸장</b>, 오른쪽 아래 = 공격형(수비 구멍) ·
+      점 크기 = 타석 · <b>클릭 = 랜덤 타자</b>. kbostuff엔 없던 <b>수비 가치</b>가 처음 들어옵니다.
+      (PA≥100, 저표본 dWAR 노이즈 컷)</p>
+    <div class="chart-box"><canvas id="warQuadChart"></canvas></div>
+    <div class="pick"><div class="pick-info" id="pick_war_info"></div></div>
+  </div>
+
+  <div class="card wide" id="bullpenCard">
+    <h2><span class="badge">🔥</span>불펜 리더보드 <span style="color:var(--muted);font-weight:400">— 마무리·셋업 · 릴리프 WAR (Statiz)</span></h2>
+    <p class="hint">순수 불펜(선발 등판 0)만. 역할은 세이브(마무리)·홀드(셋업)로 판정.
+      <b>릴리프 WAR</b> 순. ERA와 FIP가 벌어진 투수는 회귀 후보 — ERA≪FIP는 곧 나빠질 위험, ERA≫FIP는 반등 여지.</p>
+    <div class="table-scroll">
+    <table><thead><tr><th>선수</th><th>팀</th><th>역할</th><th>WAR</th><th>ERA</th><th>FIP</th><th>이닝</th><th>세이브</th><th>홀드</th></tr></thead>
+    <tbody id="tb_bullpen"></tbody></table>
+    </div>
+    <button class="more" id="bullpenMore"></button>
   </div>
 
   <div class="card wide">
@@ -835,6 +902,69 @@ const powerCtl = attachRandomPick(power, "pick_power_info",
   d => infoHtml(d, `타석 ${d.pa} · Power+ ${d.power} · HR+ ${d.hr} · ISO ${d.iso} · ${d.powerType}`),
   d => updateRadar(radarPower, d));
 
+// ── ⑤ 공격 × 수비 (oWAR vs dWAR, Statiz) ──
+const sbats = DATA.statizBatters || [];
+let warQuadCtl = null;
+if (!sbats.length) {
+  const c = document.getElementById("warQuadCard"); if (c) c.style.display = "none";
+} else {
+  const rWar = b => 5 + Math.min(11, Math.max(0, (b.pa - 100) / 45));
+  const warQuad = new Chart(document.getElementById("warQuadChart"), {
+    type: "scatter",
+    data: { datasets: [{
+      data: sbats.map(b => ({x: b.owar, y: b.dwar, r: rWar(b), ...b})),
+      pointBackgroundColor: sbats.map(b => b.color + "cc"),
+      pointRadius: c => c.raw.r, pointHoverRadius: c => c.raw.r + 3 }]},
+    options: { maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c =>
+        `${c.raw.name}(${c.raw.team} ${c.raw.pos}) oWAR ${c.raw.x} / dWAR ${c.raw.y} / WAR ${c.raw.war}` }}},
+      scales: { x: { title: { display: true, text: "oWAR (공격 기여)" }, grid: { color: "#222a3a" } },
+        y: { title: { display: true, text: "dWAR (수비 기여)" }, grid: { color: "#222a3a" } } } },
+    plugins: [hlPlugin, { id: "warZero", afterDraw(ch) {
+      const {ctx, chartArea: a, scales: {y}} = ch; const py = y.getPixelForValue(0);
+      if (py < a.top || py > a.bottom) return;
+      ctx.save(); ctx.strokeStyle = "#3a4560"; ctx.setLineDash([5,5]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
+      ctx.fillStyle = "#8a94a8"; ctx.font = "11px sans-serif";
+      ctx.fillText("수비 평균(dWAR 0)", a.left + 5, py - 5); ctx.restore(); }}]
+  });
+  warQuadCtl = attachRandomPick(warQuad, "pick_war_info",
+    sbats, b => ({x: b.owar, y: b.dwar, r: rWar(b), ...b}),
+    d => infoHtml(d, `${d.pos} · ${d.pa}타석 · WAR ${d.war} (공격 ${d.owar} + 수비 ${d.dwar}) · wRC+ ${d.wrcplus}`
+      + ` — ${d.owar >= 2 && d.dwar >= 0.3 ? "💎 공수겸장" : d.owar >= 2 && d.dwar <= -0.3 ? "🏏 공격형(수비 구멍)"
+          : d.owar >= 2 ? "🏏 공격형" : d.dwar >= 0.5 ? "🧤 수비형" : "➖ 평범"}`));
+}
+
+// ── ⑥ 불펜 리더보드 (Statiz) ──
+(function bullpenBoard() {
+  const rel = (DATA.relievers || []).slice().sort((a, b) => b.war - a.war);
+  const card = document.getElementById("bullpenCard");
+  if (!rel.length) { if (card) card.style.display = "none"; return; }
+  const role = r => (r.sv >= 5 || (r.sv >= r.hd && r.sv >= 3)) ? "🔒 마무리"
+    : r.hd >= 5 ? "🅢 셋업" : "불펜";
+  const COLLAPSE = 12;
+  const tb = document.getElementById("tb_bullpen");
+  tb.innerHTML = rel.map((r, i) => {
+    const hide = i >= COLLAPSE ? ' class="row-hidden"' : "";
+    const gap = r.era - r.fip;
+    const flag = gap <= -0.5 ? ' <span class="neg" title="ERA≪FIP 회귀 경계">🔴</span>'
+      : gap >= 0.5 ? ' <span class="pos" title="ERA≫FIP 반등 여지">🔵</span>' : "";
+    return `<tr${hide}><td>${r.name}${flag}</td><td>${r.teamName}</td><td>${role(r)}</td>`
+      + `<td>${r.war.toFixed(2)}</td><td>${r.era.toFixed(2)}</td><td>${r.fip.toFixed(2)}</td>`
+      + `<td>${r.ip.toFixed(1)}</td><td>${r.sv || "-"}</td><td>${r.hd || "-"}</td></tr>`;
+  }).join("");
+  const more = document.getElementById("bullpenMore");
+  if (rel.length > COLLAPSE) {
+    more.textContent = `＋ 더 보기 (${rel.length - COLLAPSE}명 더)`;
+    const hidden = tb.querySelectorAll("tr.row-hidden");
+    more.onclick = () => {
+      const opening = hidden[0].style.display !== "table-row";
+      hidden.forEach(tr => { tr.style.display = opening ? "table-row" : "none"; });
+      more.textContent = opening ? "− 접기" : `＋ 더 보기 (${hidden.length}명 더)`;
+    };
+  } else { more.style.display = "none"; }
+})();
+
 // ── 팀 토글 + 선수 검색 + 링크 포커스 ──────────────────────
 (function setupFilters() {
   // 팀 목록 (로고맵 순서 유지)
@@ -868,14 +998,17 @@ const powerCtl = attachRandomPick(power, "pick_power_info",
     const qv = DATA.pitchers.filter(ok);
     const bv = bats.filter(ok);
     const pv = pw.filter(ok);
+    const wv = (DATA.statizBatters || []).filter(ok);
     quadCtl.setView(qv);
     batLuckCtl.setView(bv);
     powerCtl.setView(pv);
+    if (warQuadCtl) warQuadCtl.setView(wv);
     // 검색 중이면 첫 매치를 포커스(자동순환 정지)해 바로 보이게
     if (q) {
       if (qv.length) quadCtl.focus(p => p.name.includes(q));
       if (bv.length) batLuckCtl.focus(p => p.name.includes(q));
       if (pv.length) powerCtl.focus(p => p.name.includes(q));
+      if (warQuadCtl && wv.length) warQuadCtl.focus(p => p.name.includes(q));
     }
   }
 
