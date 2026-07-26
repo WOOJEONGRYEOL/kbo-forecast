@@ -34,8 +34,14 @@ def print_standings_sim(table: pd.DataFrame, season: int) -> None:
         cur = int(cur_rank[team])
         pyr = int(pyth_rank[team])
         delta = cur - pyr
-        tag = (f"▲ 저평가 (득실점은 {pyr}위급)" if delta >= 1
-               else f"▼ 고평가 (득실점은 {pyr}위급)" if delta <= -1 else "—")
+        tag = (f"▲ 저평가 (득실점 {pyr}위급)" if delta >= 1
+               else f"▼ 고평가 (득실점 {pyr}위급)" if delta <= -1 else "—")
+        bg = r.get("bullpen_gap")
+        if bg is not None and not pd.isna(bg):
+            if bg <= -0.30:
+                tag += f" · 🔴불펜회귀"
+            elif bg >= 0.30:
+                tag += f" · 🔵불펜반등"
         print(f"{i:>4} {name:<12}{r['p_first']*100:>6.1f}%{r['p_playoff']*100:>6.1f}%"
               f"{band:>9}   {tag:<20}")
     print("-" * 92)

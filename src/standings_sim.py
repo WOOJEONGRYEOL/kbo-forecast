@@ -27,6 +27,8 @@ standings_sim.py — 시즌 최종 순위 몬테카를로 시뮬레이터
   4. 1위 확률 / 가을야구(top5) 확률 / 순위 90% 구간을 산출
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -286,4 +288,25 @@ def run(games: list, team_log: pd.DataFrame,
     sim = simulate(rec, matchups, strength_col=strength_col, n_sims=n_sims)
     out = rec.join(sim)
     out["remaining"] = TOTAL_GAMES - out["played"]
+    out = out.join(load_bullpen_gap(config.SEASON))
     return out.sort_values("proj_wpct", ascending=False)
+
+
+# ERA−FIP 괴리가 이 값을 넘으면 '불펜 운/불운'으로 표시 (약 4점대 불펜 기준)
+BULLPEN_GAP_THRESHOLD = 0.30
+
+
+def load_bullpen_gap(season: int) -> pd.DataFrame:
+    """
+    data/bullpen_YYYY.csv (build_bullpen_summary.py 산출)에서 팀 불펜
+    ERA−FIP 괴리를 읽어옵니다. 파일이 없으면(예: GitHub Actions에 Statiz
+    데이터가 없을 때) 빈 컬럼으로 우아하게 생략합니다.
+
+    bullpen_gap < 0 : 불펜이 실력(FIP)보다 잘 막음 = 운 → 회귀 경계
+    bullpen_gap > 0 : 불펜이 실력보다 못 막음 = 불운 → 반등 여지
+    """
+    path = Path(config.DATA_DIR) / f"bullpen_{season}.csv"
+    if not path.exists():
+        return pd.DataFrame(columns=["bullpen_gap", "bullpen_era", "bullpen_fip"])
+    df = pd.read_csv(path).set_index("team")
+    return df[["bullpen_gap", "bullpen_era", "bullpen_fip"]]

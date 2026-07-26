@@ -9,3 +9,6 @@ __pycache__/
 data/*
 !data/dashboard.html
 !data/players.html
+# 불펜 요약: Statiz 파생 스냅샷. CI(GitHub Actions)엔 Statiz 원본이 없어
+# 재생성 불가하므로 캐시가 아니라 '필수 입력'으로 커밋한다.
+!data/bullpen_*.csv

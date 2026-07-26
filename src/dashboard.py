@@ -154,6 +154,17 @@ def _standings_sim_rows(sim_table, logos) -> str:
             valu = f'<span class="neg">▼ 고평가 (득실점은 {pyr}위급)</span>'
         else:
             valu = '<span class="muted">—</span>'
+        # 불펜 ERA−FIP 괴리: 실점 억제의 '운' 층위 (득실점 괴리와 별개)
+        bg = r.get("bullpen_gap")
+        if bg is not None and not pd.isna(bg):
+            if bg <= -0.30:
+                valu += (f'<br><span class="neg">🔴 불펜 회귀 경계</span>'
+                         f'<span class="muted"> (ERA {r["bullpen_era"]:.2f}'
+                         f' ≪ FIP {r["bullpen_fip"]:.2f})</span>')
+            elif bg >= 0.30:
+                valu += (f'<br><span class="pos">🔵 불펜 반등 여지</span>'
+                         f'<span class="muted"> (ERA {r["bullpen_era"]:.2f}'
+                         f' ≫ FIP {r["bullpen_fip"]:.2f})</span>')
         cut = TEAM_COLORS.get(team, "#4a90d9")
         rows.append(f"""
         <tr>
@@ -480,7 +491,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
       순위를 '맞히는' 게 아니라 순위표에 <b>없는 3가지</b>를 보여줍니다:
       ① <b>우승·가을야구 진출 확률</b> ② <b>얼마나 굳었나</b>(90% 구간이 좁을수록 확정적)
       ③ 득실점 기준으로 현재 순위와 <b>다르게 평가되는 팀</b>(<span class="pos">▲저평가</span>=반등 여지,
-      <span class="neg">▼고평가</span>=거품 주의). 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원했습니다.</p>
+      <span class="neg">▼고평가</span>=거품 주의)과 <b>불펜 운</b>(<span class="neg">🔴</span>ERA≪FIP 회귀 경계,
+      <span class="pos">🔵</span>ERA≫FIP 반등 여지 · Statiz). 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원.</p>
     <div class="table-scroll">
     <table>
       <thead><tr>
