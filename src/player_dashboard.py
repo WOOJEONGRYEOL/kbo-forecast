@@ -638,23 +638,31 @@ Chart.defaults.font.family = '"Apple SD Gothic Neo","Noto Sans KR",sans-serif';
 const rIp = ip => Math.max(3, Math.min(11, ip / 12));
 const rPa = pa => Math.max(3, Math.min(11, pa / 45));
 
+// 팀 코드(스포츠투아이 레거시)를 현재 팀명(짧게)으로. OB·SK·HT·WO 등은
+// 옛 구단명(OB베어스·SK와이번스·해태·우리)으로 읽혀서 그래프 라벨엔 현재명을 쓴다.
+const TEAM_SHORT = { LG:"LG", OB:"두산", HT:"KIA", SS:"삼성", SK:"SSG",
+  LT:"롯데", HH:"한화", WO:"키움", NC:"NC", KT:"KT" };
+const tShort = t => TEAM_SHORT[t] || t;
+
 // 선택된 선수를 그래프 위에서 흰 링으로 하이라이트하는 플러그인.
 // chart._sel(선택 인덱스)를 매 프레임 읽어 그 점 둘레에 원을 그립니다.
 const hlPlugin = {
   id: "highlight",
   afterDatasetsDraw(chart) {
     const i = chart._sel;
-    if (i == null) return;
+    if (i == null || i < 0) return;
     const pt = chart.getDatasetMeta(0).data[i];
-    if (!pt) return;
-    const r = (chart.data.datasets[0].data[i].r || 6) + 7;
+    const dp = chart.data.datasets[0].data[i];
+    // 뷰가 필터로 비워지면 meta/데이터가 어긋날 수 있어 둘 다 방어(없으면 그냥 스킵)
+    if (!pt || !dp) return;
+    const r = (dp.r || 6) + 7;
     const ctx = chart.ctx;
     ctx.save();
     ctx.beginPath(); ctx.arc(pt.x, pt.y, r, 0, 2 * Math.PI);
     ctx.lineWidth = 3; ctx.strokeStyle = "#ffffff"; ctx.stroke();
     ctx.beginPath(); ctx.arc(pt.x, pt.y, r + 3, 0, 2 * Math.PI);
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = (chart.data.datasets[0].data[i].color || "#fff") + "aa";
+    ctx.strokeStyle = (dp.color || "#fff") + "aa";
     ctx.stroke();
     ctx.restore();
   }
@@ -813,10 +821,10 @@ const quad = new Chart(document.getElementById("quadChart"), {
   data: { datasets: [{
     data: DATA.pitchers.map(p => ({x: p.stuff, y: p.era, r: rIp(p.ip), ...p})),
     pointBackgroundColor: DATA.pitchers.map(p => p.color + "cc"),
-    pointRadius: c => c.raw.r, pointHoverRadius: c => c.raw.r + 3 }]},
+    pointRadius: c => c.raw ? c.raw.r : 0, pointHoverRadius: c => (c.raw ? c.raw.r : 0) + 3 }]},
   options: { maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c =>
-      `${c.raw.name}(${c.raw.team}) 구위+ ${c.raw.stuff} / ERA ${c.raw.era} / FIP ${c.raw.fip} — ${c.raw.type}` }}},
+      `${c.raw.name}(${tShort(c.raw.team)}) 구위+ ${c.raw.stuff} / ERA ${c.raw.era} / FIP ${c.raw.fip} — ${c.raw.type}` }}},
     scales: { x: { title: { display: true, text: "K-Stuff+ (구위, 100=평균)" }, grid: { color: "#222a3a" } },
       y: { title: { display: true, text: "ERA (높을수록 나쁨)" }, grid: { color: "#222a3a" } } } },
   plugins: [hlPlugin, { id: "quadLines", afterDraw(ch) {
@@ -839,7 +847,7 @@ const quadCtl = attachRandomPick(quad, "pick_quad_info",
 const victims = [...DATA.pitchers].sort((a,b) => b.gap - a.gap).slice(0, 12);
 new Chart(document.getElementById("gapChart"), {
   type: "bar",
-  data: { labels: victims.map(p => `${p.name}(${p.team})`),
+  data: { labels: victims.map(p => `${p.name}(${tShort(p.team)})`),
     datasets: [{ data: victims.map(p => p.gap),
       backgroundColor: victims.map(p => p.gap > 0 ? "#ffb454" : "#3ecf8e"), borderRadius: 4 }]},
   options: { indexAxis: "y", maintainAspectRatio: false,
@@ -855,10 +863,10 @@ const batLuck = new Chart(document.getElementById("batLuckChart"), {
   data: { datasets: [{
     data: bats.map(b => ({x: b.babip, y: b.woba, r: rPa(b.pa), ...b})),
     pointBackgroundColor: bats.map(b => b.color + "cc"),
-    pointRadius: c => c.raw.r, pointHoverRadius: c => c.raw.r + 3 }]},
+    pointRadius: c => c.raw ? c.raw.r : 0, pointHoverRadius: c => (c.raw ? c.raw.r : 0) + 3 }]},
   options: { maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c =>
-      `${c.raw.name}(${c.raw.team}) BABIP ${c.raw.x.toFixed(3)} / wOBA ${c.raw.y.toFixed(3)} / ${c.raw.pa}타석` }}},
+      `${c.raw.name}(${tShort(c.raw.team)}) BABIP ${c.raw.x.toFixed(3)} / wOBA ${c.raw.y.toFixed(3)} / ${c.raw.pa}타석` }}},
     scales: { x: { title: { display: true, text: "BABIP (인플레이 안타 비율)" }, grid: { color: "#222a3a" } },
       y: { title: { display: true, text: "wOBA (인플레이 생산력)" }, grid: { color: "#222a3a" } } } },
   plugins: [hlPlugin, { id: "babipLine", afterDraw(ch) {
@@ -882,10 +890,10 @@ const power = new Chart(document.getElementById("powerChart"), {
   data: { datasets: [{
     data: pw.map(b => ({x: b.power, y: b.hr, r: rPa(b.pa), ...b})),
     pointBackgroundColor: pw.map(b => b.color + "cc"),
-    pointRadius: c => c.raw.r, pointHoverRadius: c => c.raw.r + 3 }]},
+    pointRadius: c => c.raw ? c.raw.r : 0, pointHoverRadius: c => (c.raw ? c.raw.r : 0) + 3 }]},
   options: { maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c =>
-      `${c.raw.name}(${c.raw.team}) Power+ ${c.raw.x} / HR+ ${c.raw.y}` }}},
+      `${c.raw.name}(${tShort(c.raw.team)}) Power+ ${c.raw.x} / HR+ ${c.raw.y}` }}},
     scales: { x: { title: { display: true, text: "Power+ (장타 생산력)" }, grid: { color: "#222a3a" } },
       y: { title: { display: true, text: "HR+ (순수 홈런 파워)" }, grid: { color: "#222a3a" } } } },
   plugins: [hlPlugin, { id: "centerLines", afterDraw(ch) {
@@ -914,10 +922,10 @@ if (!sbats.length) {
     data: { datasets: [{
       data: sbats.map(b => ({x: b.owar, y: b.dwar, r: rWar(b), ...b})),
       pointBackgroundColor: sbats.map(b => b.color + "cc"),
-      pointRadius: c => c.raw.r, pointHoverRadius: c => c.raw.r + 3 }]},
+      pointRadius: c => c.raw ? c.raw.r : 0, pointHoverRadius: c => (c.raw ? c.raw.r : 0) + 3 }]},
     options: { maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c =>
-        `${c.raw.name}(${c.raw.team} ${c.raw.pos}) oWAR ${c.raw.x} / dWAR ${c.raw.y} / WAR ${c.raw.war}` }}},
+        `${c.raw.name}(${tShort(c.raw.team)} ${c.raw.pos}) oWAR ${c.raw.x} / dWAR ${c.raw.y} / WAR ${c.raw.war}` }}},
       scales: { x: { title: { display: true, text: "oWAR (공격 기여)" }, grid: { color: "#222a3a" } },
         y: { title: { display: true, text: "dWAR (수비 기여)" }, grid: { color: "#222a3a" } } } },
     plugins: [hlPlugin, { id: "warZero", afterDraw(ch) {
