@@ -94,41 +94,53 @@ def build_bullpen_team(pit: list, season: int) -> None:
 
 
 def build_relievers(pit: list, season: int) -> None:
-    """불펜 개인 (세이브·홀드·릴리프 WAR — 불펜 카드용)."""
+    """불펜 개인 (세이브·홀드·릴리프 WAR·K-BB% — 불펜 카드용)."""
     out = Path("data") / f"statiz_relievers_{season}.csv"
     n = 0
     with open(out, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow(["name", "team", "war", "era", "fip", "ip",
-                    "g", "gf", "sv", "hd"])
+                    "g", "gf", "sv", "hd", "k9", "bb9", "kbb"])
         for r in pit:
             code = _code(r)
             if not code or _num(r["GS"]) > 0:
                 continue
-            if _num(r["IP"]) < MIN_RELIEF_IP:
+            ip = _num(r["IP"])
+            if ip < MIN_RELIEF_IP:
                 continue
+            so, bb, tbf = _num(r["SO"]), _num(r["BB"]), _num(r["TBF"])
+            k9 = round(so * 9 / ip, 1) if ip else 0
+            bb9 = round(bb * 9 / ip, 1) if ip else 0
+            # K-BB% = (탈삼진 − 볼넷) / 상대타자. 투수 실력 예측력이 가장 높은 축.
+            kbb = round((so - bb) / tbf * 100, 1) if tbf else 0
             w.writerow([r["Name"], code, _num(r["WAR"]), _num(r["ERA"]),
-                        _num(r["FIP"]), _num(r["IP"]), int(_num(r["G"])),
-                        int(_num(r["GF"])), int(_num(r["S"])), int(_num(r["HD"]))])
+                        _num(r["FIP"]), ip, int(_num(r["G"])),
+                        int(_num(r["GF"])), int(_num(r["S"])), int(_num(r["HD"])),
+                        k9, bb9, kbb])
             n += 1
     print(f"저장: {out} ({n}명)")
 
 
 def build_batters(bat: list, season: int) -> None:
-    """타자 oWAR/dWAR (공격×수비 사분면용). 저표본 노이즈 컷: PA>=100."""
+    """타자 oWAR/dWAR + 규율(BB%·K%)·주루(SB·GDP) (사분면·규율용). PA>=100."""
     out = Path("data") / f"statiz_batters_{season}.csv"
     n = 0
     with open(out, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow(["name", "team", "pos", "owar", "dwar", "war",
-                    "pa", "wrcplus"])
+                    "pa", "wrcplus", "bbpct", "kpct", "iso", "sb", "cs", "gdp"])
         for r in bat:
             code = _code(r)
-            if not code or _num(r["PA"]) < MIN_PA:
+            pa = _num(r["PA"])
+            if not code or pa < MIN_PA:
                 continue
+            bbpct = round(_num(r["BB"]) / pa * 100, 1) if pa else 0
+            kpct = round(_num(r["SO"]) / pa * 100, 1) if pa else 0
+            iso = round(_num(r["SLG"]) - _num(r["AVG"]), 3)
             w.writerow([r["Name"], code, r.get("Pos", ""), _num(r["oWAR"]),
-                        _num(r["dWAR"]), _num(r["WAR"]), int(_num(r["PA"])),
-                        _num(r.get("wRC+", 0))])
+                        _num(r["dWAR"]), _num(r["WAR"]), int(pa),
+                        _num(r.get("wRC+", 0)), bbpct, kpct, iso,
+                        int(_num(r["SB"])), int(_num(r["CS"])), int(_num(r["GDP"]))])
             n += 1
     print(f"저장: {out} ({n}명, PA>={MIN_PA})")
 

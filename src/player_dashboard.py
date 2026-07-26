@@ -155,11 +155,13 @@ def _load_statiz(season):
         return out
 
     bats = _dec(_rows("statiz_batters"),
-                ["pos", "owar", "dwar", "war", "pa", "wrcplus"])
+                ["pos", "owar", "dwar", "war", "pa", "wrcplus",
+                 "bbpct", "kpct", "iso", "sb", "cs", "gdp"])
     for b in bats:
         b["pa"] = int(b["pa"]) if b["pa"] is not None else 0
     rel = _dec(_rows("statiz_relievers"),
-               ["war", "era", "fip", "ip", "g", "gf", "sv", "hd"])
+               ["war", "era", "fip", "ip", "g", "gf", "sv", "hd",
+                "k9", "bb9", "kbb"])
     for r in rel:
         for k in ("g", "gf", "sv", "hd"):
             r[k] = int(r[k]) if r.get(k) is not None else 0
@@ -402,6 +404,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a class="active" href="players.html">🧢 선수 평가</a>
+  <a href="history.html">🏆 역대</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
@@ -474,7 +477,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <p class="hint">순수 불펜(선발 등판 0)만. 역할은 세이브(마무리)·홀드(셋업)로 판정.
       <b>릴리프 WAR</b> 순. ERA와 FIP가 벌어진 투수는 회귀 후보 — ERA≪FIP는 곧 나빠질 위험, ERA≫FIP는 반등 여지.</p>
     <div class="table-scroll">
-    <table><thead><tr><th>선수</th><th>팀</th><th>역할</th><th>WAR</th><th>ERA</th><th>FIP</th><th>이닝</th><th>세이브</th><th>홀드</th></tr></thead>
+    <table><thead><tr><th>선수</th><th>팀</th><th>역할</th><th>WAR</th><th>ERA</th><th>FIP</th><th><span class="tip" data-tip="(탈삼진−볼넷)÷상대타자. 투수 실력 예측력이 가장 높은 지표.">K-BB%</span></th><th>이닝</th><th>세이브</th><th>홀드</th></tr></thead>
     <tbody id="tb_bullpen"></tbody></table>
     </div>
     <button class="more" id="bullpenMore"></button>
@@ -940,7 +943,8 @@ if (!sbats.length) {
     sbats, b => ({x: b.owar, y: b.dwar, r: rWar(b), ...b}),
     d => infoHtml(d, `${d.pos} · ${d.pa}타석 · WAR ${d.war} (공격 ${d.owar} + 수비 ${d.dwar}) · wRC+ ${d.wrcplus}`
       + ` — ${d.owar >= 2 && d.dwar >= 0.3 ? "💎 공수겸장" : d.owar >= 2 && d.dwar <= -0.3 ? "🏏 공격형(수비 구멍)"
-          : d.owar >= 2 ? "🏏 공격형" : d.dwar >= 0.5 ? "🧤 수비형" : "➖ 평범"}`));
+          : d.owar >= 2 ? "🏏 공격형" : d.dwar >= 0.5 ? "🧤 수비형" : "➖ 평범"}`
+      + `<br><span style="color:var(--muted)">규율 BB% ${d.bbpct} · K% ${d.kpct} · ISO ${d.iso} · 주루 도루 ${d.sb}(실패 ${d.cs}) · 병살 ${d.gdp}</span>`));
 }
 
 // ── ⑥ 불펜 리더보드 (Statiz) ──
@@ -959,6 +963,7 @@ if (!sbats.length) {
       : gap >= 0.5 ? ' <span class="pos" title="ERA≫FIP 반등 여지">🔵</span>' : "";
     return `<tr${hide}><td>${r.name}${flag}</td><td>${r.teamName}</td><td>${role(r)}</td>`
       + `<td>${r.war.toFixed(2)}</td><td>${r.era.toFixed(2)}</td><td>${r.fip.toFixed(2)}</td>`
+      + `<td>${r.kbb != null ? r.kbb.toFixed(1) + "%" : "-"}</td>`
       + `<td>${r.ip.toFixed(1)}</td><td>${r.sv || "-"}</td><td>${r.hd || "-"}</td></tr>`;
   }).join("");
   const more = document.getElementById("bullpenMore");

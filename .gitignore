@@ -13,3 +13,5 @@ data/*
 # 재생성 불가하므로 캐시가 아니라 '필수 입력'으로 커밋한다.
 !data/bullpen_*.csv
 !data/statiz_*.csv
+!data/history_*.csv
+!data/history.html
