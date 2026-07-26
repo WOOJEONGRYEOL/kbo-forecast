@@ -57,7 +57,7 @@ def build(src: str) -> None:
     nb = 0
     with open(bout, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["season", "name", "team", "color", "pos",
+        w.writerow(["season", "pno", "name", "team", "color", "pos",
                     "war", "owar", "dwar", "wrcplus", "pa", "hr", "ops"])
         for path in sorted(glob.glob(f"{src}/batter_*_all.csv")):
             yr = _season(path)
@@ -65,7 +65,8 @@ def build(src: str) -> None:
                 continue
             for r in csv.DictReader(open(path, encoding="utf-8-sig")):
                 color = (r.get("TeamColor") or "").lower()
-                w.writerow([yr, r["Name"], _abbr(r.get("Team", ""), color),
+                w.writerow([yr, r.get("PlayerNo", ""), r["Name"],
+                            _abbr(r.get("Team", ""), color),
                             color, r.get("Pos", ""), _num(r["WAR"]),
                             _num(r["oWAR"]), _num(r["dWAR"]),
                             _num(r.get("wRC+", 0)), int(_num(r["PA"])),
@@ -78,7 +79,7 @@ def build(src: str) -> None:
     npi = 0
     with open(pout, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["season", "name", "team", "color", "role",
+        w.writerow(["season", "pno", "name", "team", "color", "role",
                     "war", "era", "fip", "ip", "so", "gs"])
         for path in sorted(glob.glob(f"{src}/pitcher_*_all.csv")):
             yr = _season(path)
@@ -88,7 +89,8 @@ def build(src: str) -> None:
                 color = (r.get("TeamColor") or "").lower()
                 gs = int(_num(r["GS"]))
                 role = "선발" if gs >= 10 else "불펜" if gs == 0 else "스윙"
-                w.writerow([yr, r["Name"], _abbr(r.get("Team", ""), color),
+                w.writerow([yr, r.get("PlayerNo", ""), r["Name"],
+                            _abbr(r.get("Team", ""), color),
                             color, role, _num(r["WAR"]), _num(r["ERA"]),
                             _num(r["FIP"]), _num(r["IP"]), int(_num(r["SO"])),
                             gs])

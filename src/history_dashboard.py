@@ -7,8 +7,7 @@ data/history_batters.csv·history_pitchers.csv(build_history.py 산출)를 임�
 브라우저에서 시즌·포지션 순위와 통산 GOAT를 필터링한다.
 
 - 시즌·포지션 순위: 각 행이 선수-시즌이라 합산 불필요 → 정확.
-- 통산 GOAT: 이름으로 합산(현재 PlayerNo 없음) → 동명이인 뭉칠 수 있음(⚠️).
-  크롤러 p_no 재크롤 후 정확해짐.
+- 통산 GOAT: 선수 고유 ID(pno)로 합산 → 동명이인 정확 분리.
 """
 
 import csv
@@ -38,14 +37,15 @@ def save_history() -> Path:
     pits = _load("history_pitchers.csv")
 
     def bnum(r):   # 타자 행 → 컴팩트 배열
-        return [int(r["season"]), r["name"], r["team"], r["color"], r["pos"],
-                float(r["war"]), float(r["owar"]), float(r["dwar"]),
-                float(r["wrcplus"]), int(r["pa"]), int(r["hr"]), float(r["ops"])]
+        return [int(r["season"]), r.get("pno", ""), r["name"], r["team"],
+                r["color"], r["pos"], float(r["war"]), float(r["owar"]),
+                float(r["dwar"]), float(r["wrcplus"]), int(r["pa"]),
+                int(r["hr"]), float(r["ops"])]
 
     def pnum(r):
-        return [int(r["season"]), r["name"], r["team"], r["color"], r["role"],
-                float(r["war"]), float(r["era"]), float(r["fip"]),
-                float(r["ip"]), int(r["so"]), int(r["gs"])]
+        return [int(r["season"]), r.get("pno", ""), r["name"], r["team"],
+                r["color"], r["role"], float(r["war"]), float(r["era"]),
+                float(r["fip"]), float(r["ip"]), int(r["so"]), int(r["gs"])]
 
     seasons = sorted({int(r["season"]) for r in bats} |
                      {int(r["season"]) for r in pits})
@@ -121,9 +121,9 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 
 <script>
 const DATA = __DATA__;
-// 컬럼 인덱스
-const B = {season:0,name:1,team:2,color:3,pos:4,war:5,owar:6,dwar:7,wrc:8,pa:9,hr:10,ops:11};
-const P = {season:0,name:1,team:2,color:3,role:4,war:5,era:6,fip:7,ip:8,so:9,gs:10};
+// 컬럼 인덱스 (pno = 선수 고유 ID; 통산 합산 키)
+const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12};
+const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
 
 const POS_BAT = ["전체","C","1B","2B","3B","SS","LF","CF","RF","DH"];
@@ -178,14 +178,15 @@ function rowsForSeason(){
   return rows;
 }
 
-// 통산 합산 (이름 기준 — 동명이인 주의)
+// 통산 합산 (선수 고유 ID 기준 — 동명이인 정확 분리)
 function career(rows){
   const I=side==="bat"?B:P;
   const m=new Map();
   rows.forEach(r=>{
-    const k=r[I.name];
-    if(!m.has(k)) m.set(k,{name:k, seasons:new Set(), teams:new Set(), color:r[I.color], rows:[]});
-    const o=m.get(k); o.seasons.add(r[I.season]); o.teams.add(r[I.team]); o.rows.push(r);
+    const k=r[I.pno]||r[I.name];   // ID 있으면 ID로, 없으면 이름 폴백
+    if(!m.has(k)) m.set(k,{name:r[I.name], seasons:new Set(), teams:new Set(), color:r[I.color], rows:[]});
+    const o=m.get(k); o.name=r[I.name]; o.seasons.add(r[I.season]); o.teams.add(r[I.team]);
+    o.color=r[I.color]; o.rows.push(r);
   });
   return [...m.values()].map(o=>{
     const agg={name:o.name, ns:o.seasons.size, color:o.color, teams:[...o.teams]};
@@ -258,7 +259,7 @@ function render(){
   }).join("")||`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">해당 없음</td></tr>`;
 
   el("tableHint").innerHTML = isCareer
-    ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · <span class="warn">⚠️ 이름 기준 합산이라 동명이인이 섞일 수 있습니다(선수ID 재크롤 전).</span> wRC+/ERA 등 비율은 PA·이닝 가중평균.`
+    ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · 선수 고유 ID로 합산해 동명이인을 정확히 분리했습니다. wRC+/ERA 등 비율은 PA·이닝 가중평균.`
     : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`;
 }
 </script>
