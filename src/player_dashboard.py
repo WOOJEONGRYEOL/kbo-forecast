@@ -434,9 +434,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <div class="card">
-    <h2>수비/운 피해 순위 — <span class="tip" data-tip="__TIP_ERAFIP__">ERA − FIP</span></h2>
-    <p class="hint">FIP(수비 무관)보다 ERA가 높을수록 수비·운의 피해자.
-      막대가 길수록 '실제 실력보다 성적이 억울한' 투수</p>
+    <h2>ERA − FIP 양극단 — <span class="tip" data-tip="__TIP_ERAFIP__">반등 vs 하락</span></h2>
+    <p class="hint"><b style="color:#ffb454">주황(위)</b>: ERA≫FIP = 실력보다 억울한 투수 <b>반등 후보📈</b>.
+      <b style="color:#3ecf8e">초록(아래)</b>: ERA≪FIP = 운 좋게 막은 투수 <b>하락 경계📉</b>(곧 나빠질 위험).
+      · 위·아래 각 8명. 상세 피해자 목록은 아래 🛡️ 카드 참고.</p>
     <div class="chart-box"><canvas id="gapChart"></canvas></div>
   </div>
 
@@ -846,8 +847,10 @@ const quadCtl = attachRandomPick(quad, "pick_quad_info",
     + (d.loc != null ? `<br><span style="color:var(--muted)">로케이션+ ${d.loc} · Gap(구위−로케이션) ${d.locGap>0?'+':''}${d.locGap} · 한가운데 ${d.heart}% · 보더라인 ${d.edge}% — ${d.locType}</span>` : "")),
   d => renderArsenal("arsenal_quad", "arsenal_detail", d));
 
-// ── ② ERA-FIP 격차 막대 ──
-const victims = [...DATA.pitchers].sort((a,b) => b.gap - a.gap).slice(0, 12);
+// ── ② ERA-FIP 양극단 (상위=억울한 반등후보, 하위=운좋은 하락경계) ──
+const _byGap = [...DATA.pitchers].sort((a,b) => b.gap - a.gap);
+const NEND = 8;
+const victims = [..._byGap.slice(0, NEND), ..._byGap.slice(-NEND)];
 new Chart(document.getElementById("gapChart"), {
   type: "bar",
   data: { labels: victims.map(p => `${p.name}(${tShort(p.team)})`),
@@ -855,8 +858,10 @@ new Chart(document.getElementById("gapChart"), {
       backgroundColor: victims.map(p => p.gap > 0 ? "#ffb454" : "#3ecf8e"), borderRadius: 4 }]},
   options: { indexAxis: "y", maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => {
-      const p = victims[c.dataIndex]; return `ERA ${p.era} − FIP ${p.fip} = ${p.gap > 0 ? "+" : ""}${p.gap}`; }}}},
-    scales: { x: { grid: { color: "#222a3a" }, title: { display: true, text: "ERA − FIP" } }, y: { grid: { display: false } } } }
+      const p = victims[c.dataIndex];
+      const tag = p.gap > 0 ? "억울(반등 후보)" : "운 좋음(하락 경계)";
+      return `ERA ${p.era} − FIP ${p.fip} = ${p.gap > 0 ? "+" : ""}${p.gap} — ${tag}`; }}}},
+    scales: { x: { grid: { color: "#222a3a" }, title: { display: true, text: "← 하락 경계   ERA − FIP   반등 후보 →" } }, y: { grid: { display: false } } } }
 });
 
 // ── ③ 타자 운 산점도 (BABIP vs wOBA) ──
