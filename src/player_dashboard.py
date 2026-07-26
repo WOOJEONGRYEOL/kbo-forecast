@@ -435,8 +435,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card">
     <h2>ERA − FIP 양극단 — <span class="tip" data-tip="__TIP_ERAFIP__">반등 vs 하락</span></h2>
-    <p class="hint"><b style="color:#ffb454">주황(위)</b>: ERA≫FIP = 실력보다 억울한 투수 <b>반등 후보📈</b>.
-      <b style="color:#3ecf8e">초록(아래)</b>: ERA≪FIP = 운 좋게 막은 투수 <b>하락 경계📉</b>(곧 나빠질 위험).
+    <p class="hint"><b style="color:#3ecf8e">초록(위)</b>: ERA≫FIP = 실력보다 억울한 투수 <b>반등 후보📈</b>.
+      <b style="color:#ffb454">주황(아래)</b>: ERA≪FIP = 운 좋게 막은 투수 <b>하락 경계📉</b>(곧 나빠질 위험).
       · 위·아래 각 8명. 상세 피해자 목록은 아래 🛡️ 카드 참고.</p>
     <div class="chart-box"><canvas id="gapChart"></canvas></div>
   </div>
@@ -855,7 +855,7 @@ new Chart(document.getElementById("gapChart"), {
   type: "bar",
   data: { labels: victims.map(p => `${p.name}(${tShort(p.team)})`),
     datasets: [{ data: victims.map(p => p.gap),
-      backgroundColor: victims.map(p => p.gap > 0 ? "#ffb454" : "#3ecf8e"), borderRadius: 4 }]},
+      backgroundColor: victims.map(p => p.gap > 0 ? "#3ecf8e" : "#ffb454"), borderRadius: 4 }]},
   options: { indexAxis: "y", maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => {
       const p = victims[c.dataIndex];
