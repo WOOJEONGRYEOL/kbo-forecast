@@ -21,7 +21,6 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "data"
 PORT = 8799
 PY = ROOT / ".venv" / "bin" / "python"
 
@@ -46,7 +45,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     """data/ 를 정적 서빙하면서 /refresh · /status 를 추가로 처리."""
 
     def __init__(self, *a, **k):
-        super().__init__(*a, directory=str(DATA), **k)
+        # 리포 루트를 서빙한다(GitHub Pages와 동일 구조). 대시보드는 /data/*.html,
+        # 홈(index.html)은 /index.html — 대시보드 nav의 ../index.html이 로컬에서도
+        # 정상 동작하도록. (data/만 서빙하면 홈 링크가 루트 위로 나가 404)
+        super().__init__(*a, directory=str(ROOT), **k)
 
     def _json(self, obj: dict) -> None:
         body = json.dumps(obj).encode()
@@ -87,8 +89,9 @@ def main() -> None:
     # 127.0.0.1 바인드 — 외부에서 접근 불가 (로컬 전용)
     with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler) as srv:
         print(f"⚾  KBO 대시보드 서버 실행 중")
-        print(f"    → http://localhost:{PORT}/dashboard.html  (팀 전력·순위)")
-        print(f"    → http://localhost:{PORT}/players.html    (선수 평가)")
+        print(f"    → http://localhost:{PORT}/data/dashboard.html  (팀 전력·순위)")
+        print(f"    → http://localhost:{PORT}/data/players.html    (선수 평가)")
+        print(f"    → http://localhost:{PORT}/data/history.html     (역대)")
         print(f"    대시보드의 '🔄 지금 갱신' 버튼이 이제 작동합니다.")
         print(f"    (이 창을 닫으면 서버와 갱신 기능이 멈춥니다)")
         try:
