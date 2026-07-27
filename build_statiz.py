@@ -41,7 +41,7 @@ COLOR_TO_CODE = {
     "#f37321": "HH",   # 한화 (오렌지)
 }
 
-DEFAULT_SRC = "/Users/woo/Horse/statiz_crawler/output/csv"
+DEFAULT_SRC = str(Path(__file__).resolve().parent / "statiz_crawler" / "output" / "csv")
 MIN_PA = 100     # 타자 사분면 최소 타석 (저표본 WAR·dWAR 노이즈 컷)
 MIN_RELIEF_IP = 5  # 불펜 카드 최소 이닝
 

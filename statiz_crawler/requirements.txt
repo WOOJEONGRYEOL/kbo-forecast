@@ -1,0 +1,16 @@
+# Statiz 크롤러 전용 의존성 — 로컬 실행용. 메인 파이프라인/CI와 분리한다.
+#   (메인 대시보드 requirements.txt 는 requests/pandas/numpy 뿐이라 가볍게 유지)
+#
+# 설치:
+#   python -m venv ../.venv_statiz
+#   ../.venv_statiz/bin/pip install -r requirements.txt
+#   ../.venv_statiz/bin/python -m playwright install chromium   # 최초 1회
+#
+crawl4ai>=0.3          # 헤드리스 브라우저 크롤링 (Playwright 기반)
+beautifulsoup4>=4.12   # HTML 파싱
+lxml>=5.0              # 빠른 파서
+pandas>=2.2            # 표 가공 (read_html 등)
+
+# (선택) Google Sheets 업로드 — push_to_sheets.py. 서비스계정 자격증명 없으면 자동 스킵.
+# gspread>=6.0
+# google-auth>=2.0

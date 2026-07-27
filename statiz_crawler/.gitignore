@@ -1,0 +1,13 @@
+# 데이터·산출물 (용량 큼, 재크롤로 재생성 가능)
+output/
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 자격증명 (혹시라도 폴더 안에 두게 될 경우 대비)
+*.env
+.statiz_env
+*sa*.json
+service_account*.json
+*credentials*.json

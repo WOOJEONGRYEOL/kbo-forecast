@@ -24,7 +24,7 @@ import glob
 import re
 from pathlib import Path
 
-DEFAULT_SRC = "/Users/woo/Horse/statiz_crawler/output/csv"
+DEFAULT_SRC = str(Path(__file__).resolve().parent / "statiz_crawler" / "output" / "csv")
 POS_RE = re.compile(r"(1B|2B|3B|SS|LF|CF|RF|OF|IF|DH|C|P|R)$")
 
 

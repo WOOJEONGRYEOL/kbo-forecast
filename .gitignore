@@ -18,3 +18,8 @@ data/*
 !data/team_style_*.csv
 !data/team_phase_*.csv
 data/linescore/
+
+# Statiz 크롤러(로컬 실행): 원본 출력·캐시·전용 venv는 커밋 안 함(요약 CSV만 커밋)
+statiz_crawler/output/
+statiz_crawler/__pycache__/
+.venv_statiz/
