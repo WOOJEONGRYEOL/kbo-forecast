@@ -25,8 +25,13 @@
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th,td { padding:8px 9px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
   th:nth-child(2),td:nth-child(2) { text-align:left; }
-  th { color:var(--muted); font-weight:600; cursor:pointer; user-select:none; }
+  th { color:var(--muted); font-weight:600; cursor:pointer; user-select:none; position:relative; }
   th.sorted { color:var(--green); }
+  th[data-tip] { text-decoration:underline dotted #5b647a; text-underline-offset:3px; }
+  th[data-tip]:hover::after { content:attr(data-tip); position:absolute; left:50%; transform:translateX(-50%);
+    bottom:130%; width:min(240px,70vw); white-space:normal; text-align:left; font-weight:400;
+    background:#0b0e14; color:var(--text); border:1px solid var(--line); padding:8px 10px;
+    border-radius:8px; font-size:12px; line-height:1.5; z-index:30; box-shadow:0 8px 24px rgba(0,0,0,.55); }
   td.rank { color:var(--muted); }
   tr.prow { cursor:pointer; } tr.prow:hover td { background:#1b2230; }
   td.jaws { color:var(--green); font-weight:700; }
@@ -75,6 +80,7 @@
     <div><label>포지션</label><span class="seg" id="pos"></span></div>
     <div><label>유형</label><select id="archsel"></select></div>
     <div><label>정렬</label><select id="sort"></select></div>
+    <div id="minfWrap" style="display:none"><label>표본</label><span class="seg" id="minf"><button class="on" data-m="1">규정 이상</button><button data-m="0">전체</button></span></div>
   </div>
   <div id="trendControls" style="display:none"><label>지표</label><span class="seg" id="metric"></span></div>
 </div>
@@ -98,7 +104,23 @@ const DATA = {"seasons":[1982,1983,1984,1985,1986,1987,1988,1989,1990,1991,1992,
 const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,arch:13};
 const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,arch:12};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
-let view="rank", metric="", archF="전체";
+let view="rank", metric="", archF="전체", minFilter=true;
+// 통산 비율지표(작은 표본이면 왜곡)엔 최소 표본 필터 적용
+const RATE_KEYS=new Set(["wrc","ops","era","fip"]);
+const MIN_CAREER_PA=1500, MIN_CAREER_IP=300;
+// 헤더 호버 툴팁 — 직관적 항목(홈런·탈삼진·이닝·시즌·포지션 등)은 제외
+const HTIP={
+  "통산WAR":"대체선수 대비 통산 승리기여 합계.",
+  "WAR":"대체선수 대비 승리기여. 대체 수준보다 팀에 더 벌어준 승수.",
+  "피크7":"베스트 7시즌 WAR 합(전성기 높이). JAWS의 재료.",
+  "JAWS":"(통산 WAR + 피크7) ÷ 2. 누적과 전성기를 함께 보는 명예의전당 자격 지표.",
+  "wRC+":"파크·리그 보정 득점창출력. 100=리그평균, 130=평균보다 30%↑.",
+  "OPS":"출루율 + 장타율. 간단한 종합 공격 지표.",
+  "oWAR":"공격(타격+주루)으로 번 WAR.",
+  "dWAR":"수비로 번 WAR.",
+  "ERA":"평균자책점 = 9 × 자책점 ÷ 이닝. 낮을수록 좋음.",
+  "FIP":"수비무관 평균자책. 수비·운을 걷어낸 투수 본연의 실력.",
+};
 // 리그 진화 지표: [라벨, 시즌집계함수(rows→값), 소수자릿수, 설명]
 const TREND_BAT = {
   hr:  ["홈런 (600타석당)", rs=>{let h=0,p=0;rs.forEach(r=>{h+=r[B.hr];p+=r[B.pa];});return p?h/p*600:0;}, 1,
@@ -144,6 +166,11 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
     el("rankCard").style.display=trend?"none":"block";
     el("detailCard").style.display="none";
     if(trend) renderTrend(); else render();
+  });
+  el("minf").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    minFilter=b.dataset.m==="1";
+    el("minf").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    render();
   });
   buildPos(); buildSort(); buildArch(); buildMetric();
   el("legend").innerHTML="팀 약자: "+Object.entries(DATA.legend).map(([k,v])=>`${k}=${v}`).join(" · ");
@@ -442,6 +469,11 @@ function render(){
   if(!(sortKey in S)) sortKey="war";
   el("sort").innerHTML=Object.entries(S).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("");
   el("sort").value=sortKey;
+  // 통산 비율지표(wRC+·OPS·ERA·FIP) 순위는 1~2시즌 소표본이 상위를 왜곡 → 최소 표본 필터
+  const showMin = isCareer && RATE_KEYS.has(sortKey);
+  el("minfWrap").style.display = showMin ? "" : "none";
+  if(showMin && minFilter)
+    recs = recs.filter(r => side==="bat" ? r.pa>=MIN_CAREER_PA : r.ip>=MIN_CAREER_IP);
   const dir=S[sortKey][2];
   recs.sort((a,b)=>(a[sortKey]-b[sortKey])*dir);
   recs=recs.slice(0,50);
@@ -458,7 +490,9 @@ function render(){
       ? [["#",null],["선수","name"],["팀",null],["시즌",null],["통산WAR","war"],["피크7","peak"],["JAWS","jaws"],["ERA","era"],["탈삼진","so"]]
       : [["#",null],["선수","name"],["팀",null],["역할",null],["WAR","war"],["ERA","era"],["FIP","fip"],["이닝","ip"],["탈삼진","so"]];
   }
-  thead.innerHTML="<tr>"+cols.map(c=>`<th data-k="${c[1]||''}" class="${c[1]===sortKey?'sorted':''}">${c[0]}</th>`).join("")+"</tr>";
+  thead.innerHTML="<tr>"+cols.map(c=>{const tp=HTIP[c[0]];
+    return `<th data-k="${c[1]||''}"${tp?` data-tip="${tp.replace(/"/g,'&quot;')}"`:''} class="${c[1]===sortKey?'sorted':''}">${c[0]}</th>`;
+  }).join("")+"</tr>";
   thead.querySelectorAll("th").forEach(th=>{const k=th.dataset.k; if(k&&S[k]) th.onclick=()=>{sortKey=k; render();};});
 
   tbody.innerHTML=recs.map((r,i)=>{
@@ -479,6 +513,9 @@ function render(){
 
   el("tableHint").innerHTML = isCareer
     ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · 선수 고유 ID로 합산해 동명이인을 정확히 분리했습니다. wRC+/ERA 등 비율은 PA·이닝 가중평균.`
+      + (showMin ? (minFilter
+          ? ` <b style="color:var(--acc,#3ecf8e)">표본 필터 ON</b> — 통산 ${side==="bat"?MIN_CAREER_PA+"타석":MIN_CAREER_IP+"이닝"} 이상만(1~2시즌 소표본 왜곡 제거). '전체'로 해제 가능.`
+          : ` <b style="color:#ffb454">표본 필터 OFF</b> — 소수 시즌 선수가 상위에 낄 수 있습니다.`) : "")
     : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`;
 }
 </script>

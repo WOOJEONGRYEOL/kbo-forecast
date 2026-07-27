@@ -700,22 +700,63 @@ function attachRandomPick(chart, infoId, source, buildPoint, fmt, onPick) {
     if (onPick) onPick(d);
     chart.update("none");           // 애니메이션 없이 하이라이트만 갱신
   }
+  let stopped = false, hoverIdx = -1;
   function rnd() { if (view.length) show(Math.floor(Math.random() * view.length)); }
-  function restart() { clearInterval(timer); timer = setInterval(rnd, 5000); }
+  function restart() { if (stopped) return; clearInterval(timer); timer = setInterval(rnd, 5000); }
+  function pause() { clearInterval(timer); timer = null; }          // 잠시 정지(호버)
+  function resume() { if (stopped || timer) return; restart(); }    // 검색고정(stopped) 아니면 재개
   chart.options.onClick = (e, els) => {
     show((els && els.length) ? els[0].index : Math.floor(Math.random() * view.length));
-    restart();                      // 수동 클릭하면 타이머 리셋
+    stopped = false; restart();     // 수동 클릭하면 타이머 리셋
   };
+  // 특정 점(선수)에 마우스를 올리는 동안: 그 선수로 고정하고 자동순환 정지
+  chart.options.onHover = (e, els) => {
+    if (els && els.length) { const i = els[0].index; if (i !== hoverIdx) { hoverIdx = i; show(i); } pause(); }
+  };
+  chart.canvas.addEventListener("mouseleave", () => { hoverIdx = -1; resume(); });
   apply(); rnd(); restart();
   return {
-    setView(v) { view = v; apply(); show(0); restart(); },   // 필터 적용
-    focus(pred) {                                            // 특정 선수 선택 + 자동순환 정지
+    setView(v) { stopped = false; view = v; apply(); show(0); restart(); },   // 필터 적용
+    focus(pred) {                                            // 특정 선수 선택 + 자동순환 정지(고정)
       const idx = view.findIndex(pred);
       if (idx < 0) return false;
-      show(idx); clearInterval(timer); return true;
+      show(idx); stopped = true; clearInterval(timer); timer = null; return true;
     },
+    pause, resume,   // 아스널 등 연동 카드에서 호버 시 정지/재개
   };
 }
+// 지표 호버 툴팁 — 직관적 항목(홈런·이닝·타석·구속·도루 등)은 제외, 나머지 지수는 산식·의미 표시
+const TIP = {
+  "ERA":"평균자책점 = 9 × 자책점 ÷ 이닝. 낮을수록 좋음(결과 지표).",
+  "FIP":"수비무관 평균자책 = (13×피홈런 + 3×(볼넷+사구) − 2×삼진) ÷ 이닝 + 상수. 수비·운을 걷어낸 투수 본연의 실력.",
+  "구위+":"K-Stuff+. 구속·무브먼트·회전 등 공의 물리적 특성만으로 매긴 구위. 100=리그평균.",
+  "제구+":"K-Control+. 투구 로케이션(제구) 품질 지수. 100=리그평균.",
+  "로케이션+":"K-Location+. 공을 원하는 곳에 넣는 능력. 100=리그평균.",
+  "Gap":"구위+ − 로케이션+. 양수면 공은 좋은데 제구가 못 따라옴(제구 성장 시 반등 여지).",
+  "한가운데":"한가운데(하트존)에 몰린 투구 비율. 높을수록 실투가 많음.",
+  "보더라인":"스트라이크존 경계(에지)에 걸친 투구 비율. 높을수록 제구가 예리함.",
+  "BABIP":"인플레이 타구 안타 비율 = (안타−홈런)÷(타수−삼진−홈런+희생플라이). 리그평균≈.300, 편차는 운·수비 영향.",
+  "wOBA":"가중 출루율. 각 타격 결과(단타·2루타·볼넷…)에 득점가치 가중치를 매겨 합친 종합 공격 생산력.",
+  "종합+":"타격 종합 지수. 선구·컨택·타격·파워·주루를 100 기준으로 합성.",
+  "유인구스윙":"존 밖 유인구에 방망이가 나간 비율(Chase%). 낮을수록 선구안이 좋음.",
+  "컨택":"스윙 대비 콘택트 성공 비율. 높을수록 헛스윙이 적음.",
+  "Power+":"장타 생산력 지수. 100=리그평균.",
+  "HR+":"파크팩터 등을 보정한 순수 홈런 파워 지수. 100=리그평균(원시 홈런 수와 다름).",
+  "ISO":"순장타율 = 장타율 − 타율. 단타를 뺀 순수 장타력.",
+  "WAR":"대체선수 대비 승리기여. 대체 수준 선수보다 팀에 더 벌어준 승수.",
+  "oWAR":"공격(타격+주루)으로 번 WAR.",
+  "dWAR":"수비(포지션·기여)로 번 WAR.",
+  "wRC+":"파크·리그 보정 득점창출력. 100=리그평균, 130=평균보다 30%↑.",
+  "BB%":"볼넷 비율 = 볼넷 ÷ 타석. 높을수록 참을성·선구안↑.",
+  "K%":"삼진 비율 = 삼진 ÷ 타석. 낮을수록 콘택트↑.",
+  "구사":"그 구종을 던진 비율(전체 투구 대비).",
+  "구위":"그 구종의 K-Stuff+(물리적 위력). 100=평균.",
+  "로케이션":"그 구종의 로케이션+(제구 품질). 100=평균.",
+  "헛스윙":"그 구종에 대한 헛스윙 비율(Whiff%). 높을수록 결정구.",
+};
+function tip(label, key) { key = key || label; const t = TIP[key];
+  return t ? '<span class="tip" data-tip="' + t.replace(/"/g, "&quot;") + '">' + label + "</span>" : label; }
+
 function infoHtml(d, lines) {
   return `<img src="${DATA.logos[d.team]}" alt="">
     <div><div class="nm">${d.name} <span class="meta">${d.teamName}</span></div>
@@ -783,8 +824,8 @@ function renderArsenal(canvasId, detailId, d) {
   const setDetail = i => {
     const a = A[i];
     det.innerHTML =
-      `<b style="color:${colors[i]}">${pitchName(a)}</b> · 구사 <b>${a.usage}%</b>`
-      + ` · 구위 ${a.stuff} · 로케이션 ${a.loc} · 헛스윙 ${a.whiff}% · 한가운데 ${a.heart}%`
+      `<b style="color:${colors[i]}">${pitchName(a)}</b> · ${tip("구사")} <b>${a.usage}%</b>`
+      + ` · ${tip("구위")} ${a.stuff} · ${tip("로케이션")} ${a.loc} · ${tip("헛스윙")} ${a.whiff}% · ${tip("한가운데")} ${a.heart}%`
       + (a.speed ? ` · ${a.speed}km/h` : "")
       + `<br><span class="ars-hint">구종 조각에 마우스를 올리면(모바일은 탭) 그 구종의 효율이 바뀝니다</span>`;
   };
@@ -804,7 +845,8 @@ function renderArsenal(canvasId, detailId, d) {
             labels: { color: "#b8c0d0", font: { size: 11 }, boxWidth: 12, padding: 8 } },
           tooltip: { callbacks: { label: c => {
             const a = A[c.dataIndex];
-            return `${pitchName(a)} 구사 ${a.usage}% · 구위 ${a.stuff} · 헛스윙 ${a.whiff}%`; } } }
+            // 제목에 이미 구종명이 뜨므로 여기선 생략(중복 방지)
+            return `구사 ${a.usage}% · 구위 ${a.stuff} · 헛스윙 ${a.whiff}%`; } } }
         } },
       plugins: [arsenalCenter]
     });
@@ -843,9 +885,16 @@ const quad = new Chart(document.getElementById("quadChart"), {
 });
 const quadCtl = attachRandomPick(quad, "pick_quad_info",
   DATA.pitchers, p => ({x: p.stuff, y: p.era, r: rIp(p.ip), ...p}),
-  d => infoHtml(d, `이닝 ${d.ip} · ERA ${d.era} · FIP ${d.fip} · 구위+ ${d.stuff} · 제구+ ${d.control} · 평균구속 ${d.speed} · ${d.type}`
-    + (d.loc != null ? `<br><span style="color:var(--muted)">로케이션+ ${d.loc} · Gap(구위−로케이션) ${d.locGap>0?'+':''}${d.locGap} · 한가운데 ${d.heart}% · 보더라인 ${d.edge}% — ${d.locType}</span>` : "")),
+  d => infoHtml(d, `이닝 ${d.ip} · ${tip("ERA")} ${d.era} · ${tip("FIP")} ${d.fip} · ${tip("구위+")} ${d.stuff} · ${tip("제구+")} ${d.control} · 평균구속 ${d.speed} · ${d.type}`
+    + (d.loc != null ? `<br><span style="color:var(--muted)">${tip("로케이션+")} ${d.loc} · ${tip("Gap")}(구위−로케이션) ${d.locGap>0?'+':''}${d.locGap} · ${tip("한가운데")} ${d.heart}% · ${tip("보더라인")} ${d.edge}% — ${d.locType}</span>` : "")),
   d => renderArsenal("arsenal_quad", "arsenal_detail", d));
+// 아스널(구종) 도넛에 마우스를 올리는 동안엔 투수 자동순환을 멈춰 구종을 살펴볼 수 있게
+(function freezeOnArsenal() {
+  const c = document.getElementById("arsenal_quad");
+  if (!c) return;
+  c.addEventListener("mouseenter", () => quadCtl.pause());
+  c.addEventListener("mouseleave", () => quadCtl.resume());
+})();
 
 // ── ② ERA-FIP 양극단 (상위=억울한 반등후보, 하위=운좋은 하락경계) ──
 const _byGap = [...DATA.pitchers].sort((a,b) => b.gap - a.gap);
@@ -888,7 +937,7 @@ const batLuck = new Chart(document.getElementById("batLuckChart"), {
 const radarLuck = makeRadar("radar_luck");
 const batLuckCtl = attachRandomPick(batLuck, "pick_luck_info",
   bats, b => ({x: b.babip, y: b.woba, r: rPa(b.pa), ...b}),
-  d => infoHtml(d, `타석 ${d.pa} · BABIP ${d.babip} · wOBA ${d.woba} · 종합+ ${d.overall} · 유인구스윙 ${d.chase}% · 컨택 ${d.contact}% · ${d.luckType}`),
+  d => infoHtml(d, `타석 ${d.pa} · ${tip("BABIP")} ${d.babip} · ${tip("wOBA")} ${d.woba} · ${tip("종합+")} ${d.overall} · ${tip("유인구스윙")} ${d.chase}% · ${tip("컨택")} ${d.contact}% · ${d.luckType}`),
   d => updateRadar(radarLuck, d));
 
 // ── ④ 파워 유형 지도 ──
@@ -915,7 +964,7 @@ const power = new Chart(document.getElementById("powerChart"), {
 const radarPower = makeRadar("radar_power");
 const powerCtl = attachRandomPick(power, "pick_power_info",
   pw, b => ({x: b.power, y: b.hr, r: rPa(b.pa), ...b}),
-  d => infoHtml(d, `타석 ${d.pa} · Power+ ${d.power} · HR+ ${d.hr} · ISO ${d.iso} · ${d.powerType}`),
+  d => infoHtml(d, `타석 ${d.pa} · ${tip("Power+")} ${d.power} · ${tip("HR+")} ${d.hr} · ${tip("ISO")} ${d.iso} · ${d.powerType}`),
   d => updateRadar(radarPower, d));
 
 // ── ⑤ 공격 × 수비 (oWAR vs dWAR, Statiz) ──
@@ -946,10 +995,10 @@ if (!sbats.length) {
   });
   warQuadCtl = attachRandomPick(warQuad, "pick_war_info",
     sbats, b => ({x: b.owar, y: b.dwar, r: rWar(b), ...b}),
-    d => infoHtml(d, `${d.pos} · ${d.pa}타석 · WAR ${d.war} (공격 ${d.owar} + 수비 ${d.dwar}) · wRC+ ${d.wrcplus}`
+    d => infoHtml(d, `${d.pos} · ${d.pa}타석 · ${tip("WAR")} ${d.war} (공격 ${tip("oWAR")} ${d.owar} + 수비 ${tip("dWAR")} ${d.dwar}) · ${tip("wRC+")} ${d.wrcplus}`
       + ` — ${d.owar >= 2 && d.dwar >= 0.3 ? "💎 공수겸장" : d.owar >= 2 && d.dwar <= -0.3 ? "🏏 공격형(수비 구멍)"
           : d.owar >= 2 ? "🏏 공격형" : d.dwar >= 0.5 ? "🧤 수비형" : "➖ 평범"}`
-      + `<br><span style="color:var(--muted)">규율 BB% ${d.bbpct} · K% ${d.kpct} · ISO ${d.iso} · 주루 도루 ${d.sb}(실패 ${d.cs}) · 병살 ${d.gdp}</span>`));
+      + `<br><span style="color:var(--muted)">규율 ${tip("BB%")} ${d.bbpct} · ${tip("K%")} ${d.kpct} · ${tip("ISO")} ${d.iso} · 주루 도루 ${d.sb}(실패 ${d.cs}) · 병살 ${d.gdp}</span>`));
 }
 
 // ── ⑥ 불펜 리더보드 (Statiz) ──
