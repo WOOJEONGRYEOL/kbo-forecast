@@ -40,12 +40,13 @@ def save_history() -> Path:
         return [int(r["season"]), r.get("pno", ""), r["name"], r["team"],
                 r["color"], r["pos"], float(r["war"]), float(r["owar"]),
                 float(r["dwar"]), float(r["wrcplus"]), int(r["pa"]),
-                int(r["hr"]), float(r["ops"])]
+                int(r["hr"]), float(r["ops"]), r.get("arch", "")]
 
     def pnum(r):
         return [int(r["season"]), r.get("pno", ""), r["name"], r["team"],
                 r["color"], r["role"], float(r["war"]), float(r["era"]),
-                float(r["fip"]), float(r["ip"]), int(r["so"]), int(r["gs"])]
+                float(r["fip"]), float(r["ip"]), int(r["so"]), int(r["gs"]),
+                r.get("arch", "")]
 
     seasons = sorted({int(r["season"]) for r in bats} |
                      {int(r["season"]) for r in pits})
@@ -129,6 +130,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <div id="rankControls" style="display:contents">
     <div><label>시즌</label><select id="season"></select></div>
     <div><label>포지션</label><span class="seg" id="pos"></span></div>
+    <div><label>유형</label><select id="archsel"></select></div>
     <div><label>정렬</label><select id="sort"></select></div>
   </div>
   <div id="trendControls" style="display:none"><label>지표</label><span class="seg" id="metric"></span></div>
@@ -150,10 +152,10 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <script>
 const DATA = __DATA__;
 // 컬럼 인덱스 (pno = 선수 고유 ID; 통산 합산 키)
-const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12};
-const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11};
+const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,arch:13};
+const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,arch:12};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
-let view="rank", metric="";
+let view="rank", metric="", archF="전체";
 // 리그 진화 지표: [라벨, 시즌집계함수(rows→값), 소수자릿수, 설명]
 const TREND_BAT = {
   hr:  ["홈런 (600타석당)", rs=>{let h=0,p=0;rs.forEach(r=>{h+=r[B.hr];p+=r[B.pa];});return p?h/p*600:0;}, 1,
@@ -187,7 +189,7 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
   ss.onchange=()=>{season=ss.value; render();};
   el("side").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     side=b.dataset.v; el("side").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
-    pos="전체"; sortKey="war"; buildPos(); buildSort(); buildMetric();
+    pos="전체"; sortKey="war"; buildPos(); buildSort(); buildArch(); buildMetric();
     if(view==="trend") renderTrend(); else render();
   });
   el("view").querySelectorAll("button").forEach(b=>b.onclick=()=>{
@@ -200,7 +202,7 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
     el("detailCard").style.display="none";
     if(trend) renderTrend(); else render();
   });
-  buildPos(); buildSort(); buildMetric();
+  buildPos(); buildSort(); buildArch(); buildMetric();
   el("legend").innerHTML="팀 약자: "+Object.entries(DATA.legend).map(([k,v])=>`${k}=${v}`).join(" · ");
   render();
 })();
@@ -215,6 +217,15 @@ function buildSort(){
   el("sort").innerHTML=Object.entries(S).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("");
   el("sort").value=sortKey in S?sortKey:"war";
   el("sort").onchange=()=>{sortKey=el("sort").value; render();};
+}
+function buildArch(){
+  const I=side==="bat"?B:P;
+  const src=side==="bat"?DATA.batters:DATA.pitchers;
+  const set=[...new Set(src.map(r=>r[I.arch]).filter(Boolean))].sort();
+  archF="전체";
+  el("archsel").innerHTML='<option value="전체">전체 유형</option>'+
+    set.map(a=>`<option value="${a}">${a}</option>`).join("");
+  el("archsel").onchange=()=>{archF=el("archsel").value; render();};
 }
 
 // ── 리그 진화 (44년 추이) ──
@@ -267,6 +278,8 @@ function rowsForSeason(){
   } else if(side==="bat"){
     rows=rows.filter(r=>r[B.pos]!=="P");  // 타자 표에서 투수(대타 등) 제외
   }
+  // 유형 필터: 시즌 모드는 여기서(선수-시즌 단위). 통산은 주 유형으로 집계 후 필터.
+  if(archF!=="전체" && season!=="통산") rows=rows.filter(r=>r[I.arch]===archF);
   return rows;
 }
 
@@ -306,6 +319,9 @@ function career(rows){
     const wars=o.rows.map(r=>r[I.war]).sort((a,b)=>b-a);
     agg.peak=wars.slice(0,7).reduce((s,x)=>s+x,0);
     agg.jaws=(agg.war+agg.peak)/2;
+    // 주 유형 = 커리어 최빈 아키타입
+    const ac={}; o.rows.forEach(r=>{const a=r[I.arch]; if(a) ac[a]=(ac[a]||0)+1;});
+    agg.arch=Object.keys(ac).length?Object.entries(ac).sort((a,b)=>b[1]-a[1])[0][0]:"";
     return agg;
   });
 }
@@ -356,6 +372,9 @@ function openDetail(pno){
   const totWar=mine.reduce((s,r)=>s+r[I.war],0);
   const peak=mine.reduce((a,r)=>r[I.war]>a[I.war]?r:a, mine[0]);
   const maxW=Math.max(...mine.map(r=>Math.abs(r[I.war])),1);
+  // 최빈 유형(아키타입)
+  const ac={}; mine.forEach(r=>{const a=r[I.arch]; if(a) ac[a]=(ac[a]||0)+1;});
+  const arch=Object.entries(ac).sort((a,b)=>b[1]-a[1])[0];
   // 궤적 막대(연도별 WAR)
   const traj=mine.map(r=>{const w=r[I.war], h=Math.max(2,Math.abs(w)/maxW*80);
     const col=w>=0?"#3ecf8e":"#e0555f";
@@ -367,9 +386,8 @@ function openDetail(pno){
       :`ERA ${r[P.era].toFixed(2)}·WAR ${r[P.war].toFixed(1)}`;
     return `<div class="comp"><b>${r[I.name]}</b> <span style="color:var(--muted)">${r[I.season]} ${r[I.team]}</span><br><span style="color:var(--muted)">${stat}</span></div>`;
   }).join("");
-  const summary=isBat
-    ? `통산 WAR <b>${totWar.toFixed(1)}</b> · ${mine.length}시즌 · 피크 ${peak[B.season]}(WAR ${peak[B.war].toFixed(1)}) · 팀 ${teams.join('·')}`
-    : `통산 WAR <b>${totWar.toFixed(1)}</b> · ${mine.length}시즌 · 피크 ${peak[P.season]}(WAR ${peak[P.war].toFixed(1)}) · 팀 ${teams.join('·')}`;
+  const at=arch?` · 유형 <b>${arch[0]}</b>`:"";
+  const summary=`통산 WAR <b>${totWar.toFixed(1)}</b> · ${mine.length}시즌 · 피크 ${peak[I.season]}(WAR ${peak[I.war].toFixed(1)}) · 팀 ${teams.join('·')}${at}`;
   const card=el("detailCard");
   card.innerHTML=`<div class="dhead"><span class="nm">${name}</span>
       <span class="meta">${summary}</span>
@@ -389,6 +407,7 @@ function render(){
   if(isCareer){ recs=career(rows);
     // 통산도 포지션 필터(주포지션 기준)
     if(pos!=="전체" && side==="bat") recs=recs.filter(r=>r.pos===pos);
+    if(archF!=="전체") recs=recs.filter(r=>r.arch===archF);   // 주 유형 필터
   } else {
     const I=side==="bat"?B:P;
     recs=rows.map(r=>side==="bat"

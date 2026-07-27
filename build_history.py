@@ -57,20 +57,28 @@ def build(src: str) -> None:
     nb = 0
     with open(bout, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
+        # iso/bbpct/kpct/sbrate = 유형 클러스터링용 스타일 피처
         w.writerow(["season", "pno", "name", "team", "color", "pos",
-                    "war", "owar", "dwar", "wrcplus", "pa", "hr", "ops"])
+                    "war", "owar", "dwar", "wrcplus", "pa", "hr", "ops",
+                    "iso", "bbpct", "kpct", "sbrate"])
         for path in sorted(glob.glob(f"{src}/batter_*_all.csv")):
             yr = _season(path)
             if not yr:
                 continue
             for r in csv.DictReader(open(path, encoding="utf-8-sig")):
                 color = (r.get("TeamColor") or "").lower()
+                pa = _num(r["PA"])
+                iso = round(_num(r["SLG"]) - _num(r["AVG"]), 3)
+                bbpct = round(_num(r["BB"]) / pa * 100, 1) if pa else 0
+                kpct = round(_num(r["SO"]) / pa * 100, 1) if pa else 0
+                sbrate = round(_num(r["SB"]) / pa * 100, 1) if pa else 0
                 w.writerow([yr, r.get("PlayerNo", ""), r["Name"],
                             _abbr(r.get("Team", ""), color),
                             color, r.get("Pos", ""), _num(r["WAR"]),
                             _num(r["oWAR"]), _num(r["dWAR"]),
-                            _num(r.get("wRC+", 0)), int(_num(r["PA"])),
-                            int(_num(r["HR"])), _num(r.get("OPS", 0))])
+                            _num(r.get("wRC+", 0)), int(pa),
+                            int(_num(r["HR"])), _num(r.get("OPS", 0)),
+                            iso, bbpct, kpct, sbrate])
                 nb += 1
     print(f"저장: {bout} ({nb}행)")
 
@@ -79,8 +87,9 @@ def build(src: str) -> None:
     npi = 0
     with open(pout, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
+        # k9/bb9/hr9 = 유형 클러스터링용 스타일 피처
         w.writerow(["season", "pno", "name", "team", "color", "role",
-                    "war", "era", "fip", "ip", "so", "gs"])
+                    "war", "era", "fip", "ip", "so", "gs", "k9", "bb9", "hr9"])
         for path in sorted(glob.glob(f"{src}/pitcher_*_all.csv")):
             yr = _season(path)
             if not yr:
@@ -88,12 +97,16 @@ def build(src: str) -> None:
             for r in csv.DictReader(open(path, encoding="utf-8-sig")):
                 color = (r.get("TeamColor") or "").lower()
                 gs = int(_num(r["GS"]))
+                ip = _num(r["IP"])
                 role = "선발" if gs >= 10 else "불펜" if gs == 0 else "스윙"
+                k9 = round(_num(r["SO"]) / ip * 9, 2) if ip else 0
+                bb9 = round(_num(r["BB"]) / ip * 9, 2) if ip else 0
+                hr9 = round(_num(r["HR"]) / ip * 9, 2) if ip else 0
                 w.writerow([yr, r.get("PlayerNo", ""), r["Name"],
                             _abbr(r.get("Team", ""), color),
                             color, role, _num(r["WAR"]), _num(r["ERA"]),
-                            _num(r["FIP"]), _num(r["IP"]), int(_num(r["SO"])),
-                            gs])
+                            _num(r["FIP"]), ip, int(_num(r["SO"])),
+                            gs, k9, bb9, hr9])
                 npi += 1
     print(f"저장: {pout} ({npi}행)")
 
