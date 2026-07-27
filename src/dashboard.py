@@ -232,16 +232,14 @@ def _style_bar(z: float) -> str:
 
 
 def _phase_bar(margin: float, label: str) -> str:
-    """구간 강약 미니막대: 경기당 득실 마진. +면 초록 위로(강), −면 빨강 아래로(약)."""
-    h = max(2.0, min(abs(margin) / 1.5, 1.0) * 15)   # 1.5점차에서 최대, 최소 2px
-    if margin >= 0:
-        style = f"bottom:50%; height:{h:.0f}px; background:#3ecf8e"
-    else:
-        style = f"top:50%; height:{h:.0f}px; background:#e0555f"
-    val = f"{margin:+.1f}"
-    return (f'<div class="pcol"><div class="ptrack" title="{label} 득실 {val}/경기">'
-            f'<span class="pbar" style="{style}"></span></div>'
-            f'<span class="plab">{label}</span></div>')
+    """구간 강약 막대: 경기당 득실 마진. +면 초록 위로(강), −면 빨강 아래로(약). 값도 표시."""
+    h = max(2.0, min(abs(margin) / 0.8, 1.0) * 26)   # 0.8점차에서 최대(track 반높이 26px)
+    col = "#3ecf8e" if margin >= 0 else "#e0555f"
+    edge = "bottom:50%" if margin >= 0 else "top:50%"
+    return (f'<div class="pcol"><div class="ptrack">'
+            f'<span class="pbar" style="{edge}; height:{h:.0f}px; background:{col}"></span></div>'
+            f'<span class="plab">{label}</span>'
+            f'<span class="pval" style="color:{col}">{margin:+.1f}</span></div>')
 
 
 def _phase_strip(early: float, mid: float, late: float) -> str:
@@ -249,8 +247,8 @@ def _phase_strip(early: float, mid: float, late: float) -> str:
             + _phase_bar(mid, "중") + _phase_bar(late, "후") + '</div>')
 
 
-def _team_style_card(logos: dict) -> str:
-    """팀 스타일 지문 카드 (빅볼/스몰볼·선발/불펜·공격/투수). 데이터 없으면 빈 문자열."""
+def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
+    """팀 스타일 지문 카드 (빅볼/스몰볼·선발/불펜·공격/수비·초중후반). 데이터 없으면 빈 문자열."""
     path = Path(config.DATA_DIR) / f"team_style_{config.SEASON}.csv"
     if not path.exists():
         return ""
@@ -260,10 +258,12 @@ def _team_style_card(logos: dict) -> str:
     col = lambda n: [float(r[n]) for r in rows]
     iso, small = _zscores(col("iso")), _zscores(col("small_rate"))
     sw, rw = _zscores(col("starter_war")), _zscores(col("reliever_war"))
-    ow, pw = _zscores(col("bat_owar")), _zscores(col("pit_war"))
+    # ③ 공격(득점 창출) vs 수비(실점 억제 = 투수 + 야수 dWAR)
+    off = _zscores(col("bat_owar"))
+    defense = _zscores([float(r["pit_war"]) + float(r["bat_dwar"]) for r in rows])
     ax1 = [a - b for a, b in zip(iso, small)]   # + 빅볼 / − 스몰볼
     ax2 = [a - b for a, b in zip(sw, rw)]        # + 선발 / − 불펜
-    ax3 = [a - b for a, b in zip(ow, pw)]        # + 공격 / − 투수
+    ax3 = [a - b for a, b in zip(off, defense)]  # + 공격 / − 수비(실점억제)
 
     # ④ 초·중·후반 득실 마진 (Naver 이닝별 득점) — 있으면 4번째 열 추가
     phase_path = Path(config.DATA_DIR) / f"team_phase_{config.SEASON}.csv"
@@ -273,15 +273,21 @@ def _team_style_card(logos: dict) -> str:
         if all(r["team"] in pmap for r in rows):
             ph = pmap
 
-    order = sorted(range(len(rows)), key=lambda i: -ax1[i])   # 빅볼→스몰볼 순
+    # 현재 순위 순으로 정렬(없으면 빅볼→스몰볼 순 폴백)
+    idx = {r["team"]: i for i, r in enumerate(rows)}
+    if rank_order:
+        order = [idx[c] for c in rank_order if c in idx]
+        order += [i for i in range(len(rows)) if i not in order]
+    else:
+        order = sorted(range(len(rows)), key=lambda i: -ax1[i])
     body = []
-    for i in order:
+    for rk, i in enumerate(order, 1):
         r = rows[i]; code = r["team"]
         name = config.TEAM_NAMES.get(code, code)
         logo = logos.get(code, "")
         tip = (f'ISO {r["iso"]} · 도루+번트/타석 {r["small_rate"]}% · '
                f'선발WAR {r["starter_war"]}/불펜WAR {r["reliever_war"]} · '
-               f'타격oWAR {r["bat_owar"]}/투수WAR {r["pit_war"]}')
+               f'공격 oWAR {r["bat_owar"]} vs 수비 (투수 {r["pit_war"]}+야수 {r["bat_dwar"]})')
         pcell = ""
         if ph is not None:
             p = ph[code]
@@ -289,7 +295,8 @@ def _team_style_card(logos: dict) -> str:
             tip += f' · 초{e:+.2f}/중{m:+.2f}/후{l:+.2f} 경기당 득실'
             pcell = f'<td>{_phase_strip(e, m, l)}</td>'
         body.append(
-            f'<tr title="{tip}"><td class="stm"><img src="{logo}" alt="">{name}</td>'
+            f'<tr title="{tip}"><td class="stm"><span class="srk">{rk}</span>'
+            f'<img src="{logo}" alt="">{name}</td>'
             f'<td>{_style_bar(ax1[i])}</td>'
             f'<td>{_style_bar(ax2[i])}</td>'
             f'<td>{_style_bar(ax3[i])}</td>{pcell}</tr>')
@@ -302,20 +309,20 @@ def _team_style_card(logos: dict) -> str:
     return (
         '<div class="card wide">'
         '<h2><span class="badge">🧬</span>팀 스타일 지문 '
-        '<span style="color:var(--muted);font-weight:400">— 리그 평균 대비 성향</span></h2>'
+        '<span style="color:var(--muted);font-weight:400">— 현재 순위순 · 리그 평균 대비 성향</span></h2>'
         '<p class="hint">각 팀이 어느 쪽으로 치우쳤는지(팀 간 z-점수 차). 막대가 길수록 그 성향이 뚜렷합니다. '
         '<span style="color:#4a90d9">■ 파랑=왼쪽</span> · <span style="color:#e8874a">■ 주황=오른쪽</span> 성향.</p>'
         '<div class="table-scroll"><table class="stbl"><thead><tr>'
         '<th>팀</th>'
         '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
         '<th><span class="pl">불펜형</span><span class="pr">선발형</span></th>'
-        '<th><span class="pl">투수로</span><span class="pr">공격으로</span></th>'
+        '<th><span class="pl">수비로</span><span class="pr">공격으로</span></th>'
         + phase_th +
         '</tr></thead><tbody>' + "".join(body) + '</tbody></table></div>'
         '<p class="hint" style="margin-top:8px">'
         '① <b>빅볼</b>=장타(ISO) vs <b>스몰볼</b>=기동력(도루+번트). '
         '② <b>선발/불펜</b> WAR 우열. '
-        '③ 승리 기여가 <b>방망이</b>(타격 oWAR)냐 <b>마운드</b>(투수 WAR)냐.'
+        '③ 승리 기여가 <b>공격</b>(득점 창출·oWAR)이냐 <b>수비</b>(실점 억제=투수 WAR+야수 dWAR)냐.'
         + phase_note +
         ' 행에 커서를 올리면 원자료가 보입니다.</p></div>')
 
@@ -373,7 +380,7 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
-    html = html.replace("__STYLE_CARD__", _team_style_card(logos))
+    html = html.replace("__STYLE_CARD__", _team_style_card(logos, order))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
@@ -543,15 +550,18 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .sbar { position: relative; height: 14px; background: #0d1119; border: 1px solid var(--line); border-radius: 7px; }
   .sctr { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: #46516b; }
   .sfill { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; min-width: 2px; }
+  .stbl .srk { display: inline-block; min-width: 16px; color: var(--muted);
+    font-size: 12px; font-weight: 700; margin-right: 4px; text-align: right; }
   .stbl .pth { text-align: center; font-size: 11px; }
-  .pbars { display: flex; gap: 8px; justify-content: center; align-items: flex-start; }
-  .pcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-  .ptrack { position: relative; width: 15px; height: 32px; background: #0d1119;
+  .pbars { display: flex; gap: 10px; justify-content: center; align-items: flex-start; }
+  .pcol { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .ptrack { position: relative; width: 20px; height: 54px; background: #0d1119;
     border: 1px solid var(--line); border-radius: 3px; }
   .ptrack::after { content: ''; position: absolute; left: 0; right: 0; top: 50%;
-    height: 1px; background: #46516b; }
-  .pbar { position: absolute; left: 2px; right: 2px; border-radius: 2px; }
+    height: 1px; background: #566179; }
+  .pbar { position: absolute; left: 3px; right: 3px; border-radius: 2px; }
   .plab { font-size: 10px; color: var(--muted); }
+  .pval { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
   /* ── 모바일(좁은 폰) 최적화 ── */
   @media (max-width: 560px) {
@@ -584,7 +594,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO __SEASON__ 단기 전력 대시보드</h1>
-<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 6시(KST) 자동 갱신</span><br>
   데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
   아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
 
@@ -616,7 +626,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <table>
       <thead><tr>
         <th>__H_RANK__</th><th>팀</th><th>__H_RECENT__</th><th>__H_ACTUAL__</th><th>__H_EXPECTED__</th>
-        <th>__H_GAP__</th><th>__H_STUFF__</th><th>__H_BAT__</th><th>__H_CLUTCH__</th><th>__H_MOM__</th><th>__H_DIAG__</th>
+        <th>__H_GAP__</th><th>__H_STUFF__</th><th>__H_BAT__</th><th>__H_CLUTCH__</th><th>__H_MOM__</th><th style="text-align:left">__H_DIAG__</th>
       </tr></thead>
       <tbody>__TABLE_ROWS__</tbody>
     </table>
@@ -634,7 +644,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <div class="table-scroll">
     <table>
       <thead><tr>
-        <th>예상#</th><th>팀</th><th>우승%</th><th>가을야구%</th><th>순위 90%구간</th><th>득실점 평가</th>
+        <th>예상#</th><th>팀</th><th>우승%</th><th>가을야구%</th><th>순위 90%구간</th><th style="text-align:left">득실점 평가</th>
       </tr></thead>
       <tbody>__STANDINGS_ROWS__</tbody>
     </table>
@@ -643,8 +653,6 @@ _TEMPLATE = r"""<!DOCTYPE html>
       중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
       잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
   </div>
-
-__STYLE_CARD__
 
   <div class="card">
     <h2>종합 모멘텀 지수</h2>
@@ -658,9 +666,12 @@ __STYLE_CARD__
     <div class="chart-box"><canvas id="luckChart"></canvas></div>
   </div>
 
+__STYLE_CARD__
+
   <div class="card wide">
     <h2>시즌 흐름 — 기대승률 추이</h2>
-    <p class="hint">선택 기준으로 계산한 기대승률의 시계열(시즌 전체는 누적). 아래 로고를 클릭하면 선을 켜고 끕니다.</p>
+    <p class="hint">선택 기준으로 계산한 기대승률의 시계열(시즌 전체는 누적). 아래 로고를 클릭해 선을 켜고 끕니다.
+      <b>그래프 위에 커서를 좌우로 움직이면</b> 그 시점 <b>세로 점선</b>이 서고, 켜진 팀들의 기대승률이 <b>높은 순으로 한 줄에</b> 표시됩니다.</p>
     <div class="chart-box tall"><canvas id="trendChart"></canvas></div>
     <div id="trendLegend" class="logo-legend"></div>
   </div>
@@ -841,15 +852,32 @@ const luckChart = new Chart(document.getElementById("luckChart"), {
       y: { min: 0.1, max: 0.9, title: { display: true, text: "실제승률" }, grid: { color: "#222a3a" } } } }
 });
 
+// 세로 점선 스크러버: 마우스(터치) 위치에 세로 점선을 그림
+const trendScrubber = { id: "trendScrubber", afterDraw(ch) {
+  const els = ch.tooltip && ch.tooltip.getActiveElements ? ch.tooltip.getActiveElements() : [];
+  if (!els.length) return;
+  const x = els[0].element.x, { ctx, chartArea: { top, bottom } } = ch;
+  ctx.save(); ctx.strokeStyle = "#aab3c5"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.restore();
+}};
 const trendChart = new Chart(document.getElementById("trendChart"), {
   type: "line",
   data: { labels: [], datasets: order.map(c => ({
     code: c, label: meta[c].name, data: [], borderColor: meta[c].color,
-    backgroundColor: meta[c].color, borderWidth: 2, pointRadius: 0, spanGaps: true, tension: 0.25 })) },
-  options: { maintainAspectRatio: false, interaction: { mode: "nearest", intersect: false },
-    plugins: { legend: { display: false } },
+    backgroundColor: meta[c].color, borderWidth: 2, pointRadius: 0,
+    pointHoverRadius: 4, spanGaps: true, tension: 0.25 })) },
+  options: { maintainAspectRatio: false,
+    // index 모드: 한 시점에 커서를 대면 그 시점 '토글 켜진' 모든 팀 값이 한 줄로
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: { display: false },
+      tooltip: { position: "nearest",
+        itemSort: (a, b) => b.parsed.y - a.parsed.y,   // 기대승률 높은 순 정렬
+        callbacks: {
+          title: items => items.length ? items[0].label : "",
+          label: it => `  ${it.dataset.label}  ${(it.parsed.y * 100).toFixed(1)}%` } } },
     scales: { x: { ticks: { maxTicksLimit: 12 }, grid: { display: false } },
-      y: { min: 0, max: 1, title: { display: true, text: "기대승률" }, grid: { color: "#222a3a" } } } }
+      y: { min: 0, max: 1, title: { display: true, text: "기대승률" }, grid: { color: "#222a3a" } } } },
+  plugins: [trendScrubber]
 });
 
 // 시즌 흐름 시계열 (윈도우 W, null=누적)

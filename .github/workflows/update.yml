@@ -1,9 +1,9 @@
 name: KBO 대시보드 자동 갱신
 
-# 매일 오전 8시(KST) — GitHub Actions는 UTC 기준이라 23:00 UTC = 다음날 08:00 KST
+# 매일 오전 6시(KST) — GitHub Actions는 UTC 기준이라 21:00 UTC = 다음날 06:00 KST
 on:
   schedule:
-    - cron: "0 23 * * *"
+    - cron: "0 21 * * *"
   workflow_dispatch: {}   # GitHub 화면에서 수동 실행 버튼도 제공
 
 permissions:

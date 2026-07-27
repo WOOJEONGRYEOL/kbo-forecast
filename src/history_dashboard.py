@@ -96,7 +96,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   th.sorted { color:var(--green); }
   th[data-tip] { text-decoration:underline dotted #5b647a; text-underline-offset:3px; }
   th[data-tip]:hover::after { content:attr(data-tip); position:absolute; left:50%; transform:translateX(-50%);
-    bottom:130%; width:min(240px,70vw); white-space:normal; text-align:left; font-weight:400;
+    top:150%; width:min(240px,70vw); white-space:normal; text-align:left; font-weight:400;
     background:#0b0e14; color:var(--text); border:1px solid var(--line); padding:8px 10px;
     border-radius:8px; font-size:12px; line-height:1.5; z-index:30; box-shadow:0 8px 24px rgba(0,0,0,.55); }
   td.rank { color:var(--muted); }
@@ -302,6 +302,12 @@ function lineSVG(pts, dec, label){
   const Y=v=>H-mB-(v-y0)/(y1-y0)*(H-mT-mB);
   const line=pts.map((p,i)=>`${i?'L':'M'}${X(p.season).toFixed(1)},${Y(p.val).toFixed(1)}`).join(" ");
   const dots=pts.map(p=>`<circle cx="${X(p.season).toFixed(1)}" cy="${Y(p.val).toFixed(1)}" r="2.5" fill="#3ecf8e"><title>${p.season}: ${p.val.toFixed(dec)}</title></circle>`).join("");
+  // 각 시즌 값 라벨 — 겹치지 않게 간격 두고(그리디), 마지막 점은 항상 표시
+  let vlab="", lastX=-999;
+  pts.forEach((p,i)=>{const xx=X(p.season), yy=Y(p.val);
+    if(xx-lastX>=38 || i===pts.length-1){
+      vlab+=`<text x="${xx.toFixed(1)}" y="${(yy-7).toFixed(1)}" text-anchor="middle" fill="#cfe3ff" font-size="10">${p.val.toFixed(dec)}</text>`;
+      lastX=xx;}});
   // 격자·라벨
   let grid="", xlab="";
   for(let g=0;g<=4;g++){const v=y0+(y1-y0)*g/4, yy=Y(v);
@@ -310,7 +316,7 @@ function lineSVG(pts, dec, label){
   for(let s=Math.ceil(x0/5)*5;s<=x1;s+=5){const xx=X(s);
     xlab+=`<text x="${xx.toFixed(1)}" y="${H-12}" text-anchor="middle" fill="#8a94a8" font-size="11">${s}</text>`;}
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:560px;max-width:${W}px">
-    ${grid}${xlab}<path d="${line}" fill="none" stroke="#3ecf8e" stroke-width="2.5"/>${dots}</svg>`;
+    ${grid}${xlab}<path d="${line}" fill="none" stroke="#3ecf8e" stroke-width="2.5"/>${dots}${vlab}</svg>`;
 }
 
 function rowsForSeason(){
@@ -588,7 +594,7 @@ function render(){
     if(pno) tr.onclick=()=>openDetail(pno); });
 
   el("tableHint").innerHTML = isCareer
-    ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · 선수 고유 ID로 합산해 동명이인을 정확히 분리했습니다. wRC+/ERA 등 비율은 PA·이닝 가중평균.`
+    ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · wRC+/ERA 등 비율은 PA·이닝 가중평균.`
       + (showMin ? (minFilter
           ? ` <b style="color:var(--acc,#3ecf8e)">표본 필터 ON</b> — 통산 ${side==="bat"?MIN_CAREER_PA+"타석":MIN_CAREER_IP+"이닝"} 이상만(1~2시즌 소표본 왜곡 제거). '전체'로 해제 가능.`
           : ` <b style="color:#ffb454">표본 필터 OFF</b> — 소수 시즌 선수가 상위에 낄 수 있습니다.`) : "")

@@ -160,7 +160,7 @@ def build_team_style(pit: list, bat: list, season: int) -> None:
     - 공격/투수: 팀 타격 oWAR 합 vs 투수 WAR 합.
     """
     tb = defaultdict(lambda: {"pa": 0.0, "iso_w": 0.0, "sb": 0.0, "sh": 0.0,
-                              "hr": 0.0, "owar": 0.0, "bwar": 0.0})
+                              "hr": 0.0, "owar": 0.0, "dwar": 0.0, "bwar": 0.0})
     for r in bat:
         c = _code(r)
         if not c:
@@ -170,7 +170,7 @@ def build_team_style(pit: list, bat: list, season: int) -> None:
         a["pa"] += pa
         a["iso_w"] += (_num(r["SLG"]) - _num(r["AVG"])) * pa
         a["sb"] += _num(r["SB"]); a["sh"] += _num(r["SH"]); a["hr"] += _num(r["HR"])
-        a["owar"] += _num(r["oWAR"]); a["bwar"] += _num(r["WAR"])
+        a["owar"] += _num(r["oWAR"]); a["dwar"] += _num(r["dWAR"]); a["bwar"] += _num(r["WAR"])
     tp = defaultdict(lambda: {"sw": 0.0, "rw": 0.0})
     for r in pit:
         c = _code(r)
@@ -185,13 +185,14 @@ def build_team_style(pit: list, bat: list, season: int) -> None:
     with open(out, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow(["team", "pa", "iso", "hr", "sb", "sh", "small_rate",
-                    "bat_owar", "bat_war", "starter_war", "reliever_war", "pit_war"])
+                    "bat_owar", "bat_dwar", "bat_war",
+                    "starter_war", "reliever_war", "pit_war"])
         for c in sorted(tb):
             a = tb[c]; p = tp.get(c, {"sw": 0.0, "rw": 0.0}); pa = a["pa"] or 1
             w.writerow([c, int(a["pa"]), round(a["iso_w"] / pa, 3), int(a["hr"]),
                         int(a["sb"]), int(a["sh"]),
                         round((a["sb"] + a["sh"]) / pa * 100, 2),
-                        round(a["owar"], 1), round(a["bwar"], 1),
+                        round(a["owar"], 1), round(a["dwar"], 1), round(a["bwar"], 1),
                         round(p["sw"], 1), round(p["rw"], 1),
                         round(p["sw"] + p["rw"], 1)])
     print(f"저장: {out} ({len(tb)}팀)")
