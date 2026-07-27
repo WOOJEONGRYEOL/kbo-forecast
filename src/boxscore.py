@@ -27,10 +27,12 @@ boxscore.py — 경기별 박스스코어 수집기 (투수 기록)
   → 첫 실행만 느리고(경기당 1회 요청), 이후에는 즉시 로드됩니다.
 """
 
+import csv
 import json
 import re
 import sys
 import time
+from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
@@ -40,6 +42,7 @@ import config
 
 # 경기별 박스스코어 API (schedule/games 뒤에 /record를 붙이면 됩니다)
 RECORD_URL = config.NAVER_API_BASE + "/{game_id}/record"
+GAME_URL = config.NAVER_API_BASE + "/{game_id}"   # 게임 기본(이닝별 득점 포함)
 
 # 박스스코어는 경기 수가 많아(시즌 700+경기) 요청 간격을 짧게 잡되,
 # 그래도 서버를 배려해 최소한의 간격은 둡니다.
@@ -93,8 +96,101 @@ def fetch_game_pitchers(game_id: str, session: requests.Session) -> list[dict]:
 
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    _cache_linescore_from_record(game_id, body)   # 같은 응답에서 이닝별 득점도 저장(추가 요청 X)
     time.sleep(BOX_DELAY_SEC)  # 새로 받아온 경우에만 잠깐 쉬기
     return rows
+
+
+# ── 이닝별 득점(라인스코어) → 초·중·후반 팀 강약 ──────────────────
+def _linescore_path(game_id: str) -> Path:
+    return Path(config.DATA_DIR) / "linescore" / f"{game_id}.json"
+
+
+def _cache_linescore_from_record(game_id: str, body: dict) -> None:
+    """/record 응답 안 scoreBoard.inn(이닝별 득점)을 라인스코어 캐시로 저장."""
+    p = _linescore_path(game_id)
+    if p.exists():
+        return
+    try:
+        rec = body["result"]["recordData"]
+        inn = (rec.get("scoreBoard") or {}).get("inn") or {}
+        gi = rec.get("gameInfo", {})
+        ls = {"away": inn.get("away") or [], "home": inn.get("home") or [],
+              "awayCode": gi.get("aCode", ""), "homeCode": gi.get("hCode", "")}
+        if ls["away"] and ls["home"] and ls["awayCode"] and ls["homeCode"]:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(ls, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def fetch_game_linescore(game_id: str, session: requests.Session) -> dict | None:
+    """이닝별 득점 {away, home, awayCode, homeCode}. 캐시 우선, 없으면 게임 기본 API."""
+    p = _linescore_path(game_id)
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
+    try:
+        resp = session.get(GAME_URL.format(game_id=game_id),
+                           timeout=config.REQUEST_TIMEOUT_SEC)
+        resp.raise_for_status()
+        g = resp.json()["result"]["game"]
+        ls = {"away": g.get("awayTeamScoreByInning") or [],
+              "home": g.get("homeTeamScoreByInning") or [],
+              "awayCode": g.get("awayTeamCode", ""), "homeCode": g.get("homeTeamCode", "")}
+    except Exception:
+        return None
+    if ls["away"] and ls["home"] and ls["awayCode"] and ls["homeCode"]:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(ls, ensure_ascii=False), encoding="utf-8")
+        time.sleep(BOX_DELAY_SEC)
+        return ls
+    return None
+
+
+def _bucket_runs(arr: list) -> tuple[int, int, int]:
+    """이닝별 득점 배열 → (초반 1-3, 중반 4-6, 후반 7+). '-'·결측은 0."""
+    def v(x):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return 0
+    early = sum(v(arr[i]) for i in range(0, min(3, len(arr))))
+    mid = sum(v(arr[i]) for i in range(3, min(6, len(arr))))
+    late = sum(v(arr[i]) for i in range(6, len(arr)))
+    return early, mid, late
+
+
+def collect_phase_margins(games: list[dict], season: int) -> Path | None:
+    """이닝 구간별 팀 득실 마진(득점−실점) 집계 → data/team_phase_{yy}.csv.
+
+    초반(1-3)·중반(4-6)·후반(7+)에서 상대보다 얼마나 앞섰나를 경기당 평균으로.
+    (주의: 홈팀이 앞서면 9회말을 안 쳐 후반 득점에 구조적 비대칭 → 마진으로 완화)
+    """
+    session = requests.Session()
+    agg = defaultdict(lambda: {"e": 0, "m": 0, "l": 0, "g": 0})
+    used = 0
+    for g in games:
+        ls = fetch_game_linescore(g["gameId"], session)
+        if not ls or not ls["away"] or not ls["home"]:
+            continue
+        ae, am, al = _bucket_runs(ls["away"])
+        he, hm, hl = _bucket_runs(ls["home"])
+        ac, hc = ls["awayCode"], ls["homeCode"]
+        if not ac or not hc:
+            continue
+        a = agg[ac]; a["e"] += ae - he; a["m"] += am - hm; a["l"] += al - hl; a["g"] += 1
+        h = agg[hc]; h["e"] += he - ae; h["m"] += hm - am; h["l"] += hl - al; h["g"] += 1
+        used += 1
+    out = Path(config.DATA_DIR) / f"team_phase_{season}.csv"
+    with open(out, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["team", "g", "early_net", "mid_net", "late_net"])
+        for code, a in sorted(agg.items()):
+            gg = a["g"] or 1
+            w.writerow([code, a["g"], round(a["e"] / gg, 3),
+                        round(a["m"] / gg, 3), round(a["l"] / gg, 3)])
+    print(f"  → 이닝구간 마진: {used}경기 집계 → {out}")
+    return out
 
 
 # 네이버 박스스코어는 부분 이닝을 유니코드 분수 문자(⅓, ⅔)로 표기합니다.

@@ -134,6 +134,7 @@ def main() -> None:
     # 선발 로테이션: 박스스코어에서 선발 식별 → 선발 K-Stuff+ + 아스널
     box = boxscore.collect_season_pitching(games)
     rotation = boxscore.identify_rotation(box)
+    boxscore.collect_phase_margins(games, args.season)   # 초·중·후반 득실 마진(팀 스타일 카드)
     pitching_rot, rotation_detail = kbostuff_client.team_rotation(
         args.season, rotation)
     print(f"  → 선발 로테이션 식별 완료 ({len(rotation_detail)}팀, "

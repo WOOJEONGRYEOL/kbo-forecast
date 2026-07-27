@@ -16,3 +16,5 @@ data/*
 !data/history_*.csv
 !data/history.html
 !data/team_style_*.csv
+!data/team_phase_*.csv
+data/linescore/
