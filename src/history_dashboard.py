@@ -93,6 +93,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   th.sorted { color:var(--green); }
   td.rank { color:var(--muted); }
   tr.prow { cursor:pointer; } tr.prow:hover td { background:#1b2230; }
+  td.jaws { color:var(--green); font-weight:700; }
   .dhead { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
   .dhead .nm { font-size:18px; font-weight:700; }
   .dhead .meta { color:var(--muted); font-size:12px; }
@@ -225,6 +226,10 @@ function career(rows){
       agg.era=agg.ip?er/agg.ip:0;
       agg.fip=agg.ip?o.rows.reduce((s,r)=>s+r[P.fip]*r[P.ip],0)/agg.ip:0;
     }
+    // JAWS = (통산 WAR + 피크) / 2, 피크 = 베스트7 시즌 WAR 합 (HOF 자격 지표)
+    const wars=o.rows.map(r=>r[I.war]).sort((a,b)=>b-a);
+    agg.peak=wars.slice(0,7).reduce((s,x)=>s+x,0);
+    agg.jaws=(agg.war+agg.peak)/2;
     return agg;
   });
 }
@@ -314,8 +319,13 @@ function render(){
       ? {pno:r[B.pno],name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa]}
       : {pno:r[P.pno],name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip]});
   }
-  // 정렬
-  const S=side==="bat"?SORTS_BAT:SORTS_PIT; const dir=S[sortKey][2];
+  // 정렬 (통산 모드엔 JAWS·피크 추가)
+  let S=side==="bat"?{...SORTS_BAT}:{...SORTS_PIT};
+  if(isCareer){ S={...S, peak:["피크7",r=>r.peak,-1], jaws:["JAWS",r=>r.jaws,-1]}; }
+  if(!(sortKey in S)) sortKey="war";
+  el("sort").innerHTML=Object.entries(S).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("");
+  el("sort").value=sortKey;
+  const dir=S[sortKey][2];
   recs.sort((a,b)=>(a[sortKey]-b[sortKey])*dir);
   recs=recs.slice(0,50);
 
@@ -323,26 +333,28 @@ function render(){
   const thead=el("tbl").querySelector("thead"), tbody=el("tbl").querySelector("tbody");
   let cols;
   if(side==="bat"){
-    cols=[["#",null],["선수","name"],["팀",null],[isCareer?"시즌":"포지션",isCareer?null:null],
-      ["WAR","war"],["wRC+","wrc"],["OPS","ops"],["홈런","hr"],["oWAR","owar"],["dWAR","dwar"]];
+    cols=isCareer
+      ? [["#",null],["선수","name"],["팀",null],["시즌",null],["통산WAR","war"],["피크7","peak"],["JAWS","jaws"],["wRC+","wrc"],["홈런","hr"]]
+      : [["#",null],["선수","name"],["팀",null],["포지션",null],["WAR","war"],["wRC+","wrc"],["OPS","ops"],["홈런","hr"],["oWAR","owar"],["dWAR","dwar"]];
   }else{
-    cols=[["#",null],["선수","name"],["팀",null],[isCareer?"시즌":"역할",null],
-      ["WAR","war"],["ERA","era"],["FIP","fip"],["이닝","ip"],["탈삼진","so"]];
+    cols=isCareer
+      ? [["#",null],["선수","name"],["팀",null],["시즌",null],["통산WAR","war"],["피크7","peak"],["JAWS","jaws"],["ERA","era"],["탈삼진","so"]]
+      : [["#",null],["선수","name"],["팀",null],["역할",null],["WAR","war"],["ERA","era"],["FIP","fip"],["이닝","ip"],["탈삼진","so"]];
   }
   thead.innerHTML="<tr>"+cols.map(c=>`<th data-k="${c[1]||''}" class="${c[1]===sortKey?'sorted':''}">${c[0]}</th>`).join("")+"</tr>";
-  thead.querySelectorAll("th").forEach(th=>{const k=th.dataset.k; if(k&&(side==="bat"?SORTS_BAT:SORTS_PIT)[k]) th.onclick=()=>{sortKey=k; el("sort").value=k; render();};});
+  thead.querySelectorAll("th").forEach(th=>{const k=th.dataset.k; if(k&&S[k]) th.onclick=()=>{sortKey=k; render();};});
 
   tbody.innerHTML=recs.map((r,i)=>{
     const t=`<span class="dot" style="background:${r.color||'#888'}"></span>${r.team||(r.teams&&r.teams.join('·'))||'-'}`;
-    const attr=`class="prow" data-pno="${r.pno||''}"`;
+    const head=`<td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td>`;
     if(side==="bat"){
-      const c4=isCareer?`${r.ns}시즌`:r.pos;
-      return `<tr ${attr}><td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td><td>${c4}</td>`
-        +`<td><b>${num(r.war,2)}</b></td><td>${num(r.wrc,0)}</td><td>${num(r.ops,3)}</td><td>${r.hr}</td><td>${num(r.owar,2)}</td><td>${num(r.dwar,2)}</td></tr>`;
+      return isCareer
+        ? `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.ns}시즌</td><td><b>${num(r.war,1)}</b></td><td>${num(r.peak,1)}</td><td class="jaws">${num(r.jaws,1)}</td><td>${num(r.wrc,0)}</td><td>${r.hr}</td></tr>`
+        : `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.pos}</td><td><b>${num(r.war,2)}</b></td><td>${num(r.wrc,0)}</td><td>${num(r.ops,3)}</td><td>${r.hr}</td><td>${num(r.owar,2)}</td><td>${num(r.dwar,2)}</td></tr>`;
     }else{
-      const c4=isCareer?`${r.ns}시즌`:r.role;
-      return `<tr ${attr}><td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td><td>${c4}</td>`
-        +`<td><b>${num(r.war,2)}</b></td><td>${num(r.era,2)}</td><td>${num(r.fip,2)}</td><td>${num(r.ip,1)}</td><td>${r.so}</td></tr>`;
+      return isCareer
+        ? `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.ns}시즌</td><td><b>${num(r.war,1)}</b></td><td>${num(r.peak,1)}</td><td class="jaws">${num(r.jaws,1)}</td><td>${num(r.era,2)}</td><td>${r.so}</td></tr>`
+        : `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.role}</td><td><b>${num(r.war,2)}</b></td><td>${num(r.era,2)}</td><td>${num(r.fip,2)}</td><td>${num(r.ip,1)}</td><td>${r.so}</td></tr>`;
     }
   }).join("")||`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">해당 없음</td></tr>`;
   tbody.querySelectorAll("tr.prow").forEach(tr=>{ const pno=tr.dataset.pno;
