@@ -92,6 +92,19 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   th { color:var(--muted); font-weight:600; cursor:pointer; user-select:none; }
   th.sorted { color:var(--green); }
   td.rank { color:var(--muted); }
+  tr.prow { cursor:pointer; } tr.prow:hover td { background:#1b2230; }
+  .dhead { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+  .dhead .nm { font-size:18px; font-weight:700; }
+  .dhead .meta { color:var(--muted); font-size:12px; }
+  .dclose { margin-left:auto; cursor:pointer; color:var(--muted); border:1px solid var(--line);
+    border-radius:8px; padding:3px 9px; font-size:12px; background:var(--card); }
+  .traj { display:flex; align-items:flex-end; gap:3px; height:90px; margin:12px 0 4px; }
+  .traj .b { flex:1; min-width:6px; border-radius:2px 2px 0 0; position:relative; }
+  .traj .b span { position:absolute; bottom:-16px; left:50%; transform:translateX(-50%);
+    font-size:9px; color:#5b647a; white-space:nowrap; }
+  .comps { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+  .comp { border:1px solid var(--line); border-radius:9px; padding:7px 11px; font-size:12px; }
+  .comp b { font-size:13px; }
   .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:0; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
   .hint { color:var(--muted); font-size:12px; margin:4px 0 12px; }
@@ -112,6 +125,8 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <div><label>포지션</label><span class="seg" id="pos"></span></div>
   <div><label>정렬</label><select id="sort"></select></div>
 </div>
+
+<div class="card" id="detailCard" style="display:none"></div>
 
 <div class="card">
   <p class="hint" id="tableHint"></p>
@@ -189,7 +204,7 @@ function career(rows){
     o.color=r[I.color]; o.rows.push(r);
   });
   return [...m.values()].map(o=>{
-    const agg={name:o.name, ns:o.seasons.size, color:o.color, teams:[...o.teams]};
+    const agg={name:o.name, pno:o.rows[0][I.pno], ns:o.seasons.size, color:o.color, teams:[...o.teams]};
     if(side==="bat"){
       agg.war=o.rows.reduce((s,r)=>s+r[B.war],0);
       agg.owar=o.rows.reduce((s,r)=>s+r[B.owar],0);
@@ -214,6 +229,78 @@ function career(rows){
   });
 }
 
+// ── 닮은꼴(comps): 정규화 스탯 벡터 최근접 이웃 ──
+// 피처: 타자 [wRC+, OPS, WAR, oWAR, dWAR], 투수 [WAR, FIP, K9, IP]
+function compFeat(r, isBat){
+  return isBat ? [r[B.wrc], r[B.ops], r[B.war], r[B.owar], r[B.dwar]]
+    : [r[P.war], r[P.fip], r[P.ip]?r[P.so]*9/r[P.ip]:0, r[P.ip]];
+}
+const _norm = {bat:null, pit:null};
+function normStats(isBat){
+  const key=isBat?"bat":"pit";
+  if(_norm[key]) return _norm[key];
+  const src=isBat?DATA.batters:DATA.pitchers;
+  // 표본 필터: 타자 PA>=100, 투수 IP>=20 (노이즈 컷)
+  const pool=src.filter(r=>isBat?r[B.pa]>=100:r[P.ip]>=20);
+  const F=pool.map(r=>compFeat(r,isBat));
+  const n=F[0].length, mean=Array(n).fill(0), std=Array(n).fill(0);
+  F.forEach(v=>v.forEach((x,j)=>mean[j]+=x)); mean.forEach((_,j)=>mean[j]/=F.length);
+  F.forEach(v=>v.forEach((x,j)=>std[j]+=(x-mean[j])**2));
+  std.forEach((_,j)=>std[j]=Math.sqrt(std[j]/F.length)||1);
+  _norm[key]={mean,std,pool}; return _norm[key];
+}
+function findComps(targetRow, isBat, k){
+  const {mean,std,pool}=normStats(isBat);
+  const I=isBat?B:P;
+  const z=v=>compFeat(v,isBat).map((x,j)=>(x-mean[j])/std[j]);
+  const tz=z(targetRow), tp=targetRow[I.pno];
+  const sorted=pool.filter(r=>r[I.pno]!==tp)
+    .map(r=>{const rz=z(r); const d=Math.sqrt(rz.reduce((s,x,j)=>s+(x-tz[j])**2,0)); return {r,d};})
+    .sort((a,b)=>a.d-b.d);
+  // 선수당 가장 가까운 시즌 하나만(서로 다른 k명)
+  const seen=new Set(), out=[];
+  for(const c of sorted){ const p=c.r[I.pno]; if(seen.has(p)) continue;
+    seen.add(p); out.push(c); if(out.length>=k) break; }
+  return out;
+}
+
+// ── 선수 상세: 커리어 궤적 + 닮은꼴 ──
+function openDetail(pno){
+  const isBat=side==="bat", I=isBat?B:P;
+  const src=isBat?DATA.batters:DATA.pitchers;
+  const mine=src.filter(r=>r[I.pno]===pno).sort((a,b)=>a[I.season]-b[I.season]);
+  if(!mine.length) return;
+  const name=mine[mine.length-1][I.name];
+  const teams=[...new Set(mine.map(r=>r[I.team]))];
+  const totWar=mine.reduce((s,r)=>s+r[I.war],0);
+  const peak=mine.reduce((a,r)=>r[I.war]>a[I.war]?r:a, mine[0]);
+  const maxW=Math.max(...mine.map(r=>Math.abs(r[I.war])),1);
+  // 궤적 막대(연도별 WAR)
+  const traj=mine.map(r=>{const w=r[I.war], h=Math.max(2,Math.abs(w)/maxW*80);
+    const col=w>=0?"#3ecf8e":"#e0555f";
+    return `<div class="b" style="height:${h}px;background:${col}" title="${r[I.season]}: WAR ${w.toFixed(2)}"><span>${String(r[I.season]).slice(2)}</span></div>`;
+  }).join("");
+  // 닮은꼴 = 피크 시즌 기준
+  const comps=findComps(peak, isBat, 6).map(c=>{
+    const r=c.r; const stat=isBat?`wRC+ ${Math.round(r[B.wrc])}·WAR ${r[B.war].toFixed(1)}`
+      :`ERA ${r[P.era].toFixed(2)}·WAR ${r[P.war].toFixed(1)}`;
+    return `<div class="comp"><b>${r[I.name]}</b> <span style="color:var(--muted)">${r[I.season]} ${r[I.team]}</span><br><span style="color:var(--muted)">${stat}</span></div>`;
+  }).join("");
+  const summary=isBat
+    ? `통산 WAR <b>${totWar.toFixed(1)}</b> · ${mine.length}시즌 · 피크 ${peak[B.season]}(WAR ${peak[B.war].toFixed(1)}) · 팀 ${teams.join('·')}`
+    : `통산 WAR <b>${totWar.toFixed(1)}</b> · ${mine.length}시즌 · 피크 ${peak[P.season]}(WAR ${peak[P.war].toFixed(1)}) · 팀 ${teams.join('·')}`;
+  const card=el("detailCard");
+  card.innerHTML=`<div class="dhead"><span class="nm">${name}</span>
+      <span class="meta">${summary}</span>
+      <span class="dclose" onclick="document.getElementById('detailCard').style.display='none'">✕ 닫기</span></div>
+    <div class="hint">연도별 WAR (막대에 마우스 올리면 값)</div>
+    <div class="traj">${traj}</div>
+    <div class="hint" style="margin-top:14px">🔍 <b>${peak[I.season]} 시즌과 닮은꼴</b> (피크 기준 최근접)</div>
+    <div class="comps">${comps}</div>`;
+  card.style.display="block";
+  card.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
 function render(){
   let rows=rowsForSeason();
   const isCareer=season==="통산";
@@ -224,8 +311,8 @@ function render(){
   } else {
     const I=side==="bat"?B:P;
     recs=rows.map(r=>side==="bat"
-      ? {name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa]}
-      : {name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip]});
+      ? {pno:r[B.pno],name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa]}
+      : {pno:r[P.pno],name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip]});
   }
   // 정렬
   const S=side==="bat"?SORTS_BAT:SORTS_PIT; const dir=S[sortKey][2];
@@ -247,16 +334,19 @@ function render(){
 
   tbody.innerHTML=recs.map((r,i)=>{
     const t=`<span class="dot" style="background:${r.color||'#888'}"></span>${r.team||(r.teams&&r.teams.join('·'))||'-'}`;
+    const attr=`class="prow" data-pno="${r.pno||''}"`;
     if(side==="bat"){
       const c4=isCareer?`${r.ns}시즌`:r.pos;
-      return `<tr><td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td><td>${c4}</td>`
+      return `<tr ${attr}><td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td><td>${c4}</td>`
         +`<td><b>${num(r.war,2)}</b></td><td>${num(r.wrc,0)}</td><td>${num(r.ops,3)}</td><td>${r.hr}</td><td>${num(r.owar,2)}</td><td>${num(r.dwar,2)}</td></tr>`;
     }else{
       const c4=isCareer?`${r.ns}시즌`:r.role;
-      return `<tr><td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td><td>${c4}</td>`
+      return `<tr ${attr}><td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td><td>${c4}</td>`
         +`<td><b>${num(r.war,2)}</b></td><td>${num(r.era,2)}</td><td>${num(r.fip,2)}</td><td>${num(r.ip,1)}</td><td>${r.so}</td></tr>`;
     }
   }).join("")||`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">해당 없음</td></tr>`;
+  tbody.querySelectorAll("tr.prow").forEach(tr=>{ const pno=tr.dataset.pno;
+    if(pno) tr.onclick=()=>openDetail(pno); });
 
   el("tableHint").innerHTML = isCareer
     ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · 선수 고유 ID로 합산해 동명이인을 정확히 분리했습니다. wRC+/ERA 등 비율은 PA·이닝 가중평균.`
