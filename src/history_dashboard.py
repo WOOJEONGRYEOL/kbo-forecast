@@ -132,6 +132,9 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
     background:#0b0e14; color:var(--text); border:1px solid var(--line);
     padding:9px 11px; border-radius:8px; font-size:12px; line-height:1.55;
     box-shadow:0 8px 24px rgba(0,0,0,.55); display:none; }
+  .pagefoot { color:var(--muted); font-size:11.5px; line-height:1.7; text-align:center;
+    margin:32px auto 8px; padding-top:16px; border-top:1px solid var(--line); max-width:720px; }
+  .pagefoot b { color:#aab3c5; }
 </style></head><body><div class="wrap">
 <div class="nav">
   <a class="home" href="../index.html">🏠</a>
@@ -608,5 +611,9 @@ function render(){
   }, true);
 })();
 </script>
+<footer class="pagefoot">
+  <b>자료 출처</b> · 네이버 야구(경기 기록) · KBO Talent(kbostuff.app, 트래킹 지표) · 스태티즈 Statiz(WAR·세부 기록)<br>
+  취미·학습 목적의 <b>개인 세이버메트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
+</footer>
 </div></body></html>
 """

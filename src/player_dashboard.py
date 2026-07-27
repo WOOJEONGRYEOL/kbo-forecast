@@ -387,6 +387,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
     background: #0b0e14; color: var(--text); border: 1px solid var(--line);
     padding: 9px 11px; border-radius: 8px; font-size: 12px; line-height: 1.55;
     box-shadow: 0 8px 24px rgba(0,0,0,.55); display: none; }
+  .pagefoot { color: var(--muted); font-size: 11.5px; line-height: 1.7; text-align: center;
+    margin: 32px auto 8px; padding-top: 16px; border-top: 1px solid var(--line); max-width: 720px; }
+  .pagefoot b { color: #aab3c5; }
 
   /* 랜덤 클릭으로 뽑힌 선수 상세 카드 */
   .pick { margin-top: 12px; padding: 12px 13px; background: #0b0e14;
@@ -501,7 +504,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide" id="bullpenCard">
     <h2><span class="badge">🔥</span>불펜 리더보드 <span style="color:var(--muted);font-weight:400">— 마무리·셋업 · 릴리프 WAR (Statiz)</span></h2>
-    <p class="hint">순수 불펜(선발 등판 0)만. 역할은 세이브(마무리)·홀드(셋업)로 판정.
+    <p class="hint">구원 등판이 선발보다 많은 투수(임시선발 1~2번 한 마무리·셋업 포함). 역할은 세이브(마무리)·홀드(셋업)로 판정.
       <b>릴리프 WAR</b> 순. ERA와 FIP가 벌어진 투수는 회귀 후보 — ERA≪FIP는 곧 나빠질 위험, ERA≫FIP는 반등 여지.</p>
     <div class="table-scroll">
     <table><thead><tr><th>선수</th><th>팀</th><th>역할</th><th>WAR</th><th>ERA</th><th>FIP</th><th><span class="tip" data-tip="(탈삼진−볼넷)÷상대타자. 투수 실력 예측력이 가장 높은 지표.">K-BB%</span></th><th>이닝</th><th>세이브</th><th>홀드</th></tr></thead>
@@ -1160,6 +1163,10 @@ document.querySelectorAll(".more[data-tb]").forEach(btn => {
   }, true);
 })();
 </script>
+<footer class="pagefoot">
+  <b>자료 출처</b> · 네이버 야구(경기 기록) · KBO Talent(kbostuff.app, 트래킹 지표) · 스태티즈 Statiz(WAR·세부 기록)<br>
+  취미·학습 목적의 <b>개인 세이버메트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
+</footer>
 </body>
 </html>
 """

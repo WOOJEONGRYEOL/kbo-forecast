@@ -118,6 +118,9 @@
     background: #0b0e14; color: var(--text); border: 1px solid var(--line);
     padding: 9px 11px; border-radius: 8px; font-size: 12px; line-height: 1.55;
     box-shadow: 0 8px 24px rgba(0,0,0,.55); display: none; }
+  .pagefoot { color: var(--muted); font-size: 11.5px; line-height: 1.7; text-align: center;
+    margin: 32px auto 8px; padding-top: 16px; border-top: 1px solid var(--line); max-width: 720px; }
+  .pagefoot b { color: #aab3c5; }
 
   /* ── 모바일(좁은 폰) 최적화 ── */
   @media (max-width: 560px) {
@@ -150,7 +153,7 @@
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO 2026 단기 전력 대시보드</h1>
-<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-27 21:40 KST · <b>2026-07-26 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-27 21:52 KST · <b>2026-07-26 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
   데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
   아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
 
@@ -342,7 +345,7 @@
             <span class="barlabel">100%</span>
           </td>
           <td class="muted">1~2</td>
-          <td style="text-align:left;font-size:12px"><span class="muted">—</span><br><span class="neg">🔴 불펜 회귀 경계</span><span class="muted"> (ERA 3.75 ≪ FIP 5.00)</span></td>
+          <td style="text-align:left;font-size:12px"><span class="muted">—</span><br><span class="neg">🔴 불펜 회귀 경계</span><span class="muted"> (ERA 4.19 ≪ FIP 5.20)</span></td>
         </tr>
         <tr>
           <td class="rank">2</td>
@@ -386,7 +389,7 @@
             <span class="barlabel">68%</span>
           </td>
           <td class="muted">2~7</td>
-          <td style="text-align:left;font-size:12px"><span class="muted">—</span><br><span class="neg">🔴 불펜 회귀 경계</span><span class="muted"> (ERA 4.17 ≪ FIP 4.48)</span></td>
+          <td style="text-align:left;font-size:12px"><span class="muted">—</span></td>
         </tr>
         <tr>
           <td class="rank">6</td>
@@ -441,7 +444,7 @@
             <span class="barlabel">0%</span>
           </td>
           <td class="muted">9~10</td>
-          <td style="text-align:left;font-size:12px"><span class="muted">—</span><br><span class="pos">🔵 불펜 반등 여지</span><span class="muted"> (ERA 5.59 ≫ FIP 5.23)</span></td>
+          <td style="text-align:left;font-size:12px"><span class="muted">—</span><br><span class="pos">🔵 불펜 반등 여지</span><span class="muted"> (ERA 5.78 ≫ FIP 5.34)</span></td>
         </tr></tbody>
     </table>
     </div>
@@ -770,5 +773,9 @@ render();   // 최초 렌더
   }, true);
 })();
 </script>
+<footer class="pagefoot">
+  <b>자료 출처</b> · 네이버 야구(경기 기록) · KBO Talent(kbostuff.app, 트래킹 지표) · 스태티즈 Statiz(WAR·세부 기록)<br>
+  취미·학습 목적의 <b>개인 세이버메트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
+</footer>
 </body>
 </html>

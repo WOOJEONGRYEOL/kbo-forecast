@@ -8,7 +8,7 @@ Statiz 원본은 리포 밖(외부 크롤러 출력)이라 GitHub Actions가 못
 Statiz는 자동 갱신이 아니므로 이 요약들은 '크롤 시점 스냅샷'이다.
 
 산출:
-  data/bullpen_{yy}.csv          팀 불펜(GS=0) IP가중 ERA·FIP 괴리 (순위 카드용)
+  data/bullpen_{yy}.csv          팀 불펜(구원 등판>선발) IP가중 ERA·FIP 괴리 (순위 카드용)
   data/statiz_relievers_{yy}.csv 불펜 개인 (세이브·홀드·릴리프 WAR — 불펜 카드용)
   data/statiz_batters_{yy}.csv   타자 oWAR/dWAR (공격×수비 사분면용)
 
@@ -66,12 +66,19 @@ def _code(r) -> str:
     return COLOR_TO_CODE.get((r.get("TeamColor") or "").lower(), "")
 
 
+def _is_reliever(r) -> bool:
+    """구원 등판(GR)이 선발 등판(GS)보다 많으면 불펜으로 본다.
+    임시선발 1~2번 한 마무리·셋업(예: 두산 이영하 GS1/GR34/14S)도 포함,
+    순수 선발·스윙 선발형만 제외. (KBO도 구원 등판이 더 많으면 구원으로 취급)"""
+    return _num(r.get("GR", 0)) > _num(r.get("GS", 0))
+
+
 def build_bullpen_team(pit: list, season: int) -> None:
     """팀 불펜 IP가중 ERA·FIP 괴리 (순위 카드 회귀 신호용)."""
     agg = defaultdict(lambda: {"ip": 0.0, "er_w": 0.0, "fip_w": 0.0, "n": 0})
     for r in pit:
         code = _code(r)
-        if not code or _num(r["GS"]) > 0:      # 선발 제외 → 순수 불펜
+        if not code or not _is_reliever(r):    # 구원 등판이 더 많아야 불펜
             continue
         ip = _num(r["IP"])
         if ip <= 0:
@@ -103,7 +110,7 @@ def build_relievers(pit: list, season: int) -> None:
                     "g", "gf", "sv", "hd", "k9", "bb9", "kbb"])
         for r in pit:
             code = _code(r)
-            if not code or _num(r["GS"]) > 0:
+            if not code or not _is_reliever(r):   # 구원 등판이 선발보다 많으면 불펜
                 continue
             ip = _num(r["IP"])
             if ip < MIN_RELIEF_IP:
