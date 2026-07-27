@@ -424,36 +424,44 @@ let _cur=null;
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function cardSVG(d){
   const W=440,H=620,c=d.color||"#2a3345";
+  const first=d.seasons[0].s, last=d.seasons[d.seasons.length-1].s;
   const mx=Math.max(...d.seasons.map(s=>Math.abs(s.w)),1);
-  const bw=Math.min(26,(W-64)/d.seasons.length-3), bx0=32, baseY=470;
-  const bars=d.seasons.map((s,i)=>{const h=Math.max(3,Math.abs(s.w)/mx*88);
-    const x=bx0+i*((W-64)/d.seasons.length), y=s.w>=0?baseY-h:baseY;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${s.w>=0?'#3ecf8e':'#e0555f'}"/>`;
+  const baseY=494, maxH=74, step=(W-64)/d.seasons.length;
+  const bw=Math.min(24,step-3);
+  // 궤적 막대(피크 해는 금색으로 강조)
+  const bars=d.seasons.map((s,i)=>{const h=Math.max(3,Math.abs(s.w)/mx*maxH);
+    const x=32+i*step, y=s.w>=0?baseY-h:baseY;
+    const col=s.s===d.peak.season?"#ffc94a":(s.w>=0?"#3ecf8e":"#e0555f");
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${col}"/>`;
   }).join("");
   const st=d.isBat?["wRC+",Math.round(d.stat)]:["ERA",d.stat.toFixed(2)];
-  const cells=[["시즌",d.ns],["피크",d.peak.war.toFixed(1)],["JAWS",d.jaws.toFixed(1)],st];
+  const cells=[["시즌",d.ns],[`피크 (${d.peak.season})`,d.peak.war.toFixed(1)],["JAWS",d.jaws.toFixed(1)],st];
   const cw=(W-64)/4;
   const scells=cells.map((cc,i)=>{const x=32+i*cw+cw/2;
-    return `<text x="${x}" y="330" text-anchor="middle" fill="#8a94a8" font-size="12">${cc[0]}</text>
+    return `<text x="${x}" y="330" text-anchor="middle" fill="#8a94a8" font-size="11">${cc[0]}</text>
       <text x="${x}" y="356" text-anchor="middle" fill="#e8ecf3" font-size="20" font-weight="700">${cc[1]}</text>`;
   }).join("");
+  // 팀명 풀네임(범례로 약자→이름)
+  const teamNames=d.teams.map(t=>(DATA.legend&&DATA.legend[t])||t).join(" · ");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="'Apple SD Gothic Neo','Noto Sans KR',sans-serif">
     <rect width="${W}" height="${H}" rx="20" fill="#12161f"/>
     <rect width="${W}" height="${H}" rx="20" fill="none" stroke="${c}" stroke-width="3"/>
     <path d="M0 20 Q0 0 20 0 H${W-20} Q${W} 0 ${W} 20 V104 H0 Z" fill="${c}"/>
     <text x="32" y="52" fill="#fff" font-size="30" font-weight="800">${esc(d.name)}</text>
-    <text x="32" y="82" fill="#ffffffcc" font-size="14">${esc(d.teams.join('·')+' · '+d.posrole+(d.arch?' · '+d.arch:''))}</text>
+    <text x="32" y="82" fill="#ffffffcc" font-size="13">${esc(teamNames+' · '+d.posrole+(d.arch?' · '+d.arch:''))}</text>
     <text x="${W/2}" y="176" text-anchor="middle" fill="#8a94a8" font-size="14">통산 WAR</text>
     <text x="${W/2}" y="240" text-anchor="middle" fill="#3ecf8e" font-size="64" font-weight="800">${d.totWar.toFixed(1)}</text>
     <line x1="32" y1="286" x2="${W-32}" y2="286" stroke="#232a38"/>
     ${scells}
     <line x1="32" y1="384" x2="${W-32}" y2="384" stroke="#232a38"/>
-    <text x="32" y="410" fill="#8a94a8" font-size="12">연도별 WAR (${d.peak.season} 피크)</text>
+    <text x="32" y="408" fill="#8a94a8" font-size="12">연도별 WAR · ${first}~${last} <tspan fill="#ffc94a">(●피크 ${d.peak.season})</tspan></text>
     ${bars}
     <line x1="32" y1="${baseY}" x2="${W-32}" y2="${baseY}" stroke="#3a4560" stroke-width="0.5"/>
-    <text x="32" y="518" fill="#8a94a8" font-size="12">🔍 닮은꼴</text>
-    <text x="32" y="540" fill="#e8ecf3" font-size="15" font-weight="600">${esc(d.comps.join('  ·  '))}</text>
-    <text x="32" y="592" fill="#5b647a" font-size="12">⚾ KBO 역대 기록 · 데이터 Statiz</text>
+    <text x="32" y="${baseY+15}" fill="#5b647a" font-size="10">${first}</text>
+    <text x="${W-32}" y="${baseY+15}" text-anchor="end" fill="#5b647a" font-size="10">${last}</text>
+    <text x="32" y="540" fill="#8a94a8" font-size="12">🔍 닮은꼴</text>
+    <text x="32" y="562" fill="#e8ecf3" font-size="15" font-weight="600">${esc(d.comps.join('  ·  '))}</text>
+    <text x="32" y="596" fill="#5b647a" font-size="12">⚾ KBO 역대 기록 · 데이터 Statiz</text>
   </svg>`;
 }
 function makeCard(){
