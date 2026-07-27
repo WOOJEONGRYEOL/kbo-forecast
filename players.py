@@ -103,10 +103,10 @@ def main() -> None:
                   b_screens["undervalued"], bcols)
     _print_screen("🫧 거품 주의 타자 (BABIP 고평가 → 유지 어려움)",
                   b_screens["bubble"], bcols)
-    _print_screen("🏟️ 구장에 갇힌 타자 (순수 wRC+ ≫ 이벤트 wRC+)",
+    _print_screen("🏟️ 구장에 갇힌 타자 (투수친화 홈구장의 좋은 타자)",
                   b_screens["park_victim"],
                   ["player_name", "team_name", "n_pa",
-                   "wrc_plus_pure", "wrc_plus_event", "park_gap"])
+                   "wrc_plus_event", "park_factor", "park_drag"])
     _print_screen("🔥 승부처 강자 FCB (누적 승리기여 최상위 — 설명형 지표)",
                   b_screens["clutch"],
                   ["player_name", "team_name", "n_pa",

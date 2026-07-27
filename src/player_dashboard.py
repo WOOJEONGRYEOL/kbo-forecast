@@ -69,7 +69,10 @@ FORMULAS = {
     "wRC+순수": "파크팩터·타구 비거리 보정 득점창출력. 100=리그평균, 130=평균보다 30%↑.",
     "운": "BABIP − 리그평균 BABIP. 음수=불운(반등), 양수=거품. "
           "발 빠른 타자는 실력으로 높은 BABIP를 유지하기도 합니다.",
-    "구장차": "순수 wRC+ − 이벤트 wRC+. 클수록 큰 구장에서 장타를 손해 보는 타자.",
+    "wRC+실제": "실제 결과 기반 wRC+ (park_factor로 구장 보정 완료). 100=리그평균, 130=평균보다 30%↑.",
+    "파크팩터": "홈구장의 득점 환경 지수. 1.00=리그평균, <1=투수친화(득점 억제), >1=타자친화(득점 증가).",
+    "구장억제": "리그 평균 대비 홈구장이 득점을 억제하는 비율 = (1 − 파크팩터)×100%. 클수록 홈런·장타 raw 기록이 눌림.",
+    "구장차": "(구버전) 순수 wRC+ − 이벤트 wRC+. 실제 파크팩터와 상관 ≈ 0이라 구장 지표로는 폐기, 파크팩터로 대체.",
     "승리기여": "FCB. 협조적 게임이론(Shapley value)으로 '득점이 난 이닝'에서 각 타자의 "
                 "승리 기여 몫을 공정 분배해 누적. ⚠️ 클러치는 잘 지속되지 않아 "
                 "미래 예측이 아닌 '지금까지의 서사'를 설명하는 지표입니다.",
@@ -101,6 +104,20 @@ def _batter_rows(df, extra_col):
             f"<tr{hide}><td>{r['player_name']}</td><td>{r['team_name']}</td>"
             f"<td>{int(r['n_pa'])}</td><td>{r['overall_plus']:.1f}</td>"
             f"<td>{_round(r['wrc_plus_pure'], 1) or '-'}</td><td>{extra}</td></tr>")
+    return "".join(out) or '<tr><td colspan="6" class="empty">해당 없음</td></tr>'
+
+
+def _park_rows(df):
+    """구장 피해자 카드: 선수·팀·타석·wRC+(구장보정)·홈 파크팩터·억제%."""
+    out = []
+    for i, (_, r) in enumerate(df.iterrows()):
+        hide = ' class="row-hidden"' if i >= COLLAPSE_AT else ""
+        pf = float(r["park_factor"])
+        supp = (1.0 - pf) * 100  # 리그 평균 대비 득점 억제율
+        out.append(
+            f"<tr{hide}><td>{r['player_name']}</td><td>{r['team_name']}</td>"
+            f"<td>{int(r['n_pa'])}</td><td>{r['wrc_plus_event']:.1f}</td>"
+            f"<td>{pf:.3f}</td><td>−{supp:.1f}%</td></tr>")
     return "".join(out) or '<tr><td colspan="6" class="empty">해당 없음</td></tr>'
 
 
@@ -252,10 +269,14 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
     for key, scr, col, tb in [
         ("UNDERVALUED", b_screens["undervalued"], "luck", "tb_under"),
         ("BUBBLE", b_screens["bubble"], "luck", "tb_bubble"),
-        ("PARK", b_screens["park_victim"], "park_gap", "tb_park"),
     ]:
         html = html.replace(f"__T_{key}__", _batter_rows(scr, col))
         html = html.replace(f"__M_{key}__", _more(len(scr), tb))
+
+    # 구장 카드는 컬럼 구성이 달라 전용 렌더러 사용
+    park = b_screens["park_victim"]
+    html = html.replace("__T_PARK__", _park_rows(park))
+    html = html.replace("__M_PARK__", _more(len(park), "tb_park"))
 
     clutch = b_screens["clutch"]
     html = html.replace("__T_CLUTCH__", _fcb_rows(clutch))
@@ -541,9 +562,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card">
     <h2><span class="badge">🏟️</span>구장에 갇힌 타자</h2>
-    <p class="hint">순수 wRC+(비거리 기반) − 이벤트 wRC+(실제 결과) 격차.
-      큰 구장 담장 앞에서 홈런을 도둑맞고 있는 타자들</p>
-    <table><thead><tr><th>__H_BAT__</th><th>팀</th><th>__H_PA__</th><th>__H_OVR__</th><th>__H_WRC__</th><th>__H_PARK__</th></tr></thead>
+    <p class="hint">홈구장 파크팩터가 리그 평균(1.00)보다 낮아 득점이 억제되는 <b>좋은 타자(wRC+ 100↑)</b>.
+      wRC+는 이미 구장 보정값이라 실력 평가엔 문제없지만, 홈런·타율 같은 <b>raw 기록</b>은 구장 탓에 눌립니다.
+      억제율이 클수록·타격이 좋을수록 손해가 큽니다.</p>
+    <table><thead><tr><th>__H_BAT__</th><th>팀</th><th>__H_PA__</th><th>__H_WRCE__</th><th>__H_PF__</th><th>__H_SUPP__</th></tr></thead>
     <tbody id="tb_park">__T_PARK__</tbody></table>
     __M_PARK__
   </div>
@@ -572,11 +594,13 @@ FIP = (13×피홈런 + 3×(볼넷+사구) − 2×삼진) ÷ 이닝 + C</div>
       </div>
 
       <div class="fblock">
-        <h3>ERA − FIP 격차 · 구장차</h3>
+        <h3>ERA − FIP 격차 · 구장 억제</h3>
         <div class="eq">수비·운 피해 = ERA − FIP
-구장차 = wRC+<sub>pure</sub> − wRC+<sub>event</sub></div>
+구장 억제 = (1 − park_factor) × 100%</div>
         <div class="note">ERA−FIP가 클수록 실력 대비 성적이 억울한 투수.
-          구장차가 클수록 큰 구장(잠실·대구) 담장 앞에서 장타를 손해 보는 타자.</div>
+          park_factor는 홈구장의 득점 환경(1.00=평균, &lt;1=투수친화). 억제율이 큰 구장의
+          좋은 타자일수록 홈런·장타 raw 기록이 눌린다. ⚠️ 과거 '구장차(wRC+<sub>pure</sub>−<sub>event</sub>)'는
+          실제 park_factor와 상관 ≈ 0이라 폐기했다.</div>
       </div>
 
       <div class="fblock">
@@ -1127,7 +1151,9 @@ def _inject_headers(html: str) -> str:
         "__H_STUFF__": _tip("구위+", "구위+"), "__H_CTRL__": _tip("제구+", "제구+"),
         "__H_BAT__": _tip("타자", "타자"), "__H_PA__": _tip("타석", "타석"),
         "__H_OVR__": _tip("종합+", "종합+"), "__H_WRC__": _tip("wRC+순수", "wRC+순수"),
-        "__H_LUCK__": _tip("운", "운"), "__H_PARK__": _tip("구장차", "구장차"),
+        "__H_WRCE__": _tip("wRC+", "wRC+실제"), "__H_PF__": _tip("홈 파크팩터", "파크팩터"),
+        "__H_SUPP__": _tip("억제(중립대비)", "구장억제"),
+        "__H_LUCK__": _tip("운", "운"),
         "__H_WINS__": _tip("승리기여", "승리기여"), "__H_SRC__": _tip("경기당SRC", "경기당SRC"),
         "__TIP_ERAFIP__": (FORMULAS["ERA"] + " ／ " + FORMULAS["FIP"]).replace('"', "&quot;"),
     }

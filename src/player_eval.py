@@ -235,11 +235,14 @@ def evaluate_batters(bat_metrics: pd.DataFrame,
 
     df["power_type"] = df.apply(power_type, axis=1)
 
-    # ── ③ 구장 피해자 탐지 ──
-    # wrc_plus_pure  : 타구 비거리 기반, 구장 영향 제거판
-    # wrc_plus_event : 실제 일어난 사건 기반 (구장 영향 포함)
-    # pure가 event보다 높다 = 큰 구장 때문에 손해 보는 중
-    df["park_gap"] = df["wrc_plus_pure"] - df["wrc_plus_event"]
+    # ── ③ 구장 피해자 탐지 (실제 파크팩터 기반) ──
+    # park_factor : 홈구장의 득점 환경. 1.00=리그평균, <1=투수친화(억제), >1=타자친화.
+    # 과거엔 wrc_plus_pure − wrc_plus_event(기대−실제)를 '구장차'로 썼으나,
+    # 이 값은 실제 park_factor와 상관 ≈ 0 (구장이 아니라 '타구 질 대비 저평가'를 잡음).
+    # 그래서 진짜 구장 신호인 park_factor로 교체한다.
+    # park_drag = 좋은 타자일수록·억제 구장일수록 큰 값 (홈런·장타 raw 기록이 눌리는 정도).
+    df["park_suppress"] = 1.0 - df["park_factor"]          # >0 = 투수친화(불리)
+    df["park_drag"] = df["wrc_plus_event"] * df["park_suppress"]
 
     df["team_name"] = df["team_code"].map(config.TEAM_NAMES) \
         .fillna(df["team_code"])
@@ -248,8 +251,8 @@ def evaluate_batters(bat_metrics: pd.DataFrame,
             "n_inplay", "overall_plus", "eye_plus", "vision_plus", "hit_plus",
             "power_plus", "hr_plus", "baserunning_plus",
             "woba_inplay", "xwoba_inplay", "luck", "luck_type", "babip",
-            "power_type", "wrc_plus_pure", "wrc_plus_event", "park_gap",
-            "park_factor", "player_type",
+            "power_type", "wrc_plus_pure", "wrc_plus_event",
+            "park_factor", "park_suppress", "park_drag", "player_type",
             # 레이더 카드용 플레이트 디서플린
             "chase_rate", "zone_swing_rate", "whiff_rate", "contact_rate",
             "iso_inplay", "sb_plus",
@@ -266,8 +269,10 @@ def batter_screens(evaluated: pd.DataFrame) -> dict:
         .sort_values("luck")
     bubble = evaluated[evaluated["luck"] > BABIP_GAP] \
         .sort_values("luck", ascending=False)
-    park_victim = evaluated[evaluated["park_gap"] >= 5] \
-        .sort_values("park_gap", ascending=False)
+    # 구장 피해자 = 홈구장이 투수친화(park_factor<1)라 raw 기록이 눌리는 '좋은 타자'
+    park_victim = evaluated[
+        (evaluated["park_factor"] < 1) & (evaluated["wrc_plus_event"] >= 100)
+    ].sort_values("park_drag", ascending=False)
     # 🔥 승부처 강자: FCB 누적 승리기여 상위 (설명형 지표)
     clutch = evaluated.dropna(subset=["wins_contributed"]) \
         .sort_values("wins_contributed", ascending=False)
