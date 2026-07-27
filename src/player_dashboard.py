@@ -1103,9 +1103,10 @@ if (!sbats.length) {
   }
 })();
 
-// ── '더 보기' 토글 ──
-document.querySelectorAll(".more").forEach(btn => {
+// ── '더 보기' 토글 (data-tb 있는 스크리닝 테이블만; 불펜 버튼은 자체 핸들러) ──
+document.querySelectorAll(".more[data-tb]").forEach(btn => {
   const tb = document.getElementById(btn.dataset.tb);
+  if (!tb) return;
   const hidden = tb.querySelectorAll("tr.row-hidden");
   btn.addEventListener("click", () => {
     const opening = hidden[0].style.display !== "table-row";
