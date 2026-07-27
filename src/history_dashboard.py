@@ -70,12 +70,14 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   :root { --bg:#0e1117; --card:#161b25; --line:#232a38; --text:#e8ecf3;
     --muted:#8a94a8; --green:#3ecf8e; --blue:#4a90d9; }
   * { box-sizing:border-box; }
-  body { margin:0; padding:20px; background:var(--bg); color:var(--text);
+  body { margin:0; padding:24px; background:var(--bg); color:var(--text);
     font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
-  .wrap { max-width:960px; margin:0 auto; }
-  .nav { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .wrap { max-width:100%; margin:0; }
+  .nav { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
   .nav a { text-decoration:none; padding:7px 14px; border-radius:999px; font-size:13px;
     font-weight:600; border:1px solid var(--line); color:var(--muted); background:var(--card); }
+  .nav a:hover { color:var(--text); border-color:#3a4560; }
+  .nav a.home { font-weight:400; padding:7px 12px; }
   .nav a.active { background:var(--green); color:#0b0e14; border-color:var(--green); }
   h1 { font-size:20px; margin:6px 0; }
   .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
@@ -125,8 +127,14 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .hint { color:var(--muted); font-size:12px; margin:4px 0 12px; }
   .warn { color:#ffb454; }
   .legend { color:var(--muted); font-size:11px; margin-top:10px; line-height:1.7; }
+  /* 모바일 탭 툴팁(플로팅) */
+  .tip-pop { position:absolute; z-index:100; max-width:min(280px,82vw);
+    background:#0b0e14; color:var(--text); border:1px solid var(--line);
+    padding:9px 11px; border-radius:8px; font-size:12px; line-height:1.55;
+    box-shadow:0 8px 24px rgba(0,0,0,.55); display:none; }
 </style></head><body><div class="wrap">
 <div class="nav">
+  <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
   <a class="active" href="history.html">🏆 역대</a>
@@ -583,6 +591,22 @@ function render(){
           : ` <b style="color:#ffb454">표본 필터 OFF</b> — 소수 시즌 선수가 상위에 낄 수 있습니다.`) : "")
     : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`;
 }
+
+// 모바일(터치): 지표를 탭하면 정의 표시. 데스크톱(hover 가능)은 CSS 호버 유지.
+(function tapTips(){
+  if(!window.matchMedia || !matchMedia('(hover: none)').matches) return;
+  let pop=null;
+  document.addEventListener('click', function(e){
+    const t=e.target.closest('[data-tip]');
+    if(!t || !t.getAttribute('data-tip')){ if(pop) pop.style.display='none'; return; }
+    if(!pop){ pop=document.createElement('div'); pop.className='tip-pop'; document.body.appendChild(pop); }
+    if(pop._for===t && pop.style.display==='block'){ pop.style.display='none'; pop._for=null; return; }
+    pop._for=t; pop.textContent=t.getAttribute('data-tip'); pop.style.display='block';
+    const r=t.getBoundingClientRect();
+    pop.style.left=Math.max(8, Math.min(window.innerWidth-8-pop.offsetWidth, r.left+r.width/2-pop.offsetWidth/2))+'px';
+    pop.style.top=(window.scrollY+r.bottom+6)+'px';
+  }, true);
+})();
 </script>
 </div></body></html>
 """

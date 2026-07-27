@@ -89,6 +89,11 @@
     color: var(--text); border: 1px solid var(--line); padding: 9px 11px;
     border-radius: 8px; font-size: 12px; font-weight: 400; line-height: 1.55;
     z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+  /* 모바일 탭 툴팁(플로팅) */
+  .tip-pop { position: absolute; z-index: 100; max-width: min(280px, 82vw);
+    background: #0b0e14; color: var(--text); border: 1px solid var(--line);
+    padding: 9px 11px; border-radius: 8px; font-size: 12px; line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0,0,0,.55); display: none; }
 
   /* 랜덤 클릭으로 뽑힌 선수 상세 카드 */
   .pick { margin-top: 12px; padding: 12px 13px; background: #0b0e14;
@@ -137,7 +142,7 @@
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO 2026 선수 평가 대시보드</h1>
-<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-27 18:14 KST · <b>2026-07-26 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
+<div class="sub"><span class="stamp">🕗 최종 갱신 2026-07-27 21:40 KST · <b>2026-07-26 경기까지 반영</b> · 매일 오전 8시(KST) 자동 갱신</span><br>
   투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 · 리그 평균 ERA 4.63 ·
   <b>지표 이름 호버=공식, 그래프 클릭=랜덤 선수 상세</b></div>
 
@@ -271,10 +276,10 @@
     <h2><span class="badge">🏟️</span>구장에 갇힌 타자</h2>
     <p class="hint">홈구장 파크팩터가 리그 평균(1.00)보다 낮아 득점이 억제되는 <b>좋은 타자(wRC+ 100↑)</b>.
       wRC+는 이미 구장 보정값이라 실력 평가엔 문제없지만, 홈런·타율 같은 <b>raw 기록</b>은 구장 탓에 눌립니다.
-      억제율이 클수록·타격이 좋을수록 손해가 큽니다.</p>
-    <table><thead><tr><th><span class="tip" data-tip="선수명. kbostuff.app 트래킹 기반 타자 지표.">타자</span></th><th>팀</th><th><span class="tip" data-tip="타석 수(PA). 100타석 이상만 평가 대상.">타석</span></th><th><span class="tip" data-tip="실제 결과 기반 wRC+ (park_factor로 구장 보정 완료). 100=리그평균, 130=평균보다 30%↑.">wRC+</span></th><th><span class="tip" data-tip="홈구장의 득점 환경 지수. 1.00=리그평균, <1=투수친화(득점 억제), >1=타자친화(득점 증가).">홈 파크팩터</span></th><th><span class="tip" data-tip="리그 평균 대비 홈구장이 득점을 억제하는 비율 = (1 − 파크팩터)×100%. 클수록 홈런·장타 raw 기록이 눌림.">억제(중립대비)</span></th></tr></thead>
-    <tbody id="tb_park"><tr><td>히우라</td><td>키움 히어로즈</td><td>184</td><td>118.1</td><td>0.930</td><td>−7.0%</td></tr><tr><td>추재현</td><td>키움 히어로즈</td><td>145</td><td>114.3</td><td>0.930</td><td>−7.0%</td></tr><tr><td>김웅빈</td><td>키움 히어로즈</td><td>188</td><td>112.0</td><td>0.930</td><td>−7.0%</td></tr><tr><td>서건창</td><td>키움 히어로즈</td><td>294</td><td>107.5</td><td>0.930</td><td>−7.0%</td></tr><tr><td>여동욱</td><td>키움 히어로즈</td><td>103</td><td>103.6</td><td>0.930</td><td>−7.0%</td></tr><tr><td>임병욱</td><td>키움 히어로즈</td><td>211</td><td>102.7</td><td>0.930</td><td>−7.0%</td></tr><tr><td>박주홍</td><td>키움 히어로즈</td><td>187</td><td>101.6</td><td>0.930</td><td>−7.0%</td></tr><tr><td>문정빈</td><td>LG 트윈스</td><td>132</td><td>210.1</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>오스틴</td><td>LG 트윈스</td><td>455</td><td>199.3</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>박준순</td><td>두산 베어스</td><td>297</td><td>181.4</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>송찬의</td><td>LG 트윈스</td><td>262</td><td>151.0</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>카메론</td><td>두산 베어스</td><td>345</td><td>136.8</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>김민석</td><td>두산 베어스</td><td>356</td><td>127.8</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>양의지</td><td>두산 베어스</td><td>391</td><td>113.8</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>홍창기</td><td>LG 트윈스</td><td>404</td><td>109.9</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>강승호</td><td>두산 베어스</td><td>223</td><td>102.7</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>박찬호</td><td>두산 베어스</td><td>435</td><td>102.7</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>박해민</td><td>LG 트윈스</td><td>393</td><td>101.4</td><td>0.967</td><td>−3.3%</td></tr><tr class="row-hidden"><td>김도영</td><td>KIA 타이거즈</td><td>432</td><td>155.1</td><td>0.988</td><td>−1.2%</td></tr><tr class="row-hidden"><td>나성범</td><td>KIA 타이거즈</td><td>398</td><td>152.9</td><td>0.988</td><td>−1.2%</td></tr><tr class="row-hidden"><td>박상준</td><td>KIA 타이거즈</td><td>114</td><td>149.1</td><td>0.988</td><td>−1.2%</td></tr><tr class="row-hidden"><td>카스트로</td><td>KIA 타이거즈</td><td>251</td><td>143.3</td><td>0.988</td><td>−1.2%</td></tr><tr class="row-hidden"><td>한준수</td><td>KIA 타이거즈</td><td>324</td><td>135.1</td><td>0.988</td><td>−1.2%</td></tr><tr class="row-hidden"><td>아데를린</td><td>KIA 타이거즈</td><td>130</td><td>119.8</td><td>0.988</td><td>−1.2%</td></tr><tr class="row-hidden"><td>박재현</td><td>KIA 타이거즈</td><td>384</td><td>101.1</td><td>0.988</td><td>−1.2%</td></tr></tbody></table>
-    <button class="more" data-tb="tb_park">＋ 더 보기 (17명 더)</button>
+      억제율이 클수록·타격이 좋을수록 손해가 큽니다. <span class="warn">파크팩터는 직전+올 시즌 평균</span>(반시즌 노이즈 완화·신구장 반영).</p>
+    <table><thead><tr><th><span class="tip" data-tip="선수명. kbostuff.app 트래킹 기반 타자 지표.">타자</span></th><th>팀</th><th><span class="tip" data-tip="타석 수(PA). 100타석 이상만 평가 대상.">타석</span></th><th><span class="tip" data-tip="실제 결과 기반 wRC+ (park_factor로 구장 보정 완료). 100=리그평균, 130=평균보다 30%↑.">wRC+</span></th><th><span class="tip" data-tip="홈구장의 득점 환경 지수. 1.00=리그평균, <1=투수친화(득점 억제), >1=타자친화. 직전+올 시즌 평균으로 안정화(반시즌 노이즈·신구장 반영).">홈 파크팩터</span></th><th><span class="tip" data-tip="리그 평균 대비 홈구장이 득점을 억제하는 비율 = (1 − 파크팩터)×100%. 클수록 홈런·장타 raw 기록이 눌림.">억제(중립대비)</span></th></tr></thead>
+    <tbody id="tb_park"><tr><td>문정빈</td><td>LG 트윈스</td><td>132</td><td>210.1</td><td>0.965</td><td>−3.5%</td></tr><tr><td>오스틴</td><td>LG 트윈스</td><td>455</td><td>199.3</td><td>0.965</td><td>−3.5%</td></tr><tr><td>데이비슨</td><td>키움 히어로즈</td><td>331</td><td>121.8</td><td>0.943</td><td>−5.7%</td></tr><tr><td>히우라</td><td>키움 히어로즈</td><td>184</td><td>118.1</td><td>0.943</td><td>−5.7%</td></tr><tr><td>추재현</td><td>키움 히어로즈</td><td>145</td><td>114.3</td><td>0.943</td><td>−5.7%</td></tr><tr><td>김웅빈</td><td>키움 히어로즈</td><td>188</td><td>112.0</td><td>0.943</td><td>−5.7%</td></tr><tr><td>박준순</td><td>두산 베어스</td><td>297</td><td>181.4</td><td>0.965</td><td>−3.5%</td></tr><tr><td>서건창</td><td>키움 히어로즈</td><td>294</td><td>107.5</td><td>0.943</td><td>−5.7%</td></tr><tr class="row-hidden"><td>여동욱</td><td>키움 히어로즈</td><td>103</td><td>103.6</td><td>0.943</td><td>−5.7%</td></tr><tr class="row-hidden"><td>임병욱</td><td>키움 히어로즈</td><td>211</td><td>102.7</td><td>0.943</td><td>−5.7%</td></tr><tr class="row-hidden"><td>박주홍</td><td>키움 히어로즈</td><td>187</td><td>101.6</td><td>0.943</td><td>−5.7%</td></tr><tr class="row-hidden"><td>송찬의</td><td>LG 트윈스</td><td>262</td><td>151.0</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>카메론</td><td>두산 베어스</td><td>345</td><td>136.8</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>김민석</td><td>두산 베어스</td><td>356</td><td>127.8</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>양의지</td><td>두산 베어스</td><td>391</td><td>113.8</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>홍창기</td><td>LG 트윈스</td><td>404</td><td>109.9</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>강승호</td><td>두산 베어스</td><td>223</td><td>102.7</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>박찬호</td><td>두산 베어스</td><td>435</td><td>102.7</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>박해민</td><td>LG 트윈스</td><td>393</td><td>101.4</td><td>0.965</td><td>−3.5%</td></tr><tr class="row-hidden"><td>김도영</td><td>KIA 타이거즈</td><td>432</td><td>155.1</td><td>0.991</td><td>−0.9%</td></tr><tr class="row-hidden"><td>나성범</td><td>KIA 타이거즈</td><td>398</td><td>152.9</td><td>0.991</td><td>−0.9%</td></tr><tr class="row-hidden"><td>박상준</td><td>KIA 타이거즈</td><td>114</td><td>149.1</td><td>0.991</td><td>−0.9%</td></tr><tr class="row-hidden"><td>카스트로</td><td>KIA 타이거즈</td><td>251</td><td>143.3</td><td>0.991</td><td>−0.9%</td></tr><tr class="row-hidden"><td>한준수</td><td>KIA 타이거즈</td><td>324</td><td>135.1</td><td>0.991</td><td>−0.9%</td></tr><tr class="row-hidden"><td>아데를린</td><td>KIA 타이거즈</td><td>130</td><td>119.8</td><td>0.991</td><td>−0.9%</td></tr><tr class="row-hidden"><td>박재현</td><td>KIA 타이거즈</td><td>384</td><td>101.1</td><td>0.991</td><td>−0.9%</td></tr></tbody></table>
+    <button class="more" data-tb="tb_park">＋ 더 보기 (18명 더)</button>
   </div>
 
   <div class="card wide">
@@ -845,6 +850,22 @@ document.querySelectorAll(".more[data-tb]").forEach(btn => {
     btn.textContent = opening ? "− 접기" : `＋ 더 보기 (${hidden.length}명 더)`;
   });
 });
+
+// 모바일(터치): 지표를 탭하면 정의 표시. 데스크톱(hover 가능)은 CSS 호버 유지.
+(function tapTips(){
+  if (!window.matchMedia || !matchMedia('(hover: none)').matches) return;
+  let pop = null;
+  document.addEventListener('click', function(e){
+    const t = e.target.closest('[data-tip]');
+    if (!t || !t.getAttribute('data-tip')) { if (pop) pop.style.display='none'; return; }
+    if (!pop) { pop = document.createElement('div'); pop.className='tip-pop'; document.body.appendChild(pop); }
+    if (pop._for === t && pop.style.display==='block') { pop.style.display='none'; pop._for=null; return; }
+    pop._for = t; pop.textContent = t.getAttribute('data-tip'); pop.style.display='block';
+    const r = t.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(window.innerWidth-8-pop.offsetWidth, r.left+r.width/2-pop.offsetWidth/2))+'px';
+    pop.style.top = (window.scrollY + r.bottom + 6)+'px';
+  }, true);
+})();
 </script>
 </body>
 </html>

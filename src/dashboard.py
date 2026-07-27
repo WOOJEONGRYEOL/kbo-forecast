@@ -415,6 +415,11 @@ _TEMPLATE = r"""<!DOCTYPE html>
     text-align: left; background: #0b0e14; color: var(--text); border: 1px solid var(--line);
     padding: 9px 11px; border-radius: 8px; font-size: 12px; font-weight: 400;
     line-height: 1.55; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+  /* 모바일 탭 툴팁(플로팅) */
+  .tip-pop { position: absolute; z-index: 100; max-width: min(280px, 82vw);
+    background: #0b0e14; color: var(--text); border: 1px solid var(--line);
+    padding: 9px 11px; border-radius: 8px; font-size: 12px; line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0,0,0,.55); display: none; }
 
   /* ── 모바일(좁은 폰) 최적화 ── */
   @media (max-width: 560px) {
@@ -810,6 +815,22 @@ trendChart.data.datasets.forEach((ds, i) => {
 
 syncLabels();
 render();   // 최초 렌더
+
+// 모바일(터치): 지표를 탭하면 정의 표시. 데스크톱(hover 가능)은 CSS 호버 유지.
+(function tapTips(){
+  if (!window.matchMedia || !matchMedia('(hover: none)').matches) return;
+  let pop = null;
+  document.addEventListener('click', function(e){
+    const t = e.target.closest('[data-tip]');
+    if (!t || !t.getAttribute('data-tip')) { if (pop) pop.style.display='none'; return; }
+    if (!pop) { pop = document.createElement('div'); pop.className='tip-pop'; document.body.appendChild(pop); }
+    if (pop._for === t && pop.style.display==='block') { pop.style.display='none'; pop._for=null; return; }
+    pop._for = t; pop.textContent = t.getAttribute('data-tip'); pop.style.display='block';
+    const r = t.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(window.innerWidth-8-pop.offsetWidth, r.left+r.width/2-pop.offsetWidth/2))+'px';
+    pop.style.top = (window.scrollY + r.bottom + 6)+'px';
+  }, true);
+})();
 </script>
 </body>
 </html>

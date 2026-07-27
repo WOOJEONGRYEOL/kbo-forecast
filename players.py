@@ -62,6 +62,13 @@ def main() -> None:
     location = kbostuff_client.summarize_location(stuff)
     bat_metrics = kbostuff_client.fetch_batter_metrics(args.season)
     bat_wrc = kbostuff_client.fetch_batter_wrc(args.season)
+    # 파크팩터 안정화: 직전 시즌과 팀(구장) 단위로 평균 (반시즌 노이즈 완화).
+    # 신구장(예: 한화 2025~)도 '직전 시즌부터'라 현 구장만 반영됨.
+    try:
+        prev_wrc = kbostuff_client.fetch_batter_wrc(args.season - 1)
+    except Exception as e:            # 네트워크 등 실패 시 단일 시즌으로 폴백
+        print(f"  (직전 시즌 파크팩터 조회 실패 → 단일 시즌 사용: {e})")
+        prev_wrc = None
     fcb = kbostuff_client.fetch_fcb(args.season)
     print(f"  → kbostuff 지표: 투수 {len(stuff)}명 / 타자 {len(bat_metrics)}명 "
           f"/ FCB {len(fcb)}명")
@@ -69,7 +76,7 @@ def main() -> None:
     # ── 2. 평가 모델 ──
     print("\n[2/3] 평가 모델 계산")
     pitchers = player_eval.evaluate_pitchers(season_stats, stuff, location)
-    batters = player_eval.evaluate_batters(bat_metrics, bat_wrc, fcb)
+    batters = player_eval.evaluate_batters(bat_metrics, bat_wrc, fcb, prev_wrc=prev_wrc)
     p_screens = player_eval.pitcher_screens(pitchers)
     b_screens = player_eval.batter_screens(batters)
     lg_era = 9.0 * season_stats["er"].sum() / season_stats["ip"].sum()

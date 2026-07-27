@@ -70,7 +70,7 @@ FORMULAS = {
     "운": "BABIP − 리그평균 BABIP. 음수=불운(반등), 양수=거품. "
           "발 빠른 타자는 실력으로 높은 BABIP를 유지하기도 합니다.",
     "wRC+실제": "실제 결과 기반 wRC+ (park_factor로 구장 보정 완료). 100=리그평균, 130=평균보다 30%↑.",
-    "파크팩터": "홈구장의 득점 환경 지수. 1.00=리그평균, <1=투수친화(득점 억제), >1=타자친화(득점 증가).",
+    "파크팩터": "홈구장의 득점 환경 지수. 1.00=리그평균, <1=투수친화(득점 억제), >1=타자친화. 직전+올 시즌 평균으로 안정화(반시즌 노이즈·신구장 반영).",
     "구장억제": "리그 평균 대비 홈구장이 득점을 억제하는 비율 = (1 − 파크팩터)×100%. 클수록 홈런·장타 raw 기록이 눌림.",
     "구장차": "(구버전) 순수 wRC+ − 이벤트 wRC+. 실제 파크팩터와 상관 ≈ 0이라 구장 지표로는 폐기, 파크팩터로 대체.",
     "승리기여": "FCB. 협조적 게임이론(Shapley value)으로 '득점이 난 이닝'에서 각 타자의 "
@@ -382,6 +382,11 @@ _TEMPLATE = r"""<!DOCTYPE html>
     color: var(--text); border: 1px solid var(--line); padding: 9px 11px;
     border-radius: 8px; font-size: 12px; font-weight: 400; line-height: 1.55;
     z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+  /* 모바일 탭 툴팁(플로팅) */
+  .tip-pop { position: absolute; z-index: 100; max-width: min(280px, 82vw);
+    background: #0b0e14; color: var(--text); border: 1px solid var(--line);
+    padding: 9px 11px; border-radius: 8px; font-size: 12px; line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0,0,0,.55); display: none; }
 
   /* 랜덤 클릭으로 뽑힌 선수 상세 카드 */
   .pick { margin-top: 12px; padding: 12px 13px; background: #0b0e14;
@@ -564,7 +569,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <h2><span class="badge">🏟️</span>구장에 갇힌 타자</h2>
     <p class="hint">홈구장 파크팩터가 리그 평균(1.00)보다 낮아 득점이 억제되는 <b>좋은 타자(wRC+ 100↑)</b>.
       wRC+는 이미 구장 보정값이라 실력 평가엔 문제없지만, 홈런·타율 같은 <b>raw 기록</b>은 구장 탓에 눌립니다.
-      억제율이 클수록·타격이 좋을수록 손해가 큽니다.</p>
+      억제율이 클수록·타격이 좋을수록 손해가 큽니다. <span class="warn">파크팩터는 직전+올 시즌 평균</span>(반시즌 노이즈 완화·신구장 반영).</p>
     <table><thead><tr><th>__H_BAT__</th><th>팀</th><th>__H_PA__</th><th>__H_WRCE__</th><th>__H_PF__</th><th>__H_SUPP__</th></tr></thead>
     <tbody id="tb_park">__T_PARK__</tbody></table>
     __M_PARK__
@@ -1138,6 +1143,22 @@ document.querySelectorAll(".more[data-tb]").forEach(btn => {
     btn.textContent = opening ? "− 접기" : `＋ 더 보기 (${hidden.length}명 더)`;
   });
 });
+
+// 모바일(터치): 지표를 탭하면 정의 표시. 데스크톱(hover 가능)은 CSS 호버 유지.
+(function tapTips(){
+  if (!window.matchMedia || !matchMedia('(hover: none)').matches) return;
+  let pop = null;
+  document.addEventListener('click', function(e){
+    const t = e.target.closest('[data-tip]');
+    if (!t || !t.getAttribute('data-tip')) { if (pop) pop.style.display='none'; return; }
+    if (!pop) { pop = document.createElement('div'); pop.className='tip-pop'; document.body.appendChild(pop); }
+    if (pop._for === t && pop.style.display==='block') { pop.style.display='none'; pop._for=null; return; }
+    pop._for = t; pop.textContent = t.getAttribute('data-tip'); pop.style.display='block';
+    const r = t.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(window.innerWidth-8-pop.offsetWidth, r.left+r.width/2-pop.offsetWidth/2))+'px';
+    pop.style.top = (window.scrollY + r.bottom + 6)+'px';
+  }, true);
+})();
 </script>
 </body>
 </html>

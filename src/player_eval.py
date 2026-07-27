@@ -20,7 +20,7 @@ Gemini 대화의 [추천 1]과 [추천 2]를 구현한 모듈입니다.
        실제가 기대보다 훨씬 높으면 → 거품 (곧 식을 타자)
        실제가 기대보다 훨씬 낮으면 → 불운 (곧 터질 타자)
     ② 파워 유형 분류 : Power+ × HR+ 교차 (Gap Power vs HR Specialist)
-    ③ 구장 피해자 탐지 : 순수 wRC+ − 이벤트 wRC+ (잠실 등 큰 구장 보정)
+    ③ 구장 피해자 탐지 : park_factor(직전+올 시즌 평균)<1 인 좋은 타자
 """
 
 import numpy as np
@@ -162,9 +162,36 @@ def pitcher_screens(evaluated: pd.DataFrame) -> dict:
 # 타자 평가
 # ══════════════════════════════════════════════════════════
 
+def _blend_park_factor(df: pd.DataFrame,
+                       prev_wrc: pd.DataFrame | None) -> pd.DataFrame:
+    """park_factor를 직전 시즌과 팀(구장) 단위로 평균해 반시즌 노이즈를 줄인다.
+
+    직전 시즌 park_factor는 '올 시즌에도 같은 팀에 있는 선수'들의 중앙값으로
+    그 팀 구장에 매핑한다(트레이드 이적생은 중앙값이 흡수). 신구장(한화 2025~)도
+    '직전 시즌부터'라 현 구장만 섞인다. prev 데이터가 없으면 단일 시즌 그대로.
+    """
+    if prev_wrc is None or getattr(prev_wrc, "empty", True) \
+            or "park_factor" not in prev_wrc.columns or "team_code" not in df.columns:
+        return df
+    prev = prev_wrc[["pcode", "park_factor"]].rename(columns={"park_factor": "_pf_prev"})
+    link = df[["pcode", "team_code"]].merge(prev, on="pcode", how="inner").dropna()
+    if link.empty:
+        return df
+    prev_team = link.groupby("team_code")["_pf_prev"].median()      # 팀 구장의 직전 시즌
+    cur_team = df.groupby("team_code")["park_factor"].median()      # 팀 구장의 올 시즌
+    blended = {
+        tc: (cur + prev_team[tc]) / 2 if tc in prev_team.index else cur
+        for tc, cur in cur_team.items()
+    }
+    df = df.copy()
+    df["park_factor"] = df["team_code"].map(blended).fillna(df["park_factor"])
+    return df
+
+
 def evaluate_batters(bat_metrics: pd.DataFrame,
                      bat_wrc: pd.DataFrame,
-                     fcb: pd.DataFrame | None = None) -> pd.DataFrame:
+                     fcb: pd.DataFrame | None = None,
+                     prev_wrc: pd.DataFrame | None = None) -> pd.DataFrame:
     """
     kbostuff의 타자 지표 두(세) 테이블을 조인해 운/유형/구장/클러치 진단을 붙입니다.
 
@@ -241,6 +268,7 @@ def evaluate_batters(bat_metrics: pd.DataFrame,
     # 이 값은 실제 park_factor와 상관 ≈ 0 (구장이 아니라 '타구 질 대비 저평가'를 잡음).
     # 그래서 진짜 구장 신호인 park_factor로 교체한다.
     # park_drag = 좋은 타자일수록·억제 구장일수록 큰 값 (홈런·장타 raw 기록이 눌리는 정도).
+    df = _blend_park_factor(df, prev_wrc)                   # 직전+올 시즌 평균으로 안정화
     df["park_suppress"] = 1.0 - df["park_factor"]          # >0 = 투수친화(불리)
     df["park_drag"] = df["wrc_plus_event"] * df["park_suppress"]
 
