@@ -120,16 +120,28 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <h1>🏆 KBO 역대 기록</h1>
 <div class="sub">1982~현재 전 시즌. 시즌·포지션별 순위와 통산 리더보드. 데이터: Statiz (WAR·wRC+ 등)</div>
 
+<div class="seg" id="view" style="margin-bottom:12px">
+  <button class="on" data-w="rank">📊 순위·선수</button><button data-w="trend">📈 리그 진화</button>
+</div>
+
 <div class="controls">
   <div class="seg" id="side"><button class="on" data-v="bat">타자</button><button data-v="pit">투수</button></div>
-  <div><label>시즌</label><select id="season"></select></div>
-  <div><label>포지션</label><span class="seg" id="pos"></span></div>
-  <div><label>정렬</label><select id="sort"></select></div>
+  <div id="rankControls" style="display:contents">
+    <div><label>시즌</label><select id="season"></select></div>
+    <div><label>포지션</label><span class="seg" id="pos"></span></div>
+    <div><label>정렬</label><select id="sort"></select></div>
+  </div>
+  <div id="trendControls" style="display:none"><label>지표</label><span class="seg" id="metric"></span></div>
+</div>
+
+<div class="card" id="trendCard" style="display:none">
+  <p class="hint" id="trendHint"></p>
+  <div id="trendChart" style="overflow-x:auto"></div>
 </div>
 
 <div class="card" id="detailCard" style="display:none"></div>
 
-<div class="card">
+<div class="card" id="rankCard">
   <p class="hint" id="tableHint"></p>
   <div style="overflow-x:auto"><table id="tbl"><thead></thead><tbody></tbody></table></div>
   <div class="legend" id="legend"></div>
@@ -141,6 +153,20 @@ const DATA = __DATA__;
 const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12};
 const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
+let view="rank", metric="";
+// 리그 진화 지표: [라벨, 시즌집계함수(rows→값), 소수자릿수, 설명]
+const TREND_BAT = {
+  hr:  ["홈런 (600타석당)", rs=>{let h=0,p=0;rs.forEach(r=>{h+=r[B.hr];p+=r[B.pa];});return p?h/p*600:0;}, 1,
+        "리그 전체 홈런/타석 × 600 — 파워 시대의 흥망"],
+  ops: ["리그 OPS", rs=>{let o=0,p=0;rs.forEach(r=>{o+=r[B.ops]*r[B.pa];p+=r[B.pa];});return p?o/p:0;}, 3,
+        "타석 가중 평균 OPS — 타고투저 지표"],
+};
+const TREND_PIT = {
+  k9:  ["삼진 (K/9)", rs=>{let k=0,ip=0;rs.forEach(r=>{k+=r[P.so];ip+=r[P.ip];});return ip?k/ip*9:0;}, 2,
+        "9이닝당 탈삼진 — 삼진 시대의 도래"],
+  era: ["리그 ERA", rs=>{let e=0,ip=0;rs.forEach(r=>{e+=r[P.era]*r[P.ip];ip+=r[P.ip];});return ip?e/ip:0;}, 2,
+        "이닝 가중 평균 ERA — 득점 환경"],
+};
 
 const POS_BAT = ["전체","C","1B","2B","3B","SS","LF","CF","RF","DH"];
 const POS_PIT = ["전체","선발","불펜"];
@@ -161,9 +187,20 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
   ss.onchange=()=>{season=ss.value; render();};
   el("side").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     side=b.dataset.v; el("side").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
-    pos="전체"; sortKey="war"; buildPos(); buildSort(); render();
+    pos="전체"; sortKey="war"; buildPos(); buildSort(); buildMetric();
+    if(view==="trend") renderTrend(); else render();
   });
-  buildPos(); buildSort();
+  el("view").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    view=b.dataset.w; el("view").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    const trend=view==="trend";
+    el("trendCard").style.display=trend?"block":"none";
+    el("trendControls").style.display=trend?"block":"none";
+    el("rankControls").style.display=trend?"none":"contents";
+    el("rankCard").style.display=trend?"none":"block";
+    el("detailCard").style.display="none";
+    if(trend) renderTrend(); else render();
+  });
+  buildPos(); buildSort(); buildMetric();
   el("legend").innerHTML="팀 약자: "+Object.entries(DATA.legend).map(([k,v])=>`${k}=${v}`).join(" · ");
   render();
 })();
@@ -178,6 +215,45 @@ function buildSort(){
   el("sort").innerHTML=Object.entries(S).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("");
   el("sort").value=sortKey in S?sortKey:"war";
   el("sort").onchange=()=>{sortKey=el("sort").value; render();};
+}
+
+// ── 리그 진화 (44년 추이) ──
+function buildMetric(){
+  const M=side==="bat"?TREND_BAT:TREND_PIT;
+  if(!(metric in M)) metric=Object.keys(M)[0];
+  el("metric").innerHTML=Object.entries(M).map(([k,v])=>`<button class="${k===metric?'on':''}" data-m="${k}">${v[0]}</button>`).join("");
+  el("metric").querySelectorAll("button").forEach(b=>b.onclick=()=>{metric=b.dataset.m;
+    el("metric").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderTrend();});
+}
+function renderTrend(){
+  const M=side==="bat"?TREND_BAT:TREND_PIT;
+  const [label,fn,dec,desc]=M[metric];
+  const I=side==="bat"?B:P;
+  const src=side==="bat"?DATA.batters:DATA.pitchers;
+  const bySeason={};
+  src.forEach(r=>{(bySeason[r[I.season]]=bySeason[r[I.season]]||[]).push(r);});
+  const pts=DATA.seasons.map(y=>({season:y, val:fn(bySeason[y]||[])})).filter(p=>p.val>0);
+  el("trendHint").innerHTML=`<b>${label}</b> — ${desc}. 1982~현재 리그 전체 집계.`;
+  el("trendChart").innerHTML=lineSVG(pts, dec, label);
+}
+function lineSVG(pts, dec, label){
+  const W=880, H=320, mL=52, mR=16, mT=16, mB=34;
+  const xs=pts.map(p=>p.season), ys=pts.map(p=>p.val);
+  const x0=Math.min(...xs), x1=Math.max(...xs);
+  let y0=Math.min(...ys), y1=Math.max(...ys); const pad=(y1-y0)*0.1||1; y0-=pad; y1+=pad;
+  const X=s=>mL+(s-x0)/(x1-x0)*(W-mL-mR);
+  const Y=v=>H-mB-(v-y0)/(y1-y0)*(H-mT-mB);
+  const line=pts.map((p,i)=>`${i?'L':'M'}${X(p.season).toFixed(1)},${Y(p.val).toFixed(1)}`).join(" ");
+  const dots=pts.map(p=>`<circle cx="${X(p.season).toFixed(1)}" cy="${Y(p.val).toFixed(1)}" r="2.5" fill="#3ecf8e"><title>${p.season}: ${p.val.toFixed(dec)}</title></circle>`).join("");
+  // 격자·라벨
+  let grid="", xlab="";
+  for(let g=0;g<=4;g++){const v=y0+(y1-y0)*g/4, yy=Y(v);
+    grid+=`<line x1="${mL}" y1="${yy.toFixed(1)}" x2="${W-mR}" y2="${yy.toFixed(1)}" stroke="#222a3a"/>`;
+    grid+=`<text x="${mL-6}" y="${(yy+4).toFixed(1)}" text-anchor="end" fill="#8a94a8" font-size="11">${v.toFixed(dec)}</text>`;}
+  for(let s=Math.ceil(x0/5)*5;s<=x1;s+=5){const xx=X(s);
+    xlab+=`<text x="${xx.toFixed(1)}" y="${H-12}" text-anchor="middle" fill="#8a94a8" font-size="11">${s}</text>`;}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:560px;max-width:${W}px">
+    ${grid}${xlab}<path d="${line}" fill="none" stroke="#3ecf8e" stroke-width="2.5"/>${dots}</svg>`;
 }
 
 function rowsForSeason(){
