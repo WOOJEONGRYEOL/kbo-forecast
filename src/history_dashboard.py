@@ -107,6 +107,14 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .comps { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
   .comp { border:1px solid var(--line); border-radius:9px; padding:7px 11px; font-size:12px; }
   .comp b { font-size:13px; }
+  #cardOverlay { display:none; position:fixed; inset:0; background:#000000cc; z-index:50;
+    align-items:center; justify-content:center; }
+  .cardbox { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .cardbox svg { width:min(88vw,340px); height:auto; box-shadow:0 8px 40px #000; }
+  .cardbtns { display:flex; gap:10px; }
+  .cardbtns button { padding:9px 18px; border-radius:9px; border:1px solid #33405a;
+    background:var(--card); color:var(--text); font-size:14px; font-family:inherit; cursor:pointer; }
+  #cardDl { background:var(--green); color:#0b0e14; border-color:var(--green); font-weight:700; }
   .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:0; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
   .hint { color:var(--muted); font-size:12px; margin:4px 0 12px; }
@@ -388,9 +396,20 @@ function openDetail(pno){
   }).join("");
   const at=arch?` · 유형 <b>${arch[0]}</b>`:"";
   const summary=`통산 WAR <b>${totWar.toFixed(1)}</b> · ${mine.length}시즌 · 피크 ${peak[I.season]}(WAR ${peak[I.war].toFixed(1)}) · 팀 ${teams.join('·')}${at}`;
+  // 카드 생성용 데이터 준비
+  const wars=mine.map(r=>r[I.war]).slice().sort((a,b)=>b-a);
+  const jaws=(totWar+wars.slice(0,7).reduce((s,x)=>s+x,0))/2;
+  let cstat=0; if(isBat){let p=0;mine.forEach(r=>{cstat+=r[B.wrc]*r[B.pa];p+=r[B.pa];});cstat=p?cstat/p:0;}
+    else{let ip=0;mine.forEach(r=>{cstat+=r[P.era]*r[P.ip];ip+=r[P.ip];});cstat=ip?cstat/ip:0;}
+  _cur={name, color:mine[mine.length-1][I.color]||"#2a3345", isBat,
+    posrole:isBat?peak[B.pos]:"투수", teams, ns:mine.length, totWar, jaws,
+    peak:{season:peak[I.season], war:peak[I.war]}, arch:arch?arch[0]:"",
+    stat:cstat, seasons:mine.map(r=>({s:r[I.season], w:r[I.war]})),
+    comps:findComps(peak,isBat,3).map(c=>c.r[I.name])};
   const card=el("detailCard");
   card.innerHTML=`<div class="dhead"><span class="nm">${name}</span>
       <span class="meta">${summary}</span>
+      <span class="dclose" onclick="makeCard()" style="border-color:var(--green);color:var(--green)">🎴 카드</span>
       <span class="dclose" onclick="document.getElementById('detailCard').style.display='none'">✕ 닫기</span></div>
     <div class="hint">연도별 WAR (막대에 마우스 올리면 값)</div>
     <div class="traj">${traj}</div>
@@ -398,6 +417,66 @@ function openDetail(pno){
     <div class="comps">${comps}</div>`;
   card.style.display="block";
   card.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+// ── 선수 카드 생성기 (공유용 SVG → PNG) ──
+let _cur=null;
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function cardSVG(d){
+  const W=440,H=620,c=d.color||"#2a3345";
+  const mx=Math.max(...d.seasons.map(s=>Math.abs(s.w)),1);
+  const bw=Math.min(26,(W-64)/d.seasons.length-3), bx0=32, baseY=470;
+  const bars=d.seasons.map((s,i)=>{const h=Math.max(3,Math.abs(s.w)/mx*88);
+    const x=bx0+i*((W-64)/d.seasons.length), y=s.w>=0?baseY-h:baseY;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${s.w>=0?'#3ecf8e':'#e0555f'}"/>`;
+  }).join("");
+  const st=d.isBat?["wRC+",Math.round(d.stat)]:["ERA",d.stat.toFixed(2)];
+  const cells=[["시즌",d.ns],["피크",d.peak.war.toFixed(1)],["JAWS",d.jaws.toFixed(1)],st];
+  const cw=(W-64)/4;
+  const scells=cells.map((cc,i)=>{const x=32+i*cw+cw/2;
+    return `<text x="${x}" y="330" text-anchor="middle" fill="#8a94a8" font-size="12">${cc[0]}</text>
+      <text x="${x}" y="356" text-anchor="middle" fill="#e8ecf3" font-size="20" font-weight="700">${cc[1]}</text>`;
+  }).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="'Apple SD Gothic Neo','Noto Sans KR',sans-serif">
+    <rect width="${W}" height="${H}" rx="20" fill="#12161f"/>
+    <rect width="${W}" height="${H}" rx="20" fill="none" stroke="${c}" stroke-width="3"/>
+    <path d="M0 20 Q0 0 20 0 H${W-20} Q${W} 0 ${W} 20 V104 H0 Z" fill="${c}"/>
+    <text x="32" y="52" fill="#fff" font-size="30" font-weight="800">${esc(d.name)}</text>
+    <text x="32" y="82" fill="#ffffffcc" font-size="14">${esc(d.teams.join('·')+' · '+d.posrole+(d.arch?' · '+d.arch:''))}</text>
+    <text x="${W/2}" y="176" text-anchor="middle" fill="#8a94a8" font-size="14">통산 WAR</text>
+    <text x="${W/2}" y="240" text-anchor="middle" fill="#3ecf8e" font-size="64" font-weight="800">${d.totWar.toFixed(1)}</text>
+    <line x1="32" y1="286" x2="${W-32}" y2="286" stroke="#232a38"/>
+    ${scells}
+    <line x1="32" y1="384" x2="${W-32}" y2="384" stroke="#232a38"/>
+    <text x="32" y="410" fill="#8a94a8" font-size="12">연도별 WAR (${d.peak.season} 피크)</text>
+    ${bars}
+    <line x1="32" y1="${baseY}" x2="${W-32}" y2="${baseY}" stroke="#3a4560" stroke-width="0.5"/>
+    <text x="32" y="518" fill="#8a94a8" font-size="12">🔍 닮은꼴</text>
+    <text x="32" y="540" fill="#e8ecf3" font-size="15" font-weight="600">${esc(d.comps.join('  ·  '))}</text>
+    <text x="32" y="592" fill="#5b647a" font-size="12">⚾ KBO 역대 기록 · 데이터 Statiz</text>
+  </svg>`;
+}
+function makeCard(){
+  if(!_cur) return;
+  const svg=cardSVG(_cur);
+  // 미리보기 오버레이 + PNG 저장
+  let ov=document.getElementById("cardOverlay");
+  if(!ov){ov=document.createElement("div");ov.id="cardOverlay";document.body.appendChild(ov);}
+  ov.innerHTML=`<div class="cardbox">${svg}
+    <div class="cardbtns"><button id="cardDl">📥 PNG 저장</button><button id="cardClose">닫기</button></div></div>`;
+  ov.style.display="flex";
+  document.getElementById("cardClose").onclick=()=>ov.style.display="none";
+  document.getElementById("cardDl").onclick=()=>downloadPNG(svg, _cur.name);
+}
+function downloadPNG(svg, name){
+  const blob=new Blob([svg],{type:"image/svg+xml;charset=utf-8"});
+  const url=URL.createObjectURL(blob), img=new Image();
+  img.onload=()=>{const sc=2,cv=document.createElement("canvas");
+    cv.width=440*sc;cv.height=620*sc;const ctx=cv.getContext("2d");ctx.scale(sc,sc);
+    ctx.drawImage(img,0,0);URL.revokeObjectURL(url);
+    cv.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);
+      a.download=`${name}_카드.png`;a.click();});};
+  img.src=url;
 }
 
 function render(){
