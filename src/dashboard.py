@@ -231,16 +231,22 @@ def _style_bar(z: float) -> str:
             f'<span class="sfill" style="{seg}; background:{col}"></span></div>')
 
 
-def _phase_cell(z: float, label: str) -> str:
-    """구간 강약 셀: z>0=강(주황), z<0=약(파랑), 진할수록 뚜렷."""
-    a = min(abs(z) / 2.0, 1.0)
-    rgb = "232,135,74" if z >= 0 else "74,144,217"
-    return f'<span class="pcell" style="background:rgba({rgb},{a:.2f})">{label}</span>'
+def _phase_bar(margin: float, label: str) -> str:
+    """구간 강약 미니막대: 경기당 득실 마진. +면 초록 위로(강), −면 빨강 아래로(약)."""
+    h = max(2.0, min(abs(margin) / 1.5, 1.0) * 15)   # 1.5점차에서 최대, 최소 2px
+    if margin >= 0:
+        style = f"bottom:50%; height:{h:.0f}px; background:#3ecf8e"
+    else:
+        style = f"top:50%; height:{h:.0f}px; background:#e0555f"
+    val = f"{margin:+.1f}"
+    return (f'<div class="pcol"><div class="ptrack" title="{label} 득실 {val}/경기">'
+            f'<span class="pbar" style="{style}"></span></div>'
+            f'<span class="plab">{label}</span></div>')
 
 
-def _phase_strip(ze: float, zm: float, zl: float) -> str:
-    return ('<div class="pstrip">' + _phase_cell(ze, "초")
-            + _phase_cell(zm, "중") + _phase_cell(zl, "후") + '</div>')
+def _phase_strip(early: float, mid: float, late: float) -> str:
+    return ('<div class="pbars">' + _phase_bar(early, "초")
+            + _phase_bar(mid, "중") + _phase_bar(late, "후") + '</div>')
 
 
 def _team_style_card(logos: dict) -> str:
@@ -261,15 +267,11 @@ def _team_style_card(logos: dict) -> str:
 
     # ④ 초·중·후반 득실 마진 (Naver 이닝별 득점) — 있으면 4번째 열 추가
     phase_path = Path(config.DATA_DIR) / f"team_phase_{config.SEASON}.csv"
-    pz = None
+    ph = None
     if phase_path.exists():
-        ph = {r["team"]: r for r in csv.DictReader(open(phase_path, encoding="utf-8-sig"))}
-        codes = [r["team"] for r in rows]
-        if all(c in ph for c in codes):
-            ez = dict(zip(codes, _zscores([float(ph[c]["early_net"]) for c in codes])))
-            mz = dict(zip(codes, _zscores([float(ph[c]["mid_net"]) for c in codes])))
-            lz = dict(zip(codes, _zscores([float(ph[c]["late_net"]) for c in codes])))
-            pz = {c: (ez[c], mz[c], lz[c]) for c in codes}
+        pmap = {r["team"]: r for r in csv.DictReader(open(phase_path, encoding="utf-8-sig"))}
+        if all(r["team"] in pmap for r in rows):
+            ph = pmap
 
     order = sorted(range(len(rows)), key=lambda i: -ax1[i])   # 빅볼→스몰볼 순
     body = []
@@ -281,20 +283,22 @@ def _team_style_card(logos: dict) -> str:
                f'선발WAR {r["starter_war"]}/불펜WAR {r["reliever_war"]} · '
                f'타격oWAR {r["bat_owar"]}/투수WAR {r["pit_war"]}')
         pcell = ""
-        if pz is not None:
+        if ph is not None:
             p = ph[code]
-            tip += (f' · 초{float(p["early_net"]):+.2f}/중{float(p["mid_net"]):+.2f}'
-                    f'/후{float(p["late_net"]):+.2f} 득실')
-            pcell = f'<td>{_phase_strip(*pz[code])}</td>'
+            e, m, l = float(p["early_net"]), float(p["mid_net"]), float(p["late_net"])
+            tip += f' · 초{e:+.2f}/중{m:+.2f}/후{l:+.2f} 경기당 득실'
+            pcell = f'<td>{_phase_strip(e, m, l)}</td>'
         body.append(
             f'<tr title="{tip}"><td class="stm"><img src="{logo}" alt="">{name}</td>'
             f'<td>{_style_bar(ax1[i])}</td>'
             f'<td>{_style_bar(ax2[i])}</td>'
             f'<td>{_style_bar(ax3[i])}</td>{pcell}</tr>')
 
-    phase_th = '<th class="pth">초 · 중 · 후반 강세</th>' if pz is not None else ''
-    phase_note = (' ④ <b>초·중·후반</b> 이닝 구간별 상대 대비 득실 마진(주황=강·파랑=약).'
-                  if pz is not None else '')
+    phase_th = '<th class="pth">초 · 중 · 후반<br><span style="font-weight:400">경기당 득실</span></th>' if ph is not None else ''
+    phase_note = (' ④ <b>초·중·후반</b>: 각 구간 경기당 득실 마진 — '
+                  '<span style="color:#3ecf8e">초록↑=상대 압도</span>·'
+                  '<span style="color:#e0555f">빨강↓=밀림</span>.'
+                  if ph is not None else '')
     return (
         '<div class="card wide">'
         '<h2><span class="badge">🧬</span>팀 스타일 지문 '
@@ -539,10 +543,15 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .sbar { position: relative; height: 14px; background: #0d1119; border: 1px solid var(--line); border-radius: 7px; }
   .sctr { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: #46516b; }
   .sfill { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; min-width: 2px; }
-  .stbl .pth { text-align: center; }
-  .pstrip { display: flex; gap: 3px; justify-content: center; }
-  .pcell { flex: 1; max-width: 34px; text-align: center; font-size: 11px; color: #e8ecf3;
-    padding: 3px 0; border-radius: 4px; border: 1px solid var(--line); }
+  .stbl .pth { text-align: center; font-size: 11px; }
+  .pbars { display: flex; gap: 8px; justify-content: center; align-items: flex-start; }
+  .pcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .ptrack { position: relative; width: 15px; height: 32px; background: #0d1119;
+    border: 1px solid var(--line); border-radius: 3px; }
+  .ptrack::after { content: ''; position: absolute; left: 0; right: 0; top: 50%;
+    height: 1px; background: #46516b; }
+  .pbar { position: absolute; left: 2px; right: 2px; border-radius: 2px; }
+  .plab { font-size: 10px; color: var(--muted); }
 
   /* ── 모바일(좁은 폰) 최적화 ── */
   @media (max-width: 560px) {
