@@ -18,6 +18,7 @@ dashboard.py — HTML 대시보드 생성기 (팀 단기 전력)
 """
 
 import base64
+import csv
 import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -213,6 +214,71 @@ def _rotation_rows(standings, logos, rotation_detail: dict) -> str:
     return "".join(cards)
 
 
+def _zscores(vals: list[float]) -> list[float]:
+    m = sum(vals) / len(vals)
+    sd = (sum((v - m) ** 2 for v in vals) / len(vals)) ** 0.5 or 1.0
+    return [(v - m) / sd for v in vals]
+
+
+def _style_bar(z: float) -> str:
+    """z>0 → 오른쪽 극(주황), z<0 → 왼쪽 극(파랑). 폭 ∝ |z| (2.2에서 최대)."""
+    w = min(abs(z) / 2.2, 1.0) * 48
+    if z >= 0:
+        seg, col = f"left:50%; width:{w:.1f}%", "#e8874a"
+    else:
+        seg, col = f"right:50%; width:{w:.1f}%", "#4a90d9"
+    return (f'<div class="sbar"><span class="sctr"></span>'
+            f'<span class="sfill" style="{seg}; background:{col}"></span></div>')
+
+
+def _team_style_card(logos: dict) -> str:
+    """팀 스타일 지문 카드 (빅볼/스몰볼·선발/불펜·공격/투수). 데이터 없으면 빈 문자열."""
+    path = Path(config.DATA_DIR) / f"team_style_{config.SEASON}.csv"
+    if not path.exists():
+        return ""
+    rows = list(csv.DictReader(open(path, encoding="utf-8-sig")))
+    if not rows:
+        return ""
+    col = lambda n: [float(r[n]) for r in rows]
+    iso, small = _zscores(col("iso")), _zscores(col("small_rate"))
+    sw, rw = _zscores(col("starter_war")), _zscores(col("reliever_war"))
+    ow, pw = _zscores(col("bat_owar")), _zscores(col("pit_war"))
+    ax1 = [a - b for a, b in zip(iso, small)]   # + 빅볼 / − 스몰볼
+    ax2 = [a - b for a, b in zip(sw, rw)]        # + 선발 / − 불펜
+    ax3 = [a - b for a, b in zip(ow, pw)]        # + 공격 / − 투수
+    order = sorted(range(len(rows)), key=lambda i: -ax1[i])   # 빅볼→스몰볼 순
+    body = []
+    for i in order:
+        r = rows[i]; code = r["team"]
+        name = config.TEAM_NAMES.get(code, code)
+        logo = logos.get(code, "")
+        tip = (f'ISO {r["iso"]} · 도루+번트/타석 {r["small_rate"]}% · '
+               f'선발WAR {r["starter_war"]}/불펜WAR {r["reliever_war"]} · '
+               f'타격oWAR {r["bat_owar"]}/투수WAR {r["pit_war"]}')
+        body.append(
+            f'<tr title="{tip}"><td class="stm"><img src="{logo}" alt="">{name}</td>'
+            f'<td>{_style_bar(ax1[i])}</td>'
+            f'<td>{_style_bar(ax2[i])}</td>'
+            f'<td>{_style_bar(ax3[i])}</td></tr>')
+    return (
+        '<div class="card wide">'
+        '<h2><span class="badge">🧬</span>팀 스타일 지문 '
+        '<span style="color:var(--muted);font-weight:400">— 리그 평균 대비 성향</span></h2>'
+        '<p class="hint">각 팀이 어느 쪽으로 치우쳤는지(팀 간 z-점수 차). 막대가 길수록 그 성향이 뚜렷합니다. '
+        '<span style="color:#4a90d9">■ 파랑=왼쪽</span> · <span style="color:#e8874a">■ 주황=오른쪽</span> 성향.</p>'
+        '<div class="table-scroll"><table class="stbl"><thead><tr>'
+        '<th>팀</th>'
+        '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
+        '<th><span class="pl">불펜형</span><span class="pr">선발형</span></th>'
+        '<th><span class="pl">투수로</span><span class="pr">공격으로</span></th>'
+        '</tr></thead><tbody>' + "".join(body) + '</tbody></table></div>'
+        '<p class="hint" style="margin-top:8px">'
+        '① <b>빅볼</b>=장타(ISO) vs <b>스몰볼</b>=기동력(도루+번트). '
+        '② <b>선발/불펜</b> WAR 우열. '
+        '③ 승리 기여가 <b>방망이</b>(타격 oWAR)냐 <b>마운드</b>(투수 WAR)냐. '
+        '행에 커서를 올리면 원자료가 보입니다.</p></div>')
+
+
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
                    rotation_detail: dict | None = None,
                    standings: "pd.DataFrame | None" = None) -> Path:
@@ -266,6 +332,7 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
+    html = html.replace("__STYLE_CARD__", _team_style_card(logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
@@ -423,6 +490,18 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .pagefoot { color: var(--muted); font-size: 11.5px; line-height: 1.7; text-align: center;
     margin: 32px auto 8px; padding-top: 16px; border-top: 1px solid var(--line); max-width: 720px; }
   .pagefoot b { color: #aab3c5; }
+  /* 팀 스타일 지문 카드 */
+  .stbl { width: 100%; border-collapse: collapse; }
+  .stbl th, .stbl td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .stbl th { font-size: 11.5px; font-weight: 600; color: var(--muted); overflow: hidden; }
+  .stbl th .pl { float: left; color: #4a90d9; }
+  .stbl th .pr { float: right; color: #e8874a; }
+  .stbl td:not(.stm) { width: 30%; min-width: 130px; }
+  .stbl .stm { white-space: nowrap; font-size: 13px; }
+  .stbl .stm img { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
+  .sbar { position: relative; height: 14px; background: #0d1119; border: 1px solid var(--line); border-radius: 7px; }
+  .sctr { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: #46516b; }
+  .sfill { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; min-width: 2px; }
 
   /* ── 모바일(좁은 폰) 최적화 ── */
   @media (max-width: 560px) {
@@ -514,6 +593,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
       중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
       잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
   </div>
+
+__STYLE_CARD__
 
   <div class="card">
     <h2>종합 모멘텀 지수</h2>

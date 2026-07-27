@@ -15,3 +15,4 @@ data/*
 !data/statiz_*.csv
 !data/history_*.csv
 !data/history.html
+!data/team_style_*.csv

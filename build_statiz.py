@@ -152,6 +152,51 @@ def build_batters(bat: list, season: int) -> None:
     print(f"저장: {out} ({n}명, PA>={MIN_PA})")
 
 
+def build_team_style(pit: list, bat: list, season: int) -> None:
+    """팀 스타일 지문용 집계 (타격 스타일·선발/불펜·공격/투수 WAR).
+
+    - 빅볼: 팀 ISO(장타). 스몰볼: (도루+희생번트)/타석(기동력·작전).
+    - 선발/불펜: 구원 등판>선발이면 불펜, 아니면 선발로 나눠 WAR 합.
+    - 공격/투수: 팀 타격 oWAR 합 vs 투수 WAR 합.
+    """
+    tb = defaultdict(lambda: {"pa": 0.0, "iso_w": 0.0, "sb": 0.0, "sh": 0.0,
+                              "hr": 0.0, "owar": 0.0, "bwar": 0.0})
+    for r in bat:
+        c = _code(r)
+        if not c:
+            continue
+        pa = _num(r["PA"])
+        a = tb[c]
+        a["pa"] += pa
+        a["iso_w"] += (_num(r["SLG"]) - _num(r["AVG"])) * pa
+        a["sb"] += _num(r["SB"]); a["sh"] += _num(r["SH"]); a["hr"] += _num(r["HR"])
+        a["owar"] += _num(r["oWAR"]); a["bwar"] += _num(r["WAR"])
+    tp = defaultdict(lambda: {"sw": 0.0, "rw": 0.0})
+    for r in pit:
+        c = _code(r)
+        if not c:
+            continue
+        war = _num(r["WAR"])
+        if _is_reliever(r):
+            tp[c]["rw"] += war
+        else:
+            tp[c]["sw"] += war
+    out = Path("data") / f"team_style_{season}.csv"
+    with open(out, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["team", "pa", "iso", "hr", "sb", "sh", "small_rate",
+                    "bat_owar", "bat_war", "starter_war", "reliever_war", "pit_war"])
+        for c in sorted(tb):
+            a = tb[c]; p = tp.get(c, {"sw": 0.0, "rw": 0.0}); pa = a["pa"] or 1
+            w.writerow([c, int(a["pa"]), round(a["iso_w"] / pa, 3), int(a["hr"]),
+                        int(a["sb"]), int(a["sh"]),
+                        round((a["sb"] + a["sh"]) / pa * 100, 2),
+                        round(a["owar"], 1), round(a["bwar"], 1),
+                        round(p["sw"], 1), round(p["rw"], 1),
+                        round(p["sw"] + p["rw"], 1)])
+    print(f"저장: {out} ({len(tb)}팀)")
+
+
 def build(season: int, src: str) -> None:
     Path("data").mkdir(exist_ok=True)
     pit = _load(src, "pitcher", season)
@@ -159,6 +204,7 @@ def build(season: int, src: str) -> None:
     build_bullpen_team(pit, season)
     build_relievers(pit, season)
     build_batters(bat, season)
+    build_team_style(pit, bat, season)
 
 
 if __name__ == "__main__":
