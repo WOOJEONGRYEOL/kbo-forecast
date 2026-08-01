@@ -20,6 +20,7 @@ dashboard.py — HTML 대시보드 생성기 (팀 단기 전력)
 import base64
 import csv
 import json
+import math
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -83,7 +84,7 @@ FORMULAS = {
     "최근성적": "선택한 윈도우(최근 N경기 또는 시즌 전체)의 승-패-무.",
     "실제승률": "(승 + 0.5×무) ÷ 경기수. 무승부는 0.5승으로 계산해 기대승률과 척도를 맞춥니다.",
     "기대승률": "피타고리안 기대승률 = 득점^1.83 ÷ (득점^1.83 + 실점^1.83). "
-                "'득실점 마진이 곧 실력'이라는 세이버메트릭스 대원칙.",
+                "'득실점 마진이 곧 실력'이라는 세이버매트릭스 대원칙.",
     "괴리율": "기대승률 − 실제승률. + 이면 경기력 대비 운이 없었던 팀(반등 후보), "
               "− 이면 운이 좋았던 팀(하락 경계).",
     "구위+": "팀 투수진 K-Stuff+ (투구수 가중평균, 100=리그평균). 토글로 '선발 로테이션'만으로 전환 가능.",
@@ -220,13 +221,26 @@ def _zscores(vals: list[float]) -> list[float]:
     return [(v - m) / sd for v in vals]
 
 
-def _style_bar(z: float) -> str:
-    """게이지: 눈금 트랙 위 표식(●) 위치로 성향 표시. 중앙=리그평균, 좌(파랑)·우(주황).
-    z를 중앙 50%에서 최대 ±42%로 매핑 (2.2에서 끝)."""
-    pos = 50 + max(-1.0, min(1.0, z / 2.2)) * 42
+def _style_gauge(z: float, tip: str) -> str:
+    """반원 다이얼 게이지(자동차 계기판식): 바늘 각도로 성향 표시.
+    좌(파랑)·우(주황)·중앙(위)=리그평균. tip=그 축의 근거 수치(호버 시 표시)."""
+    zc = max(-1.0, min(1.0, z / 2.2))
+    ang = math.radians(90 - zc * 90)          # 0°=우, 90°=상(중립), 180°=좌
+    cx, cy, Rn, Ra = 46, 45, 31, 39
+    nx, ny = cx + Rn * math.cos(ang), cy - Rn * math.sin(ang)
     col = "#e8874a" if z >= 0 else "#4a90d9"
-    return (f'<div class="gauge"><div class="gscale"></div><span class="gctr"></span>'
-            f'<span class="gmark" style="left:{pos:.1f}%; background:{col}"></span></div>')
+    ticks = ""
+    for k in range(9):                        # 눈금 9개(좌→우)
+        a = math.radians(180 - k * 22.5)
+        ticks += (f'<line x1="{cx+35*math.cos(a):.1f}" y1="{cy-35*math.sin(a):.1f}"'
+                  f' x2="{cx+40*math.cos(a):.1f}" y2="{cy-40*math.sin(a):.1f}" stroke="#46516b" stroke-width="1"/>')
+    esc = tip.replace('"', '&quot;')
+    return (f'<svg class="dial" viewBox="0 0 92 52"><title>{esc}</title>'
+            f'<path d="M{cx-Ra},{cy} A{Ra},{Ra} 0 0 1 {cx},{cy-Ra}" fill="none" stroke="#4a90d9" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/>'
+            f'<path d="M{cx},{cy-Ra} A{Ra},{Ra} 0 0 1 {cx+Ra},{cy}" fill="none" stroke="#e8874a" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/>'
+            f'{ticks}'
+            f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="{col}" stroke-width="2.6" stroke-linecap="round"/>'
+            f'<circle cx="{cx}" cy="{cy}" r="3.4" fill="{col}"/></svg>')
 
 
 def _phase_bar(margin: float, label: str) -> str:
@@ -283,21 +297,22 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         r = rows[i]; code = r["team"]
         name = config.TEAM_NAMES.get(code, code)
         logo = logos.get(code, "")
-        tip = (f'ISO {r["iso"]} · 도루+번트/타석 {r["small_rate"]}% · '
-               f'선발WAR {r["starter_war"]}/불펜WAR {r["reliever_war"]} · '
-               f'공격 oWAR {r["bat_owar"]} vs 수비 (투수 {r["pit_war"]}+야수 {r["bat_dwar"]})')
+        # 게이지별 근거 수치(호버 시 표시)
+        t1 = f'빅볼 vs 스몰볼 — ISO {r["iso"]} · 도루+번트/타석 {r["small_rate"]}%  (성향 z차 {ax1[i]:+.2f})'
+        t2 = f'선발 vs 불펜 — 선발 WAR {r["starter_war"]} · 불펜 WAR {r["reliever_war"]}  (z차 {ax2[i]:+.2f})'
+        t3 = f'공격 vs 수비 — 공격 oWAR {r["bat_owar"]} · 수비(투수 {r["pit_war"]}+야수 {r["bat_dwar"]})  (z차 {ax3[i]:+.2f})'
         pcell = ""
         if ph is not None:
             p = ph[code]
             e, m, l = float(p["early_net"]), float(p["mid_net"]), float(p["late_net"])
-            tip += f' · 초{e:+.2f}/중{m:+.2f}/후{l:+.2f} 경기당 득실'
-            pcell = f'<td>{_phase_strip(e, m, l)}</td>'
+            ptip = f'경기당 득실 마진 — 초 {e:+.2f} · 중 {m:+.2f} · 후 {l:+.2f}'
+            pcell = f'<td title="{ptip}">{_phase_strip(e, m, l)}</td>'
         body.append(
-            f'<tr title="{tip}"><td class="stm"><span class="srk">{rk}</span>'
+            f'<tr><td class="stm"><span class="srk">{rk}</span>'
             f'<img src="{logo}" alt="">{name}</td>'
-            f'<td>{_style_bar(ax1[i])}</td>'
-            f'<td>{_style_bar(ax2[i])}</td>'
-            f'<td>{_style_bar(ax3[i])}</td>{pcell}</tr>')
+            f'<td>{_style_gauge(ax1[i], t1)}</td>'
+            f'<td>{_style_gauge(ax2[i], t2)}</td>'
+            f'<td>{_style_gauge(ax3[i], t3)}</td>{pcell}</tr>')
 
     phase_th = '<th class="pth">초 · 중 · 후반<br><span style="font-weight:400">경기당 득실</span></th>' if ph is not None else ''
     phase_note = (' ④ <b>초·중·후반</b>: 각 구간 경기당 득실 마진 — '
@@ -308,8 +323,9 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         '<div class="card wide">'
         '<h2><span class="badge">🧬</span>팀 스타일 지문 '
         '<span style="color:var(--muted);font-weight:400">— 현재 순위순 · 리그 평균 대비 성향</span></h2>'
-        '<p class="hint">눈금 게이지의 <b>표식(●)이 중앙(리그평균)에서 벗어난 쪽·거리</b>로 성향을 읽습니다. '
-        '<span style="color:#4a90d9">● 왼쪽(파랑)</span> · <span style="color:#e8874a">● 오른쪽(주황)</span>. 각 열 위쪽에 양극 라벨.</p>'
+        '<p class="hint">자동차 계기판식 <b>반원 다이얼</b> — <b>바늘</b>이 위(중앙=리그평균)에서 '
+        '<span style="color:#4a90d9">왼쪽(파랑)</span>·<span style="color:#e8874a">오른쪽(주황)</span> 어느 쪽으로 얼마나 기울었나로 성향을 읽습니다. '
+        '각 열 위 양극 라벨 참고. <b>다이얼에 커서를 올리면</b> 그렇게 판정한 근거 수치가 뜹니다.</p>'
         '<div class="table-scroll"><table class="stbl"><thead><tr>'
         '<th>팀</th>'
         '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
@@ -548,18 +564,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .stbl td:not(.stm) { width: 30%; min-width: 130px; }
   .stbl .stm { white-space: nowrap; font-size: 13px; }
   .stbl .stm img { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
-  /* 스타일 게이지 (눈금 트랙 + 표식) */
-  .gauge { position: relative; height: 22px; min-width: 116px; }
-  .gscale { position: absolute; left: 0; right: 0; top: 8px; height: 7px; border-radius: 4px;
-    border: 1px solid var(--line);
-    background: linear-gradient(90deg, rgba(74,144,217,.45), rgba(74,144,217,.05) 42%, #0d111900 50%,
-      rgba(232,135,74,.05) 58%, rgba(232,135,74,.45)), #0d1119; }
-  .gscale::before { content: ""; position: absolute; inset: 0; border-radius: 4px; opacity: .55;
-    background: repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), #46516b calc(12.5% - 1px) 12.5%); }
-  .gctr { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 2px; transform: translateX(-1px);
-    background: #6b7689; border-radius: 1px; z-index: 1; }
-  .gmark { position: absolute; top: 4px; width: 15px; height: 15px; border-radius: 50%;
-    transform: translateX(-50%); border: 2px solid #0d1119; box-shadow: 0 1px 4px rgba(0,0,0,.5); z-index: 2; }
+  /* 스타일 게이지 (자동차 계기판식 반원 다이얼 + 바늘) */
+  .dial { width: 76px; height: auto; display: block; margin: 0 auto; cursor: help; }
+  .stbl td:not(.stm):not(.pth) { text-align: center; }
   .stbl .srk { display: inline-block; min-width: 16px; color: var(--muted);
     font-size: 12px; font-weight: 700; margin-right: 4px; text-align: right; }
   .stbl .pth { text-align: center; font-size: 11px; }
@@ -1010,7 +1017,7 @@ render();   // 최초 렌더
 </script>
 <footer class="pagefoot">
   <b>자료 출처</b> · 네이버 야구(경기 기록) · KBO Talent(kbostuff.app, 트래킹 지표) · 스태티즈 Statiz(WAR·세부 기록)<br>
-  취미·학습 목적의 <b>개인 세이버메트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
+  취미·학습 목적의 <b>개인 세이버매트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
 </footer>
 </body>
 </html>

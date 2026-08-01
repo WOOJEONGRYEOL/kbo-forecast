@@ -1165,7 +1165,7 @@ document.querySelectorAll(".more[data-tb]").forEach(btn => {
 </script>
 <footer class="pagefoot">
   <b>자료 출처</b> · 네이버 야구(경기 기록) · KBO Talent(kbostuff.app, 트래킹 지표) · 스태티즈 Statiz(WAR·세부 기록)<br>
-  취미·학습 목적의 <b>개인 세이버메트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
+  취미·학습 목적의 <b>개인 세이버매트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
 </footer>
 </body>
 </html>

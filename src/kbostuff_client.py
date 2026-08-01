@@ -620,7 +620,7 @@ def fetch_fcb(season: int) -> pd.DataFrame:
       · wins_contributed : 누적 승리 기여 (팀 승수 중 이 타자 몫)
       · total_src        : Situational Run Contribution 합
       · avg_src_per_game : 경기당 상황 기여
-    ⚠️ '클러치'는 세이버메트릭스에서 잘 지속되지 않는(예측력 낮은) 성질이라,
+    ⚠️ '클러치'는 세이버매트릭스에서 잘 지속되지 않는(예측력 낮은) 성질이라,
       미래 예측이 아니라 '지금까지 무슨 일이 있었나'를 설명하는 지표로 씁니다.
     """
     rows = _query(

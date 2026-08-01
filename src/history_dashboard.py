@@ -42,6 +42,7 @@ def save_history() -> Path:
                 float(r["dwar"]), float(r["wrcplus"]), int(r["pa"]),
                 int(r["hr"]), float(r["ops"]),
                 int(r["sb"]), int(r["rbi"]), int(r["hit"]), int(r["run"]),
+                float(r["iso"]), float(r["kpct"]), float(r["bbpct"]), float(r["sbrate"]),
                 r.get("arch", "")]
 
     def pnum(r):   # 투수 행 → 컴팩트 배열 (JS의 P 인덱스와 순서 일치)
@@ -49,6 +50,7 @@ def save_history() -> Path:
                 r["color"], r["role"], float(r["war"]), float(r["era"]),
                 float(r["fip"]), float(r["ip"]), int(r["so"]), int(r["gs"]),
                 int(r["sv"]), int(r["hd"]), int(r["win"]),
+                float(r["k9"]), float(r["bb9"]), float(r["hr9"]),
                 r.get("arch", "")]
 
     seasons = sorted({int(r["season"]) for r in bats} |
@@ -194,8 +196,8 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <script>
 const DATA = __DATA__;
 // 컬럼 인덱스 (pno = 선수 고유 ID; 통산 합산 키)
-const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,sb:13,rbi:14,hit:15,run:16,arch:17};
-const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,sv:12,hd:13,win:14,arch:15};
+const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,sb:13,rbi:14,hit:15,run:16,iso:17,kpct:18,bbpct:19,sbrate:20,arch:21};
+const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,sv:12,hd:13,win:14,k9:15,bb9:16,hr9:17,arch:18};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
 let view="rank", metric="", archF="전체", minFilter=true;
 // 통산 비율지표(작은 표본이면 왜곡)엔 최소 표본 필터 적용
@@ -382,9 +384,10 @@ function career(rows){
       agg.run=o.rows.reduce((s,r)=>s+r[B.run],0);
       agg.sb=o.rows.reduce((s,r)=>s+r[B.sb],0);
       agg.pa=o.rows.reduce((s,r)=>s+r[B.pa],0);
-      // 통산 wRC+/OPS: PA 가중 평균
-      agg.wrc=agg.pa?o.rows.reduce((s,r)=>s+r[B.wrc]*r[B.pa],0)/agg.pa:0;
-      agg.ops=agg.pa?o.rows.reduce((s,r)=>s+r[B.ops]*r[B.pa],0)/agg.pa:0;
+      // 통산 wRC+/OPS·스타일지표: PA 가중 평균
+      const wavg=k=>agg.pa?o.rows.reduce((s,r)=>s+r[k]*r[B.pa],0)/agg.pa:0;
+      agg.wrc=wavg(B.wrc); agg.ops=wavg(B.ops);
+      agg.iso=wavg(B.iso); agg.kpct=wavg(B.kpct); agg.bbpct=wavg(B.bbpct); agg.sbrate=wavg(B.sbrate);
       // 주 포지션 = 최빈
       const pc={}; o.rows.forEach(r=>pc[r[B.pos]]=(pc[r[B.pos]]||0)+1);
       agg.pos=Object.entries(pc).sort((a,b)=>b[1]-a[1])[0][0];
@@ -395,9 +398,9 @@ function career(rows){
       agg.sv=o.rows.reduce((s,r)=>s+r[P.sv],0);
       agg.hd=o.rows.reduce((s,r)=>s+r[P.hd],0);
       agg.ip=o.rows.reduce((s,r)=>s+r[P.ip],0);
-      const er=o.rows.reduce((s,r)=>s+r[P.era]*r[P.ip],0);
-      agg.era=agg.ip?er/agg.ip:0;
-      agg.fip=agg.ip?o.rows.reduce((s,r)=>s+r[P.fip]*r[P.ip],0)/agg.ip:0;
+      const iwavg=k=>agg.ip?o.rows.reduce((s,r)=>s+r[k]*r[P.ip],0)/agg.ip:0;
+      agg.era=iwavg(P.era); agg.fip=iwavg(P.fip);
+      agg.k9=iwavg(P.k9); agg.bb9=iwavg(P.bb9); agg.hr9=iwavg(P.hr9);
     }
     // JAWS = (통산 WAR + 피크) / 2, 피크 = 베스트7 시즌 WAR 합 (HOF 자격 지표)
     const wars=o.rows.map(r=>r[I.war]).sort((a,b)=>b-a);
@@ -611,6 +614,23 @@ function renderTeam(){
   }).join("");
 }
 
+// 유형(아키타입)을 정하는 핵심 지표 설명 — '왜 이 유형인지' 안내
+function archDesc(a){
+  if(!a) return "";
+  if(a.includes("슬러거")) return "장타력(<b>ISO</b>↑)이 핵심 — 홈런·장타 비중이 큰 거포형.";
+  if(a.includes("스윙형")) return "삼진(<b>K%</b>↑)이 많은 대신 강한 스윙 — 파워형.";
+  if(a.includes("출루형")) return "볼넷(<b>BB%</b>↑)으로 출루하는 선구안형.";
+  if(a.includes("호타준족")) return "도루(<b>도루%</b>↑)가 많은 스피드형.";
+  if(a.includes("정교")) return "컨택 위주 — 삼진 적고 장타는 평범한 정교한 타자.";
+  if(a.includes("수비")||a.includes("백업")) return "타격 생산은 평범, 수비·백업 가치 중심.";
+  if(a.includes("파워피처")) return "탈삼진(<b>K/9</b>↑)이 높은 구위형.";
+  if(a.includes("이닝이터")) return "선발로 많은 이닝을 소화하는 유형.";
+  if(a.includes("제구난")) return "볼넷(<b>BB/9</b>↑)이 많은 제구 불안형.";
+  if(a.includes("피홈런")) return "피홈런(<b>HR/9</b>↑)이 많은 유형.";
+  if(a.includes("맞춰")) return "삼진보다 맞춰 잡는 불펜형.";
+  return "군집 분석으로 스타일이 비슷한 선수끼리 묶은 유형입니다.";
+}
+
 function render(){
   let rows=rowsForSeason();
   const isCareer=season==="통산";
@@ -622,8 +642,8 @@ function render(){
     if(archF!=="전체") recs=recs.filter(r=>r.arch===archF);   // 주 유형 필터
   } else {
     recs=rows.map(r=>side==="bat"
-      ? {season:r[B.season],pno:r[B.pno],name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa],rbi:r[B.rbi],hit:r[B.hit],run:r[B.run],sb:r[B.sb]}
-      : {season:r[P.season],pno:r[P.pno],name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip],win:r[P.win],sv:r[P.sv],hd:r[P.hd]});
+      ? {season:r[B.season],pno:r[B.pno],name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa],rbi:r[B.rbi],hit:r[B.hit],run:r[B.run],sb:r[B.sb],iso:r[B.iso],kpct:r[B.kpct],bbpct:r[B.bbpct],sbrate:r[B.sbrate]}
+      : {season:r[P.season],pno:r[P.pno],name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip],win:r[P.win],sv:r[P.sv],hd:r[P.hd],k9:r[P.k9],bb9:r[P.bb9],hr9:r[P.hr9]});
   }
   // 정렬 (통산 모드엔 JAWS·피크 추가)
   let S=side==="bat"?{...SORTS_BAT}:{...SORTS_PIT};
@@ -663,6 +683,12 @@ function render(){
          ["ERA","era",r=>num(r.era,2)],["FIP","fip",r=>num(r.fip,2)],["이닝","ip",r=>num(r.ip,1)],
          ["탈삼진","so",r=>r.so],["승","win",r=>r.win],["세이브","sv",r=>r.sv],["홀드","hd",r=>r.hd]];
   }
+  // 유형(아키타입) 필터 시: 그 유형을 정하는 세부지표를 열로 추가 → '왜 이 유형인지' 근거 노출
+  if(archF!=="전체"){
+    cols = side==="bat"
+      ? cols.concat([["ISO",null,r=>num(r.iso,3)],["BB%",null,r=>num(r.bbpct,1)],["K%",null,r=>num(r.kpct,1)],["도루%",null,r=>num(r.sbrate,1)]])
+      : cols.concat([["K/9",null,r=>num(r.k9,1)],["BB/9",null,r=>num(r.bb9,1)],["HR/9",null,r=>num(r.hr9,1)]]);
+  }
   thead.innerHTML="<tr>"+cols.map(c=>{const tp=HTIP[c[0]];
     return `<th data-k="${c[1]||''}"${tp?` data-tip="${tp.replace(/"/g,'&quot;')}"`:''} class="${c[1]===sortKey?'sorted':''}">${c[0]}</th>`;
   }).join("")+"</tr>";
@@ -676,7 +702,9 @@ function render(){
   tbody.querySelectorAll("tr.prow").forEach(tr=>{ const pno=tr.dataset.pno;
     if(pno) tr.onclick=()=>openDetail(pno); });
 
-  el("tableHint").innerHTML = isCareer
+  const archNote = archF!=="전체"
+    ? `<div style="margin-bottom:6px"><b style="color:var(--green)">🏷 ${archF}</b> — ${archDesc(archF)} <span style="color:var(--muted)">오른쪽에 이 유형을 정하는 세부지표를 표시했습니다.</span></div>` : "";
+  el("tableHint").innerHTML = archNote + (isCareer
     ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · wRC+/ERA 등 비율은 PA·이닝 가중평균.`
       + (pos!=="전체" ? ` <b style="color:#ffb454">${pos} 포지션 순위</b> — <b>${pos}로 뛴 시즌만</b> 합산합니다. 팀·통산기록도 그 시절 기준이라, 다른 포지션으로 뛴 시즌은 빠집니다(예: 우익수→지명타자로 옮긴 선수는 RF 순위엔 RF 시절 팀만, DH 시절은 DH 순위에). 전체 커리어는 포지션을 '전체'로.` : "")
       + (showMin ? (minFilter
@@ -684,7 +712,7 @@ function render(){
           : ` <b style="color:#ffb454">표본 필터 OFF</b> — 소수 시즌 선수가 상위에 낄 수 있습니다.`) : "")
     : seasonTop
       ? `역대 <b>단일 시즌</b> ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} TOP 50 — 1982~현재 전 역사에서 '한 시즌' 최고 기록들. 선수를 클릭하면 커리어 상세로.`
-      : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`;
+      : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`);
 }
 
 // 모바일(터치): 지표를 탭하면 정의 표시. 데스크톱(hover 가능)은 CSS 호버 유지.
@@ -705,7 +733,7 @@ function render(){
 </script>
 <footer class="pagefoot">
   <b>자료 출처</b> · 네이버 야구(경기 기록) · KBO Talent(kbostuff.app, 트래킹 지표) · 스태티즈 Statiz(WAR·세부 기록)<br>
-  취미·학습 목적의 <b>개인 세이버메트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
+  취미·학습 목적의 <b>개인 세이버매트릭스 프로젝트</b>입니다. 상업적 이용을 하지 않으며, 상업적으로 이용할 수 없습니다. 데이터 권리는 각 출처에 있습니다.
 </footer>
 </div></body></html>
 """

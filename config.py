@@ -19,7 +19,7 @@ SEASON = 2026
 SEASON_MONTHS = range(3, 11)
 
 # "최근 N경기" 이동 윈도우 크기.
-# 세이버메트릭스에서 단기 폼(momentum)을 볼 때 흔히 10경기를 씁니다.
+# 세이버매트릭스에서 단기 폼(momentum)을 볼 때 흔히 10경기를 씁니다.
 # 표본이 작아 노이즈가 크다는 점은 감안해야 합니다. (README 참고)
 ROLLING_WINDOW = 10
 

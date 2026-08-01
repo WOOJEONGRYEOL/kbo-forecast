@@ -59,7 +59,7 @@ def rolling_pythagorean(team_log: pd.DataFrame,
 
         # ── 피타고리안 기대승률 ──
         # RS^1.83 / (RS^1.83 + RA^1.83)
-        # "득실점 마진이 곧 실력"이라는 세이버메트릭스의 대원칙.
+        # "득실점 마진이 곧 실력"이라는 세이버매트릭스의 대원칙.
         e = config.PYTHAG_EXPONENT
         if rs == 0 and ra == 0:      # 극단 상황 방어 (둘 다 0이면 0.5)
             expected = 0.5
