@@ -164,8 +164,8 @@ const TREND_PIT = {
         "이닝 가중 평균 ERA — 득점 환경"],
   hr9: ["피홈런 HR/9", rs=>{let h=0,ip=0;rs.forEach(r=>{h+=r[P.hr9]*r[P.ip];ip+=r[P.ip];});return ip?h/ip:0;}, 2,
         "9이닝당 피홈런 — 투수가 겪은 파워 시대(2018 정점)"],
-  fip: ["리그 FIP", rs=>{let f=0,ip=0;rs.forEach(r=>{f+=r[P.fip]*r[P.ip];ip+=r[P.ip];});return ip?f/ip:0;}, 2,
-        "이닝 가중 평균 FIP — 수비·운을 걷어낸 순수 득점환경"],
+  kbb: ["K/BB (탈삼진÷볼넷)", rs=>{let k=0,b=0;rs.forEach(r=>{k+=r[P.so];b+=r[P.bb9]*r[P.ip]/9;});return b?k/b:0;}, 2,
+        "탈삼진 ÷ 볼넷 — 스트라이크로 승부하는 파워피처 시대(1.3→2.3)"],
 };
 
 const POS_BAT = ["전체","C","1B","2B","3B","SS","LF","CF","RF","DH"];
