@@ -191,6 +191,7 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
   el("view").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     view=b.dataset.w; el("view").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
     const trend=view==="trend", team=view==="team", rank=view==="rank";
+    el("side").style.display=team?"none":"";   // 팀 뷰는 타자·투수 통합 → 토글 숨김
     el("trendCard").style.display=trend?"block":"none";
     el("trendControls").style.display=trend?"block":"none";
     el("teamCard").style.display=team?"block":"none";
@@ -513,21 +514,24 @@ function renderTeam(){
     rows.forEach(r=>{
       const key=r[I.season]+"|"+r[I.team];
       let o=ts.get(key);
-      if(!o){ o={season:r[I.season],team:r[I.team],color:r[I.color],bwar:0,pwar:0,best:null}; ts.set(key,o); }
+      if(!o){ o={season:r[I.season],team:r[I.team],color:r[I.color],bwar:0,pwar:0,bBat:null,bPit:null}; ts.set(key,o); }
       const w=r[I.war];
-      if(isBat) o.bwar+=w; else o.pwar+=w;
-      if(!o.best || w>o.best.w) o.best={name:r[I.name], w};
+      if(isBat){ o.bwar+=w; if(!o.bBat || w>o.bBat.w) o.bBat={name:r[I.name], w}; }
+      else { o.pwar+=w; if(!o.bPit || w>o.bPit.w) o.bPit={name:r[I.name], w}; }
       if((r[I.color]||'').toLowerCase()!=='#888888') o.color=r[I.color];
     });
   }
   acc(DATA.batters,B,true); acc(DATA.pitchers,P,false);
   const seasons=[...ts.values()].map(o=>({...o,war:o.bwar+o.pwar})).sort((a,b)=>b.war-a.war).slice(0,25);
+  const rep=b=>b?`${esc(b.name)} <span style="color:var(--muted)">${num(b.w,1)}</span>`:'-';
   const tt=el("teamTbl");
-  tt.querySelector("thead").innerHTML="<tr><th>#</th><th style='text-align:left'>팀 · 시즌</th><th>총 WAR</th><th>타자 WAR</th><th>투수 WAR</th><th style='text-align:left'>대표 선수</th></tr>";
+  tt.querySelector("thead").innerHTML="<tr><th>#</th><th style='text-align:left'>팀 · 시즌</th><th>총 WAR</th>"
+    +"<th>타자 WAR</th><th style='text-align:left'>대표 타자</th><th>투수 WAR</th><th style='text-align:left'>대표 투수</th></tr>";
   tt.querySelector("tbody").innerHTML=seasons.map((o,i)=>`<tr><td class="rank">${i+1}</td>`
     +`<td style="text-align:left"><span class="dot" style="background:${o.color||'#888'}"></span>${teamName(o.team)} <b>${o.season}</b></td>`
-    +`<td><b>${num(o.war,1)}</b></td><td>${num(o.bwar,1)}</td><td>${num(o.pwar,1)}</td>`
-    +`<td style="text-align:left">${o.best?esc(o.best.name)+' ('+num(o.best.w,1)+')':'-'}</td></tr>`).join("");
+    +`<td><b>${num(o.war,1)}</b></td>`
+    +`<td>${num(o.bwar,1)}</td><td style="text-align:left">${rep(o.bBat)}</td>`
+    +`<td>${num(o.pwar,1)}</td><td style="text-align:left">${rep(o.bPit)}</td></tr>`).join("");
 
   // 프랜차이즈 GOAT: 프랜차이즈별 통산 WAR 1위 (선수 고유 ID로 합산)
   const fr={};
