@@ -376,7 +376,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .fblock .note { color: var(--muted); font-size: 11.5px; margin-top: 7px; line-height: 1.55; }
 
   .tip { position: relative; cursor: help; border-bottom: 1px dotted var(--muted); }
-  .tip:hover::after, .tip:active::after { content: attr(data-tip);
+  .tip:hover::after { content: attr(data-tip);
     position: absolute; left: 50%; transform: translateX(-50%); bottom: 150%;
     width: min(260px, 78vw); white-space: normal; text-align: left; background: #0b0e14;
     color: var(--text); border: 1px solid var(--line); padding: 9px 11px;

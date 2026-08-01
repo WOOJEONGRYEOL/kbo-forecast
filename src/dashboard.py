@@ -221,14 +221,12 @@ def _zscores(vals: list[float]) -> list[float]:
 
 
 def _style_bar(z: float) -> str:
-    """z>0 → 오른쪽 극(주황), z<0 → 왼쪽 극(파랑). 폭 ∝ |z| (2.2에서 최대)."""
-    w = min(abs(z) / 2.2, 1.0) * 48
-    if z >= 0:
-        seg, col = f"left:50%; width:{w:.1f}%", "#e8874a"
-    else:
-        seg, col = f"right:50%; width:{w:.1f}%", "#4a90d9"
-    return (f'<div class="sbar"><span class="sctr"></span>'
-            f'<span class="sfill" style="{seg}; background:{col}"></span></div>')
+    """게이지: 눈금 트랙 위 표식(●) 위치로 성향 표시. 중앙=리그평균, 좌(파랑)·우(주황).
+    z를 중앙 50%에서 최대 ±42%로 매핑 (2.2에서 끝)."""
+    pos = 50 + max(-1.0, min(1.0, z / 2.2)) * 42
+    col = "#e8874a" if z >= 0 else "#4a90d9"
+    return (f'<div class="gauge"><div class="gscale"></div><span class="gctr"></span>'
+            f'<span class="gmark" style="left:{pos:.1f}%; background:{col}"></span></div>')
 
 
 def _phase_bar(margin: float, label: str) -> str:
@@ -310,8 +308,8 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         '<div class="card wide">'
         '<h2><span class="badge">🧬</span>팀 스타일 지문 '
         '<span style="color:var(--muted);font-weight:400">— 현재 순위순 · 리그 평균 대비 성향</span></h2>'
-        '<p class="hint">각 팀이 어느 쪽으로 치우쳤는지(팀 간 z-점수 차). 막대가 길수록 그 성향이 뚜렷합니다. '
-        '<span style="color:#4a90d9">■ 파랑=왼쪽</span> · <span style="color:#e8874a">■ 주황=오른쪽</span> 성향.</p>'
+        '<p class="hint">눈금 게이지의 <b>표식(●)이 중앙(리그평균)에서 벗어난 쪽·거리</b>로 성향을 읽습니다. '
+        '<span style="color:#4a90d9">● 왼쪽(파랑)</span> · <span style="color:#e8874a">● 오른쪽(주황)</span>. 각 열 위쪽에 양극 라벨.</p>'
         '<div class="table-scroll"><table class="stbl"><thead><tr>'
         '<th>팀</th>'
         '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
@@ -453,6 +451,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .table-scroll { max-width: 100%; }
   .card h2 { font-size: 15px; margin: 0 0 4px; }
   .card .hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .card .mc-note { font-size: 12.5px; line-height: 1.6; color: var(--text); margin: 0 0 10px;
+    background: #131a26; border-left: 3px solid var(--green); border-radius: 0 8px 8px 0; padding: 10px 13px; }
+  .card .mc-note b { color: var(--text); }
   @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -525,7 +526,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   /* 공식 툴팁 (:active로 모바일 탭도 지원, 폭은 화면 넘지 않게 제한) */
   .tip { position: relative; cursor: help; border-bottom: 1px dotted var(--muted); }
-  .tip:hover::after, .tip:active::after { content: attr(data-tip); position: absolute; left: 50%;
+  .tip:hover::after { content: attr(data-tip); position: absolute; left: 50%;
     transform: translateX(-50%); bottom: 150%; width: min(250px, 78vw); white-space: normal;
     text-align: left; background: #0b0e14; color: var(--text); border: 1px solid var(--line);
     padding: 9px 11px; border-radius: 8px; font-size: 12px; font-weight: 400;
@@ -547,9 +548,18 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .stbl td:not(.stm) { width: 30%; min-width: 130px; }
   .stbl .stm { white-space: nowrap; font-size: 13px; }
   .stbl .stm img { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
-  .sbar { position: relative; height: 14px; background: #0d1119; border: 1px solid var(--line); border-radius: 7px; }
-  .sctr { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: #46516b; }
-  .sfill { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; min-width: 2px; }
+  /* 스타일 게이지 (눈금 트랙 + 표식) */
+  .gauge { position: relative; height: 22px; min-width: 116px; }
+  .gscale { position: absolute; left: 0; right: 0; top: 8px; height: 7px; border-radius: 4px;
+    border: 1px solid var(--line);
+    background: linear-gradient(90deg, rgba(74,144,217,.45), rgba(74,144,217,.05) 42%, #0d111900 50%,
+      rgba(232,135,74,.05) 58%, rgba(232,135,74,.45)), #0d1119; }
+  .gscale::before { content: ""; position: absolute; inset: 0; border-radius: 4px; opacity: .55;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), #46516b calc(12.5% - 1px) 12.5%); }
+  .gctr { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 2px; transform: translateX(-1px);
+    background: #6b7689; border-radius: 1px; z-index: 1; }
+  .gmark { position: absolute; top: 4px; width: 15px; height: 15px; border-radius: 50%;
+    transform: translateX(-50%); border: 2px solid #0d1119; box-shadow: 0 1px 4px rgba(0,0,0,.5); z-index: 2; }
   .stbl .srk { display: inline-block; min-width: 16px; color: var(--muted);
     font-size: 12px; font-weight: 700; margin-right: 4px; text-align: right; }
   .stbl .pth { text-align: center; font-size: 11px; }
@@ -635,6 +645,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide" id="standingsSimCard">
     <h2>🎲 우승·가을야구 확률 <span style="color:var(--muted);font-weight:400">— 몬테카를로 20,000회</span></h2>
+    <p class="mc-note"><b>몬테카를로 시뮬레이션이란?</b> 남은 경기를 각 팀의 <b>실력(득실점 기반 강도)</b>대로 2만 번
+      가상으로 치러 본 뒤, 각 팀이 1위·가을야구권(5위 이내)에 든 <b>횟수의 비율</b>을 확률로 집계한 것입니다.
+      승패 <b>순위가 아니라 득실점 강도</b>로 굴리므로 — <b>현재 순위가 한 칸 낮아도 득실차가 더 좋으면 확률이 높게</b>
+      나올 수 있습니다. (예: KIA 득실차 +49 &gt; 두산 +25 → KIA의 가을야구 확률이 더 높음)</p>
     <p class="hint"><b>순위 서열 자체는 이미 현재 순위와 거의 같습니다</b>(시즌 중반 이후). 그래서 이 카드는
       순위를 '맞히는' 게 아니라 순위표에 <b>없는 3가지</b>를 보여줍니다:
       ① <b>우승·가을야구 진출 확률</b> ② <b>얼마나 굳었나</b>(90% 구간이 좁을수록 확정적)
