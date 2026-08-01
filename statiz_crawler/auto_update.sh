@@ -18,6 +18,26 @@ RUNLOG=$(mktemp)
     echo "$(date '+%F %T') === 자동 갱신 시작 ==="
     ./update.sh
     echo "$(date '+%F %T') === 자동 갱신 종료 ==="
+
+    # ── 마지막 고리: 크롤 원본 → kbo-forecast 요약본 재생성 → 역대 페이지 갱신 → 커밋/푸시 ──
+    # (이게 있어야 매일 크롤한 Statiz가 역대 탭·팀 스타일 등에 실제로 반영됨)
+    echo "$(date '+%F %T') === kbo-forecast 반영 시작 ==="
+    (
+        FC="$HOME/kbo-forecast"
+        cd "$FC" || { echo "(kbo-forecast 없음 — 스킵)"; exit 0; }
+        PY="$FC/.venv/bin/python"
+        git pull --rebase --autostash origin main || echo "(pull 경고 — 계속)"
+        "$PY" build_history.py && "$PY" build_clusters.py && "$PY" build_statiz.py && "$PY" history.py
+        git add data/history_batters.csv data/history_pitchers.csv \
+                data/team_style_*.csv data/bullpen_*.csv data/statiz_*.csv data/history.html
+        if git diff --cached --quiet; then
+            echo "(요약본 변경 없음 — 커밋 생략)"
+        else
+            git commit -m "chore: Statiz 요약·역대 자동 갱신 ($(date +%F))" \
+                && git push origin main && echo "푸시 완료" || echo "⚠️ 푸시 실패(키체인 잠김/인증 확인 필요)"
+        fi
+    )
+    echo "$(date '+%F %T') === kbo-forecast 반영 종료 ==="
 } > "$RUNLOG" 2>&1
 
 cat "$RUNLOG" >> "$LOG"
