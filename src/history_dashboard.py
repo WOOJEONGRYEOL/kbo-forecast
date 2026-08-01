@@ -613,17 +613,37 @@ function renderTeam(){
 
   // 프랜차이즈 GOAT: 프랜차이즈별 통산 WAR 1위 (선수 고유 ID로 합산)
   const fr={};
-  function accFr(rows,I){ rows.forEach(r=>{ const f=FRANCHISE[r[I.team]]; if(!f) return;
-    const g=fr[f]||(fr[f]={}); const k=r[I.pno]||r[I.name];
-    const e=g[k]||(g[k]={name:r[I.name],war:0,color:r[I.color]});
+  function accFr(rows,I,isBat){ rows.forEach(r=>{ const f=FRANCHISE[r[I.team]]; if(!f) return;
+    const g=fr[f]||(fr[f]={}); const k=(isBat?'b':'p')+(r[I.pno]||r[I.name]);
+    const e=g[k]||(g[k]={name:r[I.name],war:0,color:r[I.color],pno:r[I.pno],isBat});
     e.war+=r[I.war]; e.name=r[I.name]; if((r[I.color]||'').toLowerCase()!=='#888888') e.color=r[I.color]; }); }
-  accFr(DATA.batters,B); accFr(DATA.pitchers,P);
+  accFr(DATA.batters,B,true); accFr(DATA.pitchers,P,false);
   el("teamGoat").innerHTML=FR_ORDER.filter(f=>fr[f]).map(f=>{
     const best=Object.values(fr[f]).sort((a,b)=>b.war-a.war)[0];
-    return `<div class="goat" style="border-left:4px solid ${best.color||'#888'}">`
+    return `<div class="goat" style="border-left:4px solid ${best.color||'#888'};cursor:pointer" title="${esc(best.name)} 상세 보기" data-pno="${best.pno||''}" data-bat="${best.isBat?1:0}">`
       +`<div class="gf">${f}</div><div class="gn">${esc(best.name)}</div>`
-      +`<div class="gw">통산 WAR ${num(best.war,1)}</div></div>`;
+      +`<div class="gw">통산 WAR ${num(best.war,1)} ›</div></div>`;
   }).join("");
+  el("teamGoat").querySelectorAll(".goat").forEach(g=>{ const p=g.dataset.pno;
+    if(p) g.onclick=()=>gotoPlayer(p, g.dataset.bat==="1"); });
+}
+
+// GOAT/외부에서 특정 선수 상세로 이동 — side·뷰를 맞추고 순위 뷰에서 상세 열기
+function gotoPlayer(pno, isBat){
+  side = isBat ? "bat" : "pit";
+  pos="전체"; archF="전체"; season="통산"; sortKey="war";
+  el("side").querySelectorAll("button").forEach(x=>x.classList.toggle("on", x.dataset.v===side));
+  el("season").value="통산";
+  buildPos(); buildSort(); buildArch(); buildMetric();
+  if(el("archsel")) el("archsel").value="전체";
+  view="rank";
+  el("view").querySelectorAll("button").forEach(x=>x.classList.toggle("on", x.dataset.w==="rank"));
+  el("side").style.display="";
+  el("trendCard").style.display="none"; el("trendControls").style.display="none";
+  el("teamCard").style.display="none";
+  el("rankControls").style.display="contents"; el("rankCard").style.display="block";
+  render();
+  openDetail(pno);
 }
 
 // 유형(아키타입)을 정하는 핵심 지표 설명 — '왜 이 유형인지' 안내
