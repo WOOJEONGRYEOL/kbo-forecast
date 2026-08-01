@@ -152,12 +152,20 @@ const TREND_BAT = {
         "리그 전체 홈런/타석 × 600 — 파워 시대의 흥망"],
   ops: ["리그 OPS", rs=>{let o=0,p=0;rs.forEach(r=>{o+=r[B.ops]*r[B.pa];p+=r[B.pa];});return p?o/p:0;}, 3,
         "타석 가중 평균 OPS — 타고투저 지표"],
+  kpct:["삼진율 K%", rs=>{let k=0,p=0;rs.forEach(r=>{k+=r[B.kpct]*r[B.pa];p+=r[B.pa];});return p?k/p:0;}, 1,
+        "타석 가중 삼진율 — 10%대→20% 육박, '삼진 시대'의 부상"],
+  sb:  ["도루 (600타석당)", rs=>{let s=0,p=0;rs.forEach(r=>{s+=r[B.sb];p+=r[B.pa];});return p?s/p*600:0;}, 1,
+        "도루/타석 × 600 — 기동력 야구의 흥망(스몰볼→빅볼)"],
 };
 const TREND_PIT = {
   k9:  ["삼진 (K/9)", rs=>{let k=0,ip=0;rs.forEach(r=>{k+=r[P.so];ip+=r[P.ip];});return ip?k/ip*9:0;}, 2,
         "9이닝당 탈삼진 — 삼진 시대의 도래"],
   era: ["리그 ERA", rs=>{let e=0,ip=0;rs.forEach(r=>{e+=r[P.era]*r[P.ip];ip+=r[P.ip];});return ip?e/ip:0;}, 2,
         "이닝 가중 평균 ERA — 득점 환경"],
+  hr9: ["피홈런 HR/9", rs=>{let h=0,ip=0;rs.forEach(r=>{h+=r[P.hr9]*r[P.ip];ip+=r[P.ip];});return ip?h/ip:0;}, 2,
+        "9이닝당 피홈런 — 투수가 겪은 파워 시대(2018 정점)"],
+  fip: ["리그 FIP", rs=>{let f=0,ip=0;rs.forEach(r=>{f+=r[P.fip]*r[P.ip];ip+=r[P.ip];});return ip?f/ip:0;}, 2,
+        "이닝 가중 평균 FIP — 수비·운을 걷어낸 순수 득점환경"],
 };
 
 const POS_BAT = ["전체","C","1B","2B","3B","SS","LF","CF","RF","DH"];
