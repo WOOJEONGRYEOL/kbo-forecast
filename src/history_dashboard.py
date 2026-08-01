@@ -21,7 +21,7 @@ TEAM_LEGEND = {
     "삼": "삼성", "롯": "롯데", "L": "LG", "한": "한화", "두": "두산",
     "S": "SK/SSG", "KIA": "KIA", "키": "키움/넥센/우리", "N": "NC",
     "O": "OB", "KT": "KT", "해": "해태", "현": "현대", "태": "태평양",
-    "빙": "빙그레", "쌍": "쌍방울", "M": "MBC", "청": "청보",
+    "빙": "빙그레", "쌍": "쌍방울", "M": "MBC", "청": "청보", "삼미": "삼미",
 }
 
 
@@ -36,16 +36,19 @@ def save_history() -> Path:
     bats = _load("history_batters.csv")
     pits = _load("history_pitchers.csv")
 
-    def bnum(r):   # 타자 행 → 컴팩트 배열
+    def bnum(r):   # 타자 행 → 컴팩트 배열 (JS의 B 인덱스와 순서 일치)
         return [int(r["season"]), r.get("pno", ""), r["name"], r["team"],
                 r["color"], r["pos"], float(r["war"]), float(r["owar"]),
                 float(r["dwar"]), float(r["wrcplus"]), int(r["pa"]),
-                int(r["hr"]), float(r["ops"]), r.get("arch", "")]
+                int(r["hr"]), float(r["ops"]),
+                int(r["sb"]), int(r["rbi"]), int(r["hit"]), int(r["run"]),
+                r.get("arch", "")]
 
-    def pnum(r):
+    def pnum(r):   # 투수 행 → 컴팩트 배열 (JS의 P 인덱스와 순서 일치)
         return [int(r["season"]), r.get("pno", ""), r["name"], r["team"],
                 r["color"], r["role"], float(r["war"]), float(r["era"]),
                 float(r["fip"]), float(r["ip"]), int(r["so"]), int(r["gs"]),
+                int(r["sv"]), int(r["hd"]), int(r["win"]),
                 r.get("arch", "")]
 
     seasons = sorted({int(r["season"]) for r in bats} |
@@ -127,6 +130,11 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .hint { color:var(--muted); font-size:12px; margin:4px 0 12px; }
   .warn { color:#ffb454; }
   .legend { color:var(--muted); font-size:11px; margin-top:10px; line-height:1.7; }
+  .goat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:6px; }
+  .goat { background:#0d1119; border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
+  .goat .gf { font-size:11px; color:var(--muted); font-weight:600; }
+  .goat .gn { font-size:15px; font-weight:800; margin:2px 0 1px; }
+  .goat .gw { font-size:11.5px; color:var(--green); font-weight:600; }
   /* 모바일 탭 툴팁(플로팅) */
   .tip-pop { position:absolute; z-index:100; max-width:min(280px,82vw);
     background:#0b0e14; color:var(--text); border:1px solid var(--line);
@@ -146,7 +154,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <div class="sub">1982~현재 전 시즌. 시즌·포지션별 순위와 통산 리더보드. 데이터: Statiz (WAR·wRC+ 등)</div>
 
 <div class="seg" id="view" style="margin-bottom:12px">
-  <button class="on" data-w="rank">📊 순위·선수</button><button data-w="trend">📈 리그 진화</button>
+  <button class="on" data-w="rank">📊 순위·선수</button><button data-w="trend">📈 리그 진화</button><button data-w="team">🏟️ 팀 전성기</button>
 </div>
 
 <div class="controls">
@@ -168,6 +176,15 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 
 <div class="card" id="detailCard" style="display:none"></div>
 
+<div class="card" id="teamCard" style="display:none">
+  <h2 style="margin:0 0 4px;font-size:16px">🏟️ 팀 역대 최강 시즌 <span style="color:var(--muted);font-weight:400;font-size:12px">— 팀-시즌 선수 WAR 총합</span></h2>
+  <p class="hint">한 시즌 팀 소속 선수들의 WAR을 모두 더한 값 = 그해 그 팀의 전력. 타자/투수로도 나눠 봅니다.</p>
+  <div style="overflow-x:auto"><table id="teamTbl"><thead></thead><tbody></tbody></table></div>
+  <h2 style="margin:22px 0 4px;font-size:16px">👑 프랜차이즈 GOAT <span style="color:var(--muted);font-weight:400;font-size:12px">— 현 구단 계보 기준 통산 WAR 1위</span></h2>
+  <p class="hint">각 구단(전신 포함: 해태→KIA, OB→두산, 빙그레→한화, 쌍방울→SSG 등)에서 통산 WAR이 가장 높은 선수.</p>
+  <div id="teamGoat" class="goat-grid"></div>
+</div>
+
 <div class="card" id="rankCard">
   <p class="hint" id="tableHint"></p>
   <div style="overflow-x:auto"><table id="tbl"><thead></thead><tbody></tbody></table></div>
@@ -177,8 +194,8 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <script>
 const DATA = __DATA__;
 // 컬럼 인덱스 (pno = 선수 고유 ID; 통산 합산 키)
-const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,arch:13};
-const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,arch:12};
+const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,sb:13,rbi:14,hit:15,run:16,arch:17};
+const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,sv:12,hd:13,win:14,arch:15};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
 let view="rank", metric="", archF="전체", minFilter=true;
 // 통산 비율지표(작은 표본이면 왜곡)엔 최소 표본 필터 적용
@@ -214,10 +231,15 @@ const TREND_PIT = {
 const POS_BAT = ["전체","C","1B","2B","3B","SS","LF","CF","RF","DH"];
 const POS_PIT = ["전체","선발","불펜"];
 // 정렬 옵션(라벨→접근자·방향)
-const SORTS_BAT = {war:["WAR",r=>r[B.war],-1], wrc:["wRC+",r=>r[B.wrc],-1],
-  hr:["홈런",r=>r[B.hr],-1], owar:["oWAR",r=>r[B.owar],-1], dwar:["dWAR",r=>r[B.dwar],-1], ops:["OPS",r=>r[B.ops],-1]};
-const SORTS_PIT = {war:["WAR",r=>r[P.war],-1], era:["ERA",r=>r[P.era],1],
-  fip:["FIP",r=>r[P.fip],1], so:["탈삼진",r=>r[P.so],-1], ip:["이닝",r=>r[P.ip],-1]};
+const SORTS_BAT = {war:["WAR",r=>r[B.war],-1], wrc:["wRC+",r=>r[B.wrc],-1], ops:["OPS",r=>r[B.ops],-1],
+  hr:["홈런",r=>r[B.hr],-1], rbi:["타점",r=>r[B.rbi],-1], hit:["안타",r=>r[B.hit],-1],
+  run:["득점",r=>r[B.run],-1], sb:["도루",r=>r[B.sb],-1], owar:["oWAR",r=>r[B.owar],-1], dwar:["dWAR",r=>r[B.dwar],-1]};
+const SORTS_PIT = {war:["WAR",r=>r[P.war],-1], era:["ERA",r=>r[P.era],1], fip:["FIP",r=>r[P.fip],1],
+  so:["탈삼진",r=>r[P.so],-1], win:["승",r=>r[P.win],-1], sv:["세이브",r=>r[P.sv],-1],
+  hd:["홀드",r=>r[P.hd],-1], ip:["이닝",r=>r[P.ip],-1]};
+// 통산에서 '합산'하는 카운팅 스탯 (비율/WAR류는 별도 처리)
+const COUNT_BAT = ["hr","rbi","hit","run","sb"];
+const COUNT_PIT = ["so","win","sv","hd"];
 
 function el(id){return document.getElementById(id);}
 function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
@@ -226,6 +248,7 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
 (function init(){
   const ss=el("season");
   ss.innerHTML='<option value="통산">통산 (합산)</option>'+
+    '<option value="역대">역대 단일시즌 TOP</option>'+
     DATA.seasons.slice().reverse().map(y=>`<option value="${y}">${y}</option>`).join("");
   ss.onchange=()=>{season=ss.value; render();};
   el("side").querySelectorAll("button").forEach(b=>b.onclick=()=>{
@@ -235,13 +258,14 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
   });
   el("view").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     view=b.dataset.w; el("view").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
-    const trend=view==="trend";
+    const trend=view==="trend", team=view==="team", rank=view==="rank";
     el("trendCard").style.display=trend?"block":"none";
     el("trendControls").style.display=trend?"block":"none";
-    el("rankControls").style.display=trend?"none":"contents";
-    el("rankCard").style.display=trend?"none":"block";
+    el("teamCard").style.display=team?"block":"none";
+    el("rankControls").style.display=rank?"contents":"none";
+    el("rankCard").style.display=rank?"block":"none";
     el("detailCard").style.display="none";
-    if(trend) renderTrend(); else render();
+    if(trend) renderTrend(); else if(team) renderTeam(); else render();
   });
   el("minf").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     minFilter=b.dataset.m==="1";
@@ -322,7 +346,8 @@ function lineSVG(pts, dec, label){
 function rowsForSeason(){
   const src=side==="bat"?DATA.batters:DATA.pitchers;
   const I=side==="bat"?B:P;
-  let rows = season==="통산" ? src : src.filter(r=>r[I.season]==season);
+  // 통산·역대(단일시즌 TOP)는 전 시즌, 나머지는 해당 연도만
+  let rows = (season==="통산"||season==="역대") ? src : src.filter(r=>r[I.season]==season);
   // 포지션 필터
   if(pos!=="전체"){
     if(side==="bat") rows=rows.filter(r=>r[B.pos]===pos);
@@ -352,6 +377,10 @@ function career(rows){
       agg.owar=o.rows.reduce((s,r)=>s+r[B.owar],0);
       agg.dwar=o.rows.reduce((s,r)=>s+r[B.dwar],0);
       agg.hr=o.rows.reduce((s,r)=>s+r[B.hr],0);
+      agg.rbi=o.rows.reduce((s,r)=>s+r[B.rbi],0);
+      agg.hit=o.rows.reduce((s,r)=>s+r[B.hit],0);
+      agg.run=o.rows.reduce((s,r)=>s+r[B.run],0);
+      agg.sb=o.rows.reduce((s,r)=>s+r[B.sb],0);
       agg.pa=o.rows.reduce((s,r)=>s+r[B.pa],0);
       // 통산 wRC+/OPS: PA 가중 평균
       agg.wrc=agg.pa?o.rows.reduce((s,r)=>s+r[B.wrc]*r[B.pa],0)/agg.pa:0;
@@ -362,6 +391,9 @@ function career(rows){
     }else{
       agg.war=o.rows.reduce((s,r)=>s+r[P.war],0);
       agg.so=o.rows.reduce((s,r)=>s+r[P.so],0);
+      agg.win=o.rows.reduce((s,r)=>s+r[P.win],0);
+      agg.sv=o.rows.reduce((s,r)=>s+r[P.sv],0);
+      agg.hd=o.rows.reduce((s,r)=>s+r[P.hd],0);
       agg.ip=o.rows.reduce((s,r)=>s+r[P.ip],0);
       const er=o.rows.reduce((s,r)=>s+r[P.era]*r[P.ip],0);
       agg.era=agg.ip?er/agg.ip:0;
@@ -531,19 +563,67 @@ function downloadPNG(svg, name){
   img.src=url;
 }
 
+// ── 팀 전성기 뷰 (C: 팀 역대 최강 시즌 · D: 프랜차이즈 GOAT) ──
+// 전신 구단을 현 프랜차이즈로 합침(해태→KIA, OB→두산, MBC→LG, 빙그레→한화, 쌍방울→SSG). 현대 계열은 해체.
+const FRANCHISE = {
+  "롯":"롯데","롯R":"롯데", "삼":"삼성","삼R":"삼성", "해":"KIA","KIA":"KIA",
+  "O":"두산","두":"두산", "M":"LG","L":"LG", "빙":"한화","한":"한화","한R":"한화",
+  "쌍":"SSG","쌍R":"SSG","S":"SSG", "N":"NC", "KT":"KT", "키":"키움",
+  "삼미":"현대(해체)","청":"현대(해체)","태":"현대(해체)","현":"현대(해체)","현R":"현대(해체)"};
+const FR_ORDER=["삼성","롯데","LG","두산","KIA","한화","SSG","키움","NC","KT","현대(해체)"];
+
+function renderTeam(){
+  const teamName=t=>DATA.legend[t]||t;
+  // 팀-시즌 총 WAR (타자+투수) + 대표선수
+  const ts=new Map();
+  function acc(rows, I, isBat){
+    rows.forEach(r=>{
+      const key=r[I.season]+"|"+r[I.team];
+      let o=ts.get(key);
+      if(!o){ o={season:r[I.season],team:r[I.team],color:r[I.color],bwar:0,pwar:0,best:null}; ts.set(key,o); }
+      const w=r[I.war];
+      if(isBat) o.bwar+=w; else o.pwar+=w;
+      if(!o.best || w>o.best.w) o.best={name:r[I.name], w};
+      if((r[I.color]||'').toLowerCase()!=='#888888') o.color=r[I.color];
+    });
+  }
+  acc(DATA.batters,B,true); acc(DATA.pitchers,P,false);
+  const seasons=[...ts.values()].map(o=>({...o,war:o.bwar+o.pwar})).sort((a,b)=>b.war-a.war).slice(0,25);
+  const tt=el("teamTbl");
+  tt.querySelector("thead").innerHTML="<tr><th>#</th><th style='text-align:left'>팀 · 시즌</th><th>총 WAR</th><th>타자 WAR</th><th>투수 WAR</th><th style='text-align:left'>대표 선수</th></tr>";
+  tt.querySelector("tbody").innerHTML=seasons.map((o,i)=>`<tr><td class="rank">${i+1}</td>`
+    +`<td style="text-align:left"><span class="dot" style="background:${o.color||'#888'}"></span>${teamName(o.team)} <b>${o.season}</b></td>`
+    +`<td><b>${num(o.war,1)}</b></td><td>${num(o.bwar,1)}</td><td>${num(o.pwar,1)}</td>`
+    +`<td style="text-align:left">${o.best?esc(o.best.name)+' ('+num(o.best.w,1)+')':'-'}</td></tr>`).join("");
+
+  // 프랜차이즈 GOAT: 프랜차이즈별 통산 WAR 1위 (선수 고유 ID로 합산)
+  const fr={};
+  function accFr(rows,I){ rows.forEach(r=>{ const f=FRANCHISE[r[I.team]]; if(!f) return;
+    const g=fr[f]||(fr[f]={}); const k=r[I.pno]||r[I.name];
+    const e=g[k]||(g[k]={name:r[I.name],war:0,color:r[I.color]});
+    e.war+=r[I.war]; e.name=r[I.name]; if((r[I.color]||'').toLowerCase()!=='#888888') e.color=r[I.color]; }); }
+  accFr(DATA.batters,B); accFr(DATA.pitchers,P);
+  el("teamGoat").innerHTML=FR_ORDER.filter(f=>fr[f]).map(f=>{
+    const best=Object.values(fr[f]).sort((a,b)=>b.war-a.war)[0];
+    return `<div class="goat" style="border-left:4px solid ${best.color||'#888'}">`
+      +`<div class="gf">${f}</div><div class="gn">${esc(best.name)}</div>`
+      +`<div class="gw">통산 WAR ${num(best.war,1)}</div></div>`;
+  }).join("");
+}
+
 function render(){
   let rows=rowsForSeason();
   const isCareer=season==="통산";
+  const seasonTop=season==="역대";   // 역대 단일시즌 TOP (선수-시즌 단위 전 역사 랭킹)
   let recs;
   if(isCareer){ recs=career(rows);
     // 통산도 포지션 필터(주포지션 기준)
     if(pos!=="전체" && side==="bat") recs=recs.filter(r=>r.pos===pos);
     if(archF!=="전체") recs=recs.filter(r=>r.arch===archF);   // 주 유형 필터
   } else {
-    const I=side==="bat"?B:P;
     recs=rows.map(r=>side==="bat"
-      ? {pno:r[B.pno],name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa]}
-      : {pno:r[P.pno],name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip]});
+      ? {season:r[B.season],pno:r[B.pno],name:r[B.name],team:r[B.team],color:r[B.color],pos:r[B.pos],war:r[B.war],owar:r[B.owar],dwar:r[B.dwar],wrc:r[B.wrc],hr:r[B.hr],ops:r[B.ops],pa:r[B.pa],rbi:r[B.rbi],hit:r[B.hit],run:r[B.run],sb:r[B.sb]}
+      : {season:r[P.season],pno:r[P.pno],name:r[P.name],team:r[P.team],color:r[P.color],role:r[P.role],war:r[P.war],era:r[P.era],fip:r[P.fip],so:r[P.so],ip:r[P.ip],win:r[P.win],sv:r[P.sv],hd:r[P.hd]});
   }
   // 정렬 (통산 모드엔 JAWS·피크 추가)
   let S=side==="bat"?{...SORTS_BAT}:{...SORTS_PIT};
@@ -560,17 +640,28 @@ function render(){
   recs.sort((a,b)=>(a[sortKey]-b[sortKey])*dir);
   recs=recs.slice(0,50);
 
-  // 헤더·행
+  // 헤더·행 — 열 정의: [라벨, 정렬키|null, 값(r,i)=>내용, td클래스]
   const thead=el("tbl").querySelector("thead"), tbody=el("tbl").querySelector("tbody");
+  const teamCell=r=>`<span class="dot" style="background:${r.color||'#888'}"></span>${r.team||(r.teams&&r.teams.join('·'))||'-'}`;
+  const RANK=["#",null,(r,i)=>i+1,"rank"], NAME=["선수","name",r=>r.name], TEAM=["팀",null,teamCell,"tl"];
+  const YR=seasonTop?[["시즌",null,r=>r.season]]:[];   // 역대 단일시즌 뷰는 연도 열 추가
   let cols;
   if(side==="bat"){
     cols=isCareer
-      ? [["#",null],["선수","name"],["팀",null],["시즌",null],["통산WAR","war"],["피크7","peak"],["JAWS","jaws"],["wRC+","wrc"],["홈런","hr"]]
-      : [["#",null],["선수","name"],["팀",null],["포지션",null],["WAR","war"],["wRC+","wrc"],["OPS","ops"],["홈런","hr"],["oWAR","owar"],["dWAR","dwar"]];
+      ? [RANK,NAME,TEAM,["시즌",null,r=>r.ns+"시즌"],["통산WAR","war",r=>`<b>${num(r.war,1)}</b>`],
+         ["JAWS","jaws",r=>num(r.jaws,1),"jaws"],["wRC+","wrc",r=>num(r.wrc,0)],
+         ["홈런","hr",r=>r.hr],["타점","rbi",r=>r.rbi],["안타","hit",r=>r.hit],["득점","run",r=>r.run],["도루","sb",r=>r.sb]]
+      : [RANK,NAME,TEAM,...YR,["포지션",null,r=>r.pos],["WAR","war",r=>`<b>${num(r.war,2)}</b>`],
+         ["wRC+","wrc",r=>num(r.wrc,0)],["OPS","ops",r=>num(r.ops,3)],["홈런","hr",r=>r.hr],
+         ["타점","rbi",r=>r.rbi],["도루","sb",r=>r.sb],["oWAR","owar",r=>num(r.owar,2)],["dWAR","dwar",r=>num(r.dwar,2)]];
   }else{
     cols=isCareer
-      ? [["#",null],["선수","name"],["팀",null],["시즌",null],["통산WAR","war"],["피크7","peak"],["JAWS","jaws"],["ERA","era"],["탈삼진","so"]]
-      : [["#",null],["선수","name"],["팀",null],["역할",null],["WAR","war"],["ERA","era"],["FIP","fip"],["이닝","ip"],["탈삼진","so"]];
+      ? [RANK,NAME,TEAM,["시즌",null,r=>r.ns+"시즌"],["통산WAR","war",r=>`<b>${num(r.war,1)}</b>`],
+         ["JAWS","jaws",r=>num(r.jaws,1),"jaws"],["ERA","era",r=>num(r.era,2)],["탈삼진","so",r=>r.so],
+         ["승","win",r=>r.win],["세이브","sv",r=>r.sv],["홀드","hd",r=>r.hd]]
+      : [RANK,NAME,TEAM,...YR,["역할",null,r=>r.role],["WAR","war",r=>`<b>${num(r.war,2)}</b>`],
+         ["ERA","era",r=>num(r.era,2)],["FIP","fip",r=>num(r.fip,2)],["이닝","ip",r=>num(r.ip,1)],
+         ["탈삼진","so",r=>r.so],["승","win",r=>r.win],["세이브","sv",r=>r.sv],["홀드","hd",r=>r.hd]];
   }
   thead.innerHTML="<tr>"+cols.map(c=>{const tp=HTIP[c[0]];
     return `<th data-k="${c[1]||''}"${tp?` data-tip="${tp.replace(/"/g,'&quot;')}"`:''} class="${c[1]===sortKey?'sorted':''}">${c[0]}</th>`;
@@ -578,18 +669,10 @@ function render(){
   thead.querySelectorAll("th").forEach(th=>{const k=th.dataset.k; if(k&&S[k]) th.onclick=()=>{sortKey=k; render();};});
 
   tbody.innerHTML=recs.map((r,i)=>{
-    const t=`<span class="dot" style="background:${r.color||'#888'}"></span>${r.team||(r.teams&&r.teams.join('·'))||'-'}`;
-    const head=`<td class="rank">${i+1}</td><td>${r.name}</td><td style="text-align:left">${t}</td>`;
-    if(side==="bat"){
-      return isCareer
-        ? `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.ns}시즌</td><td><b>${num(r.war,1)}</b></td><td>${num(r.peak,1)}</td><td class="jaws">${num(r.jaws,1)}</td><td>${num(r.wrc,0)}</td><td>${r.hr}</td></tr>`
-        : `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.pos}</td><td><b>${num(r.war,2)}</b></td><td>${num(r.wrc,0)}</td><td>${num(r.ops,3)}</td><td>${r.hr}</td><td>${num(r.owar,2)}</td><td>${num(r.dwar,2)}</td></tr>`;
-    }else{
-      return isCareer
-        ? `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.ns}시즌</td><td><b>${num(r.war,1)}</b></td><td>${num(r.peak,1)}</td><td class="jaws">${num(r.jaws,1)}</td><td>${num(r.era,2)}</td><td>${r.so}</td></tr>`
-        : `<tr class="prow" data-pno="${r.pno||''}">${head}<td>${r.role}</td><td><b>${num(r.war,2)}</b></td><td>${num(r.era,2)}</td><td>${num(r.fip,2)}</td><td>${num(r.ip,1)}</td><td>${r.so}</td></tr>`;
-    }
-  }).join("")||`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">해당 없음</td></tr>`;
+    const tds=cols.map(c=>{const v=c[2](r,i); const cls=c[3]?` class="${c[3]}"`:``;
+      const style=c[3]==="tl"?` style="text-align:left"`:``; return `<td${cls}${style}>${v}</td>`;}).join("");
+    return `<tr class="prow" data-pno="${r.pno||''}">${tds}</tr>`;
+  }).join("")||`<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:20px">해당 없음</td></tr>`;
   tbody.querySelectorAll("tr.prow").forEach(tr=>{ const pno=tr.dataset.pno;
     if(pno) tr.onclick=()=>openDetail(pno); });
 
@@ -599,7 +682,9 @@ function render(){
       + (showMin ? (minFilter
           ? ` <b style="color:var(--acc,#3ecf8e)">표본 필터 ON</b> — 통산 ${side==="bat"?MIN_CAREER_PA+"타석":MIN_CAREER_IP+"이닝"} 이상만(1~2시즌 소표본 왜곡 제거). '전체'로 해제 가능.`
           : ` <b style="color:#ffb454">표본 필터 OFF</b> — 소수 시즌 선수가 상위에 낄 수 있습니다.`) : "")
-    : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`;
+    : seasonTop
+      ? `역대 <b>단일 시즌</b> ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} TOP 50 — 1982~현재 전 역사에서 '한 시즌' 최고 기록들. 선수를 클릭하면 커리어 상세로.`
+      : `${season} 시즌 ${pos==="전체"?"전체":pos} ${side==="bat"?"타자":"투수"} 순위 (상위 50). 카운팅(홈런 등)은 시즌 경기수(옛 100 vs 현 144)를 감안하세요.`;
 }
 
 // 모바일(터치): 지표를 탭하면 정의 표시. 데스크톱(hover 가능)은 CSS 호버 유지.

@@ -39,8 +39,11 @@ def _abbr(team_text: str, color: str) -> str:
     """Team 텍스트 → 시대 약자. 'K'(KIA/KT)는 색으로 구분."""
     s = re.sub(r"^\d+\+?", "", team_text or "")   # 연도 프리픽스 제거
     s = POS_RE.sub("", s)                          # 포지션 접미 제거
+    c = (color or "").lower()
     if s == "K":
-        return "KIA" if (color or "").lower() == "#ed1c24" else "KT"
+        return "KIA" if c == "#ed1c24" else "KT"
+    if s == "삼" and c == "#88b7e1":   # 삼미 슈퍼스타즈(하늘색) vs 삼성(진파랑) 충돌 분리
+        return "삼미"
     return s or "?"
 
 
@@ -60,6 +63,7 @@ def build(src: str) -> None:
         # iso/bbpct/kpct/sbrate = 유형 클러스터링용 스타일 피처
         w.writerow(["season", "pno", "name", "team", "color", "pos",
                     "war", "owar", "dwar", "wrcplus", "pa", "hr", "ops",
+                    "sb", "rbi", "hit", "run",           # 통산 카운팅 스탯 순위용
                     "iso", "bbpct", "kpct", "sbrate"])
         for path in sorted(glob.glob(f"{src}/batter_*_all.csv")):
             yr = _season(path)
@@ -78,6 +82,8 @@ def build(src: str) -> None:
                             _num(r["oWAR"]), _num(r["dWAR"]),
                             _num(r.get("wRC+", 0)), int(pa),
                             int(_num(r["HR"])), _num(r.get("OPS", 0)),
+                            int(_num(r["SB"])), int(_num(r["RBI"])),
+                            int(_num(r["H"])), int(_num(r["R"])),
                             iso, bbpct, kpct, sbrate])
                 nb += 1
     print(f"저장: {bout} ({nb}행)")
@@ -89,7 +95,9 @@ def build(src: str) -> None:
         w = csv.writer(f)
         # k9/bb9/hr9 = 유형 클러스터링용 스타일 피처
         w.writerow(["season", "pno", "name", "team", "color", "role",
-                    "war", "era", "fip", "ip", "so", "gs", "k9", "bb9", "hr9"])
+                    "war", "era", "fip", "ip", "so", "gs",
+                    "sv", "hd", "win",                   # 통산 세이브·홀드·승 순위용
+                    "k9", "bb9", "hr9"])
         for path in sorted(glob.glob(f"{src}/pitcher_*_all.csv")):
             yr = _season(path)
             if not yr:
@@ -106,7 +114,8 @@ def build(src: str) -> None:
                             _abbr(r.get("Team", ""), color),
                             color, role, _num(r["WAR"]), _num(r["ERA"]),
                             _num(r["FIP"]), ip, int(_num(r["SO"])),
-                            gs, k9, bb9, hr9])
+                            gs, int(_num(r["S"])), int(_num(r["HD"])),
+                            int(_num(r["W"])), k9, bb9, hr9])
                 npi += 1
     print(f"저장: {pout} ({npi}행)")
 
