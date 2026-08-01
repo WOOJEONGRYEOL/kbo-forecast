@@ -530,6 +530,7 @@ function render(){
 
   el("tableHint").innerHTML = isCareer
     ? `통산 ${side==="bat"?"타자":"투수"} ${sortKey.toUpperCase()} 순위 (상위 50) · wRC+/ERA 등 비율은 PA·이닝 가중평균.`
+      + (pos!=="전체" ? ` <b style="color:#ffb454">${pos} 포지션 순위</b> — <b>${pos}로 뛴 시즌만</b> 합산합니다. 팀·통산기록도 그 시절 기준이라, 다른 포지션으로 뛴 시즌은 빠집니다(예: 우익수→지명타자로 옮긴 선수는 RF 순위엔 RF 시절 팀만, DH 시절은 DH 순위에). 전체 커리어는 포지션을 '전체'로.` : "")
       + (showMin ? (minFilter
           ? ` <b style="color:var(--acc,#3ecf8e)">표본 필터 ON</b> — 통산 ${side==="bat"?MIN_CAREER_PA+"타석":MIN_CAREER_IP+"이닝"} 이상만(1~2시즌 소표본 왜곡 제거). '전체'로 해제 가능.`
           : ` <b style="color:#ffb454">표본 필터 OFF</b> — 소수 시즌 선수가 상위에 낄 수 있습니다.`) : "")
