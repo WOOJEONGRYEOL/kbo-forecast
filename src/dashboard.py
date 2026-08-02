@@ -235,8 +235,7 @@ def _style_gauge(z: float, tip: str) -> str:
         ticks += (f'<line x1="{cx+35*math.cos(a):.1f}" y1="{cy-35*math.sin(a):.1f}"'
                   f' x2="{cx+40*math.cos(a):.1f}" y2="{cy-40*math.sin(a):.1f}" stroke="#46516b" stroke-width="1"/>')
     esc = tip.replace('"', '&quot;')
-    # <title>=데스크톱 호버, data-tip=모바일 탭 툴팁(tapTips가 잡음)
-    return (f'<svg class="dial" viewBox="0 0 92 52" data-tip="{esc}"><title>{esc}</title>'
+    return (f'<svg class="dial" viewBox="0 0 92 52"><title>{esc}</title>'
             f'<path d="M{cx-Ra},{cy} A{Ra},{Ra} 0 0 1 {cx},{cy-Ra}" fill="none" stroke="#4a90d9" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/>'
             f'<path d="M{cx},{cy-Ra} A{Ra},{Ra} 0 0 1 {cx+Ra},{cy}" fill="none" stroke="#e8874a" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/>'
             f'{ticks}'
@@ -307,7 +306,7 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
             p = ph[code]
             e, m, l = float(p["early_net"]), float(p["mid_net"]), float(p["late_net"])
             ptip = f'경기당 득실 마진 — 초 {e:+.2f} · 중 {m:+.2f} · 후 {l:+.2f}'
-            pcell = f'<td title="{ptip}" data-tip="{ptip}">{_phase_strip(e, m, l)}</td>'
+            pcell = f'<td title="{ptip}">{_phase_strip(e, m, l)}</td>'
         body.append(
             f'<tr><td class="stm"><span class="srk">{rk}</span>'
             f'<img src="{logo}" alt="">{name}</td>'
