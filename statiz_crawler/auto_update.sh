@@ -26,15 +26,24 @@ RUNLOG=$(mktemp)
         FC="$HOME/kbo-forecast"
         cd "$FC" || { echo "(kbo-forecast 없음 — 스킵)"; exit 0; }
         PY="$FC/.venv/bin/python"
+        # 생성물(data/*.html·요약 CSV)의 로컬 변경은 폐기 — 어차피 재생성/원격이 최신이고,
+        # 이게 남아있으면 pull 시 autostash 충돌로 커밋이 막힌다. 소스(src/·*.py)는 건드리지 않음.
+        git checkout -- data/ 2>/dev/null || true
         git pull --rebase --autostash origin main || echo "(pull 경고 — 계속)"
+        # 병합 충돌이 남았으면(예외 상황) 원격 기준으로 정리
+        if git ls-files -u | grep -q .; then
+            echo "(병합 충돌 감지 → 원격 data/ 기준으로 정리)"
+            git checkout --theirs -- data/ 2>/dev/null; git add data/ 2>/dev/null
+            git rebase --continue 2>/dev/null || git merge --abort 2>/dev/null || true
+        fi
         "$PY" build_history.py && "$PY" build_clusters.py && "$PY" build_statiz.py && "$PY" history.py
         git add data/history_batters.csv data/history_pitchers.csv \
                 data/team_style_*.csv data/bullpen_*.csv data/statiz_*.csv data/history.html
         if git diff --cached --quiet; then
             echo "(요약본 변경 없음 — 커밋 생략)"
         else
-            git commit -m "chore: Statiz 요약·역대 자동 갱신 ($(date +%F))" \
-                && git push origin main && echo "푸시 완료" || echo "⚠️ 푸시 실패(키체인 잠김/인증 확인 필요)"
+            git commit -m "chore: Statiz 요약·역대 자동 갱신 ($(date +%F))" || { echo "⚠️ 커밋 실패 — git 상태 확인 필요"; exit 0; }
+            git push origin main && echo "푸시 완료" || echo "⚠️ 푸시 실패 — 인증(키체인 잠김) 또는 원격 갱신 확인 필요"
         fi
     )
     echo "$(date '+%F %T') === kbo-forecast 반영 종료 ==="
