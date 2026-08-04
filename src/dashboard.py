@@ -21,6 +21,7 @@ import base64
 import csv
 import json
 import math
+import os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -34,8 +35,10 @@ KST = timezone(timedelta(hours=9))
 
 
 def _gen_stamp() -> str:
-    """대시보드 생성(갱신) 시각을 'YYYY-MM-DD HH:MM KST'로."""
-    return datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
+    """대시보드 생성(갱신) 시각. 자동 갱신(GitHub Actions)은 시각만,
+    로컬 수동 재생성은 '(수동 재생성)'을 덧붙여 6시 정기 갱신과 구분한다."""
+    t = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
+    return t if os.environ.get("GITHUB_ACTIONS") else t + " (수동 재생성)"
 
 # 시즌 흐름 라인 차트는 10개 선을 색으로 구분해야 해서 팀 상징색 유지
 TEAM_COLORS = {
