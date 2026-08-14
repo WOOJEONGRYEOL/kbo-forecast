@@ -202,6 +202,10 @@ let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
 let view="rank", metric="", archF="전체", minFilter=true;
 // 통산 비율지표(작은 표본이면 왜곡)엔 최소 표본 필터 적용
 const RATE_KEYS=new Set(["wrc","ops","era","fip"]);
+// ABS(자동 볼판정) 2024 전면도입 — 존 판정이 직접 좌우하는 지표에만 마커 표시.
+// 방어율·피홈런 등은 공 반발계수·득점환경 영향이 커서 제외(인과 과장 방지).
+const ABS_METRICS=new Set(["kpct","k9","kbb"]);
+const ABS_YEAR=2024;
 const MIN_CAREER_PA=1500, MIN_CAREER_IP=300;
 // 헤더 호버 툴팁 — 직관적 항목(홈런·탈삼진·이닝·시즌·포지션 등)은 제외
 const HTIP={
@@ -325,7 +329,10 @@ function renderTrend(){
   const bySeason={};
   src.forEach(r=>{(bySeason[r[I.season]]=bySeason[r[I.season]]||[]).push(r);});
   const pts=DATA.seasons.map(y=>({season:y, val:fn(bySeason[y]||[])})).filter(p=>p.val>0);
-  el("trendHint").innerHTML=`<b>${label}</b> — ${desc}. 1982~현재 리그 전체 집계.`;
+  const absNote=ABS_METRICS.has(metric)
+    ? ` <span style="color:#ffb454">· ABS(자동 볼판정) ${ABS_YEAR} 전면도입</span> — 같은 해 피치클럭·시프트 제한·베이스 확대도 함께 도입돼 전후 차이는 복합 효과입니다(ABS 단독 효과 아님).`
+    : "";
+  el("trendHint").innerHTML=`<b>${label}</b> — ${desc}. 1982~현재 리그 전체 집계.${absNote}`;
   el("trendChart").innerHTML=lineSVG(pts, dec, label);
 }
 function lineSVG(pts, dec, label){
@@ -350,8 +357,16 @@ function lineSVG(pts, dec, label){
     grid+=`<text x="${mL-6}" y="${(yy+4).toFixed(1)}" text-anchor="end" fill="#8a94a8" font-size="11">${v.toFixed(dec)}</text>`;}
   for(let s=Math.ceil(x0/5)*5;s<=x1;s+=5){const xx=X(s);
     xlab+=`<text x="${xx.toFixed(1)}" y="${H-12}" text-anchor="middle" fill="#8a94a8" font-size="11">${s}</text>`;}
+  // ABS 도입 마커(해당 지표에만): 세로 점선 + 도입 이후 옅은 음영 + 라벨
+  let abs="";
+  if(ABS_METRICS.has(metric) && x0<=ABS_YEAR && ABS_YEAR<=x1){
+    const ax=X(ABS_YEAR);
+    abs=`<rect x="${ax.toFixed(1)}" y="${mT}" width="${(W-mR-ax).toFixed(1)}" height="${H-mT-mB}" fill="#ffb454" opacity="0.06"/>`
+      +`<line x1="${ax.toFixed(1)}" y1="${mT}" x2="${ax.toFixed(1)}" y2="${H-mB}" stroke="#ffb454" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.85"/>`
+      +`<text x="${(ax+4).toFixed(1)}" y="${(mT+11).toFixed(1)}" fill="#ffb454" font-size="10">ABS ${ABS_YEAR}~</text>`;
+  }
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:560px;max-width:${W}px">
-    ${grid}${xlab}<path d="${line}" fill="none" stroke="#3ecf8e" stroke-width="2.5"/>${dots}${vlab}</svg>`;
+    ${grid}${abs}${xlab}<path d="${line}" fill="none" stroke="#3ecf8e" stroke-width="2.5"/>${dots}${vlab}</svg>`;
 }
 
 function rowsForSeason(){
