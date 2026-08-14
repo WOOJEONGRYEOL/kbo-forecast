@@ -254,7 +254,7 @@ def _phase_bar(margin: float, label: str) -> str:
     return (f'<div class="pcol"><div class="ptrack">'
             f'<span class="pbar" style="{edge}; height:{h:.0f}px; background:{col}"></span></div>'
             f'<span class="plab">{label}</span>'
-            f'<span class="pval" style="color:{col}">{margin:+.1f}</span></div>')
+            f'<span class="pval" style="color:{col}">{margin:+.2f}</span></div>')
 
 
 def _phase_strip(early: float, mid: float, late: float) -> str:
