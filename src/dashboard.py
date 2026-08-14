@@ -405,12 +405,17 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = html.replace("__W_STUFF__", str(config.MOMENTUM_W_STUFF))
     html = html.replace("__W_BAT__", str(config.MOMENTUM_W_BAT))
     html = html.replace("__SEASON__", str(config.SEASON))
-    html = html.replace("__STAMP__", _gen_stamp())
+    stamp = _gen_stamp()
+    html = html.replace("__STAMP__", stamp)
     html = html.replace("__LATEST__", latest_game)
     html = _inject_headers(html)
 
     out = Path(config.DATA_DIR) / "dashboard.html"
     out.write_text(html, encoding="utf-8")
+    # 메인 페이지(index.html)가 읽어 표시할 갱신 정보(정적 파일이라 fetch로 주입)
+    (Path(config.DATA_DIR) / "last_updated.json").write_text(
+        json.dumps({"stamp": stamp, "latest": latest_game}, ensure_ascii=False),
+        encoding="utf-8")
     return out
 
 
@@ -614,7 +619,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO __SEASON__ 단기 전력 대시보드</h1>
-<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 6시(KST) 자동 갱신</span><br>
+<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
   데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
   아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
 

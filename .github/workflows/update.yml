@@ -42,7 +42,7 @@ jobs:
         run: |
           git config user.name "kbo-forecast-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -f data/dashboard.html data/players.html
+          git add -f data/dashboard.html data/players.html data/last_updated.json
           if git diff --cached --quiet; then
             echo "변경 없음 — 커밋 생략"
           else

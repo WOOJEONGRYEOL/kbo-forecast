@@ -438,7 +438,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
 <h1>⚾ KBO __SEASON__ 선수 평가 대시보드</h1>
-<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b> · 매일 오전 6시(KST) 자동 갱신</span><br>
+<div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
   투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 · 리그 평균 ERA __LG_ERA__ ·
   <b>지표 이름 호버=공식, 그래프 클릭=랜덤 선수 상세</b></div>
 
