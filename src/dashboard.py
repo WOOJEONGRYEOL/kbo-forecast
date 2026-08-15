@@ -281,8 +281,9 @@ def _phase_strip(early: float, mid: float, late: float) -> str:
             + _phase_bar(mid, "중") + _phase_bar(late, "후") + '</div>')
 
 
-def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
-    """팀 스타일 지문 카드 (빅볼/스몰볼·선발/불펜·공격/수비·초중후반). 데이터 없으면 빈 문자열."""
+def _team_style_card(logos: dict, rank_order: list | None = None,
+                     home_away: dict | None = None) -> str:
+    """팀 스타일 지문 카드 (빅볼/스몰볼·선발/불펜·공격/수비·초중후반·홈원정). 없으면 빈 문자열."""
     path = Path(config.DATA_DIR) / f"team_style_{config.SEASON}.csv"
     if not path.exists():
         return ""
@@ -307,6 +308,11 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         if all(r["team"] in pmap for r in rows):
             ph = pmap
 
+    # ⑤ 홈/원정 성향 (홈 승률 − 원정 승률) — 있으면 게이지 축 추가
+    ha_ax = None
+    if home_away and all(r["team"] in home_away for r in rows):
+        ha_ax = _zscores([home_away[r["team"]]["gap"] for r in rows])
+
     # 현재 순위 순으로 정렬(없으면 빅볼→스몰볼 순 폴백)
     idx = {r["team"]: i for i, r in enumerate(rows)}
     if rank_order:
@@ -329,18 +335,28 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
             e, m, l = float(p["early_net"]), float(p["mid_net"]), float(p["late_net"])
             ptip = f'경기당 득실 마진 — 초 {e:+.2f} · 중 {m:+.2f} · 후 {l:+.2f}'
             pcell = f'<td title="{ptip}">{_phase_strip(e, m, l)}</td>'
+        hacell = ""
+        if ha_ax is not None:
+            h = home_away[code]
+            t5 = (f'홈 {h["hw"]}-{h["hl"]} ({h["hwpct"]:.3f}) · '
+                  f'원정 {h["aw"]}-{h["al"]} ({h["awpct"]:.3f})  (격차 {h["gap"]:+.3f})')
+            hacell = f'<td>{_style_gauge(ha_ax[i], t5)}</td>'
         body.append(
             f'<tr><td class="stm"><span class="srk">{rk}</span>'
             f'<img src="{logo}" alt="">{name}</td>'
             f'<td>{_style_gauge(ax1[i], t1)}</td>'
             f'<td>{_style_gauge(ax2[i], t2)}</td>'
-            f'<td>{_style_gauge(ax3[i], t3)}</td>{pcell}</tr>')
+            f'<td>{_style_gauge(ax3[i], t3)}</td>{pcell}{hacell}</tr>')
 
     phase_th = '<th class="pth">초 · 중 · 후반<br><span style="font-weight:400">경기당 득실</span></th>' if ph is not None else ''
     phase_note = (' ④ <b>초·중·후반</b>: 각 구간 경기당 득실 마진 — '
                   '<span style="color:#3ecf8e">초록↑=상대 압도</span>·'
                   '<span style="color:#e0555f">빨강↓=밀림</span>.'
                   if ph is not None else '')
+    ha_th = ('<th><span class="pl">원정형</span><span class="pr">안방형</span></th>'
+             if ha_ax is not None else '')
+    ha_note = (' ⑤ <b>홈/원정</b>: 홈 승률 − 원정 승률 (오른쪽=안방 강, 왼쪽=원정 강).'
+               if ha_ax is not None else '')
     return (
         '<div class="card wide">'
         '<h2><span class="badge">🧬</span>팀 스타일 지문 '
@@ -353,13 +369,13 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
         '<th><span class="pl">불펜형</span><span class="pr">선발형</span></th>'
         '<th><span class="pl">수비로</span><span class="pr">공격으로</span></th>'
-        + phase_th +
+        + phase_th + ha_th +
         '</tr></thead><tbody>' + "".join(body) + '</tbody></table></div>'
         '<p class="hint" style="margin-top:8px">'
         '① <b>빅볼</b>=장타(ISO) vs <b>스몰볼</b>=기동력(도루+번트). '
         '② <b>선발/불펜</b> WAR 우열. '
         '③ 승리 기여가 <b>공격</b>(득점 창출·oWAR)이냐 <b>수비</b>(실점 억제=투수 WAR+야수 dWAR)냐.'
-        + phase_note +
+        + phase_note + ha_note +
         ' 행에 커서를 올리면 원자료가 보입니다.</p></div>')
 
 
@@ -386,25 +402,6 @@ def team_home_away(games) -> dict:
         out[t] = {**r, "hwpct": round(hwpct, 3), "awpct": round(awpct, 3),
                   "gap": round(hwpct - awpct, 3)}
     return out
-
-
-def _team_ha_rows(team_ha, order, logos) -> str:
-    if not team_ha:
-        return ""
-    rows = []
-    for rank, t in enumerate(order, start=1):
-        r = team_ha.get(t)
-        if not r:
-            continue
-        name = config.TEAM_NAMES.get(t, t)
-        gcol = "#3ecf8e" if r["gap"] >= 0 else "#e0555f"
-        rows.append(
-            f'<tr><td class="rank">{rank}</td>'
-            f'<td class="team"><img class="logo" src="{logos.get(t, "")}" alt="">{name}</td>'
-            f'<td>{r["hw"]}-{r["hl"]}</td><td><b>{r["hwpct"]:.3f}</b></td>'
-            f'<td>{r["aw"]}-{r["al"]}</td><td><b>{r["awpct"]:.3f}</b></td>'
-            f'<td style="color:{gcol};font-weight:600">{r["gap"] :+.3f}</td></tr>')
-    return "".join(rows)
 
 
 def _race_labels(sim_table, spots: int = 5) -> dict:
@@ -498,9 +495,8 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos, _race_labels(sim_table)))
-    html = html.replace("__TEAM_HA_ROWS__", _team_ha_rows(team_splits, order, logos))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
-    html = html.replace("__STYLE_CARD__", _team_style_card(logos, order))
+    html = html.replace("__STYLE_CARD__", _team_style_card(logos, order, team_splits))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
@@ -760,16 +756,6 @@ _TEMPLATE = r"""<!DOCTYPE html>
       <tbody>__TABLE_ROWS__</tbody>
     </table>
     </div>
-  </div>
-
-  <div class="card wide" id="teamHaCard">
-    <h2>🏟️ 팀별 홈/원정 승률 <span style="color:var(--muted);font-weight:400">— 안방 강팀 vs 원정 강팀</span></h2>
-    <p class="hint">현재 순위 순. <b>격차 = 홈 승률 − 원정 승률.</b> <span class="pos">+초록</span>=홈에서 강함(안방 호랑이),
-      <span class="neg">−빨강</span>=원정에서 강함. 무승부는 승률 계산서 제외.</p>
-    <div class="table-scroll"><table>
-      <thead><tr><th>순위</th><th>팀</th><th>홈 승-패</th><th>홈 승률</th><th>원정 승-패</th><th>원정 승률</th><th>격차</th></tr></thead>
-      <tbody>__TEAM_HA_ROWS__</tbody>
-    </table></div>
   </div>
 
   <div class="card wide" id="standingsSimCard">
