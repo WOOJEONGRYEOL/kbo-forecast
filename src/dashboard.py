@@ -396,13 +396,20 @@ def _race_block(race, logos, title, lead_lab, rival_lab, clinch_msg) -> str:
             f'<span>{val}</span></div>')
 
     cut = TEAM_COLORS.get(race["leader"]["team"], "#4a90d9")
+    # 매직넘버가 앞선 팀 잔여경기보다 크면 자력 확정 불가 → 경쟁팀의 패가 필요.
+    need = race["num"] - race["leader"]["rem"]
+    note = ""
+    if 0 < race["num"] and need > 0:
+        rival_name = config.TEAM_NAMES.get(race["rival"]["team"], race["rival"]["team"])
+        note = (f'<div style="color:#ffb454;font-size:11px;margin-top:3px">'
+                f'⚠️ 자력 확정 불가 · {rival_name} {need}패 이상 더 필요</div>')
     return (
         f'<div style="padding:11px 13px;border-left:3px solid {cut};'
         f'background:rgba(255,255,255,.03);border-radius:8px">'
         f'<div style="color:var(--muted);font-size:12px;margin-bottom:5px">{title} '
         f'<span style="opacity:.7">· {race["gb"]}경기 차</span></div>'
         f'{team_row(race["leader"], lead_lab, True)}'
-        f'{team_row(race["rival"], rival_lab, False)}</div>')
+        f'{team_row(race["rival"], rival_lab, False)}{note}</div>')
 
 
 def _magic_html(sim_table, logos) -> str:
