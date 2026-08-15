@@ -35,6 +35,17 @@ E = 1.83                 # 피타고리안 지수
 SEASONS = [2021, 2022, 2023, 2024, 2025]
 MIN_PRIOR = 15           # 두 팀 모두 15경기+ 소화 이후만 (피처 안정화)
 FORM_W = 10              # 최근 폼 윈도우
+EWMA_ALPHA = 0.25        # 최근가중 강도(클수록 최근 편중; 반감기 ~2.4경기)
+
+
+def _ewma(vals, alpha=EWMA_ALPHA):
+    """지수가중이동평균 — 최근 경기(마지막 원소)에 더 큰 가중."""
+    if not vals:
+        return 0.0
+    s = vals[0]
+    for x in vals[1:]:
+        s = alpha * x + (1 - alpha) * s
+    return s
 
 
 def starter_stuff_by_game(season: int) -> dict:
@@ -97,7 +108,8 @@ def build() -> list:
             h, a = g["homeTeamCode"], g["awayTeamCode"]
             hs, as_ = g["homeTeamScore"], g["awayTeamScore"]
             for t in (h, a):
-                st.setdefault(t, {"rs": 0.0, "ra": 0.0, "wins": []})
+                st.setdefault(t, {"rs": 0.0, "ra": 0.0, "wins": [],
+                                  "rs_g": [], "ra_g": []})
 
             def feat(t):
                 d = st[t]
@@ -105,7 +117,18 @@ def build() -> list:
                     return None
                 pyth = (d["rs"]**E / (d["rs"]**E + d["ra"]**E)
                         if (d["rs"] or d["ra"]) else 0.5)
-                return pyth, np.mean(d["wins"][-FORM_W:])
+                n = len(d["wins"])
+                sea_rs, sea_ra = d["rs"] / n, d["ra"] / n     # 시즌 평균 득/실
+                return {
+                    "pyth": pyth,
+                    "form": np.mean(d["wins"][-FORM_W:]),
+                    # 최근가중(EWMA) 투(득점)·타(실점) — 사용자 제안
+                    "ewma_rs": _ewma(d["rs_g"]),
+                    "ewma_ra": _ewma(d["ra_g"]),
+                    # '핫/콜드' 델타: 최근가중 − 시즌평균 (레벨과 분리한 순수 최근폼)
+                    "hot_off": _ewma(d["rs_g"]) - sea_rs,
+                    "hot_def": sea_ra - _ewma(d["ra_g"]),      # +면 최근 실점 억제 좋아짐
+                }
 
             fh, fa = feat(h), feat(a)
             sh = starter.get(g["gameId"], {}).get(h)
@@ -113,16 +136,25 @@ def build() -> list:
             if fh and fa:
                 rows.append({
                     "season": s,
-                    "pyth_diff": fh[0] - fa[0],
-                    "form_diff": fh[1] - fa[1],
+                    "pyth_diff": fh["pyth"] - fa["pyth"],
+                    "form_diff": fh["form"] - fa["form"],
                     "starter_diff": (sh - sa) if (sh is not None and sa is not None) else 0.0,
                     "has_starter": sh is not None and sa is not None,
+                    # 최근가중 투타(결과) 피처
+                    "recent_off_diff": fh["ewma_rs"] - fa["ewma_rs"],     # 최근 타격(득점)
+                    "recent_def_diff": fa["ewma_ra"] - fh["ewma_ra"],     # 최근 투수(실점 억제)
+                    "recent_rd_diff": (fh["ewma_rs"] - fh["ewma_ra"])
+                                      - (fa["ewma_rs"] - fa["ewma_ra"]),  # 최근 득실차
+                    "hot_diff": (fh["hot_off"] + fh["hot_def"])
+                                - (fa["hot_off"] + fa["hot_def"]),        # 순수 '핫/콜드'
                     "final_pyth_diff": final_pyth[(s, h)] - final_pyth[(s, a)],
                     "home_win": int(hs > as_),
                 })
             hw = int(hs > as_)
             st[h]["rs"] += hs; st[h]["ra"] += as_; st[h]["wins"].append(hw)
+            st[h]["rs_g"].append(hs); st[h]["ra_g"].append(as_)
             st[a]["rs"] += as_; st[a]["ra"] += hs; st[a]["wins"].append(1 - hw)
+            st[a]["rs_g"].append(as_); st[a]["ra_g"].append(hs)
     return rows
 
 
@@ -151,6 +183,20 @@ def main() -> None:
     rf = RandomForestClassifier(n_estimators=200, max_depth=5, random_state=0)
     m, sd, _ = cv(["pyth_diff", "form_diff", "starter_diff"], clf=rf)
     print(f"  {'랜덤포레스트':16} {m:.3f} (±{sd:.3f})  ← 복잡한 모델은 손해")
+
+    print("\n── 최근가중(EWMA) 투타 피처 추가 (사용자 제안 검증, 정직한 시점별) ──")
+    base = ["pyth_diff", "form_diff", "starter_diff"]
+    for label, feats in [
+        ("기준: 피타+폼+선발", base),
+        ("+ 최근 타격(득점가중)", base + ["recent_off_diff"]),
+        ("+ 최근 투수(실점가중)", base + ["recent_def_diff"]),
+        ("+ 최근 투타 둘다", base + ["recent_off_diff", "recent_def_diff"]),
+        ("+ 최근 득실차(EWMA)", base + ["recent_rd_diff"]),
+        ("+ 순수 핫/콜드 델타", base + ["hot_diff"]),
+        ("최근가중만(피타 대체)", ["recent_rd_diff", "form_diff", "starter_diff"]),
+    ]:
+        m, sd, _ = cv(feats)
+        print(f"  {label:22} {m:.3f} (±{sd:.3f})")
 
     print("\n── 누수(leakage): 시즌 '최종' 집계를 피처로 k-fold ──")
     m, sd, _ = cv(["final_pyth_diff"])
