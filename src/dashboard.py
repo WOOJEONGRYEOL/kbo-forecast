@@ -442,6 +442,47 @@ def _projection_card(proj, logos) -> str:
         + "".join(cards) + '</div></div>')
 
 
+_TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KBO 오늘의 경기 — 기대 스코어</title>
+<style>
+  :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 18px 60px;}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  nav a{text-decoration:none;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;}
+  nav a.active{color:#0e1117;background:var(--green);border-color:var(--green);font-weight:700;}
+  h1{font-size:23px;margin:6px 0 2px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px;}
+  h2{font-size:17px;margin:0 0 4px;}
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin:2px 0 10px;}
+</style></head><body><div class="wrap">
+<nav>
+  <a class="home" href="../index.html">🏠</a>
+  <a class="active" href="today.html">🔮 오늘의 경기</a>
+  <a href="dashboard.html">📊 팀 전력</a>
+  <a href="players.html">🧢 선수 평가</a>
+  <a href="history.html">🏆 역대</a>
+</nav>
+<h1>🔮 오늘의 경기</h1>
+<div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
+__CARD__
+</div></body></html>"""
+
+
+def save_today_page(projections, logos=None) -> Path:
+    """오늘의 기대 스코어를 data/today.html 로 별도 페이지 저장."""
+    logos = logos or logo_map()
+    card = _projection_card(projections, logos) or \
+        '<div class="card"><p class="hint">오늘·다음 예정 경기가 없습니다.</p></div>'
+    html = _TODAY_TEMPLATE.replace("__CARD__", card).replace("__STAMP__", _gen_stamp())
+    out = Path(config.DATA_DIR) / "today.html"
+    out.write_text(html, encoding="utf-8")
+    return out
+
+
 def _race_labels(sim_table, spots: int = 5) -> dict:
     """팀별 매직/트래직 라벨(진단표 열용). 의미 있는 경쟁 기준으로 팀마다 하나씩:
       1위 = 우승 매직(2위 대비) · 2위 = 우승 트래직 · 3~5위 = 가을 매직(6위 대비)
@@ -534,7 +575,6 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos, _race_labels(sim_table)))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
     html = html.replace("__STYLE_CARD__", _team_style_card(logos, order, team_splits))
-    html = html.replace("__PROJ_CARD__", _projection_card(projections, logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
@@ -749,6 +789,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
 <div class="nav">
   <a class="home" href="../index.html">🏠</a>
+  <a href="today.html">🔮 오늘의 경기</a>
   <a class="active" href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
   <a href="history.html">🏆 역대</a>
@@ -759,8 +800,6 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
   데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
   아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
-
-__PROJ_CARD__
 
 <div class="controls">
   <div class="ctl">

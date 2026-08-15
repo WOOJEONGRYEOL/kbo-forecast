@@ -257,6 +257,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 </style></head><body><div class="wrap">
 <div class="nav">
   <a class="home" href="../index.html">🏠</a>
+  <a href="today.html">🔮 오늘의 경기</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
   <a class="active" href="history.html">🏆 역대</a>

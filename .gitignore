@@ -9,6 +9,7 @@ __pycache__/
 data/*
 !data/dashboard.html
 !data/players.html
+!data/today.html
 !data/last_updated.json
 # Statiz 파생 스냅샷(불펜·타자 WAR). CI(GitHub Actions)엔 Statiz 원본이 없어
 # 재생성 불가하므로 캐시가 아니라 '필수 입력'으로 커밋한다.
