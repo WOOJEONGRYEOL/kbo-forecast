@@ -186,12 +186,15 @@ def _load_statiz(season):
 
 
 def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
-                          latest_game=None, hotcold=None, bullpen_form=None):
+                          latest_game=None, hotcold=None, bullpen_form=None,
+                          starter_form=None, streaks=None):
     """선수 평가 대시보드를 data/players.html 로 저장합니다.
 
     latest_game  : 반영된 최신 경기일(투수 박스스코어 기준). 자막에 표시.
-    hotcold      : boxscore.recent_form() 결과(물오른/식은 방망이). 없으면 카드 숨김.
-    bullpen_form : boxscore.recent_relief_form() 결과(필승/방화 불펜). 없으면 숨김.
+    hotcold      : recent_form() 결과(불방망이/물방망이). 없으면 카드 숨김.
+    bullpen_form : recent_pitch_form(role='relief') 결과(수호신/방화범).
+    starter_form : recent_pitch_form(role='start') 결과(에이스/붕괴).
+    streaks      : hit_streaks() 결과(연속 안타·출루 행진).
     """
     def hc_rec(r):
         return {**r,
@@ -263,6 +266,13 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
         "bullpenForm": ({"window": bullpen_form["window"], "minApp": bullpen_form["minApp"],
                          "players": [hc_rec(r) for r in bullpen_form["players"]]}
                         if bullpen_form else {"window": 0, "minApp": 0, "players": []}),
+        "starterForm": ({"window": starter_form["window"], "minApp": starter_form["minApp"],
+                         "players": [hc_rec(r) for r in starter_form["players"]]}
+                        if starter_form else {"window": 0, "minApp": 0, "players": []}),
+        "streaks": ({"minStreak": streaks["minStreak"],
+                     "hit": [hc_rec(r) for r in streaks["hit"]],
+                     "onbase": [hc_rec(r) for r in streaks["onbase"]]}
+                    if streaks else {"minStreak": 0, "hit": [], "onbase": []}),
     }
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
@@ -553,6 +563,33 @@ _TEMPLATE = r"""<!DOCTYPE html>
         <tbody id="tb_bpCold"></tbody></table></div>
       </div>
     </div>
+  </div>
+
+  <div class="card wide" id="starterFormCard">
+    <h2><span class="badge">🚀</span>에이스 · 붕괴 <span style="color:var(--muted);font-weight:400">— 최근 <b id="stWindow"></b>선발, 평소 대비(Δ)</span></h2>
+    <p class="hint"><b>최근 폼</b>(선발 로테이션만). 선택 지표가 시즌 평균보다 좋아졌으면 에이스, 나빠졌으면 붕괴 쪽입니다.
+      최소 <b id="stMinApp"></b>선발·최근 15이닝 이상. 표본이 작아 '최근 흐름'으로 보세요.</p>
+    <div class="mseg" id="stMetric"></div>
+    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
+      <div>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🚀 에이스 <span style="color:var(--muted);font-weight:400">— 최근 좋아짐</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
+        <tbody id="tb_stHot"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 6px;color:#ff5a5a;font-size:14px">💥 붕괴 <span style="color:var(--muted);font-weight:400">— 최근 나빠짐</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
+        <tbody id="tb_stCold"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="streakCard">
+    <h2><span class="badge">🔥</span>연속 행진 <span style="color:var(--muted);font-weight:400">— 현재 진행 중</span></h2>
+    <p class="hint">지금 이어지고 있는 <b>연속 안타·출루 경기</b> 행진. 타석 없는 경기(대주자 등)는 행진을 끊지 않습니다. 최소 <b id="streakMin"></b>경기.</p>
+    <div class="mseg" id="streakToggle"></div>
+    <div class="table-scroll" style="margin-top:8px"><table><thead><tr><th>순위</th><th>선수</th><th>팀</th><th>행진</th><th>최근 경기</th></tr></thead>
+    <tbody id="tb_streak"></tbody></table></div>
   </div>
 
   <div class="card wide" id="bullpenCard">
@@ -1165,6 +1202,38 @@ if (!sbats.length) {
   formBoard(bp.players, PIT,
     { card: "bullpenFormCard", seg: "bpMetric", hot: "tb_bpHot", cold: "tb_bpCold", win: "bpWindow", min: "bpMinApp" },
     { window: bp.window, min: bp.minApp, sample: r => `${r.g}등판·${(r.outs / 3).toFixed(1)}이닝` });
+
+  const st = DATA.starterForm || { players: [] };
+  formBoard(st.players, PIT,
+    { card: "starterFormCard", seg: "stMetric", hot: "tb_stHot", cold: "tb_stCold", win: "stWindow", min: "stMinApp" },
+    { window: st.window, min: st.minApp, sample: r => `${r.g}선발·${(r.outs / 3).toFixed(1)}이닝` });
+})();
+
+// ── 연속 안타·출루 행진 (현재 진행 중) ──
+(function streakBoard() {
+  const S = DATA.streaks || { hit: [], onbase: [] };
+  const card = document.getElementById("streakCard");
+  if (!S.hit.length && !S.onbase.length) { if (card) card.style.display = "none"; return; }
+  const mEl = document.getElementById("streakMin"); if (mEl) mEl.textContent = S.minStreak;
+  const seg = document.getElementById("streakToggle");
+  const LOGO = t => DATA.logos[t]
+    ? `<img src="${DATA.logos[t]}" alt="" style="height:14px;vertical-align:-2px;margin-right:3px">` : "";
+  const modes = { hit: "안타 행진", onbase: "출루 행진" };
+  let key = "hit";
+  function draw() {
+    seg.innerHTML = Object.entries(modes).map(([k, lab]) => {
+      const on = k === key;
+      return `<button data-k="${k}" style="padding:3px 11px;margin:0 6px 0 0;border-radius:6px;`
+        + `border:1px solid ${on ? '#3ecf8e' : '#2a3345'};background:${on ? '#173a2b' : 'transparent'};`
+        + `color:${on ? '#3ecf8e' : '#8a94a8'};font-size:12px;cursor:pointer">${lab}</button>`;
+    }).join("");
+    document.getElementById("tb_streak").innerHTML = (S[key] || []).map((r, i) =>
+      `<tr><td>${i + 1}</td><td>${LOGO(r.team)}${r.name}</td><td>${r.teamName}</td>`
+      + `<td style="color:#ff7a45;font-weight:700">${r.streak}경기</td>`
+      + `<td style="color:#8a94a8">${r.last}</td></tr>`).join("");
+  }
+  seg.onclick = e => { const b = e.target.closest("button"); if (!b) return; key = b.dataset.k; draw(); };
+  draw();
 })();
 
 // ── ⑥ 불펜 리더보드 (Statiz) ──

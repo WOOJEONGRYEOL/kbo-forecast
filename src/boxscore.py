@@ -398,20 +398,19 @@ def recent_form(bat_df: pd.DataFrame, window: int = 10, min_pa: int = 15,
     return out
 
 
-def recent_relief_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
-                       window: int = 10, min_app: int = 5,
-                       min_recent_outs: int = 12, min_season_outs: int = 30) -> dict:
-    """최근 window등판 불펜 원자료(최근·시즌 합계)를 투수별로 반환.
+def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
+                      role: str = "relief", window: int = 10, min_app: int = 5,
+                      min_recent_outs: int = 12, min_season_outs: int = 30) -> dict:
+    """최근 window등판 투수 원자료(최근·시즌 합계)를 투수별로 반환.
 
-    선발 로테이션(rotation)은 제외 → 불펜만. 지표(ERA/RA9/WHIP)·Δ는 JS 토글.
-    (표본 작음: 한 번 대참사에 ERA 폭발 → '최근 폼'으로만. 최소 등판·이닝 필터)
+    role="relief" → 선발 로테이션 제외(불펜), "start" → 로테이션만(선발).
+    지표(ERA/RA9/WHIP)·Δ는 JS 토글. (표본 작음 → '최근 폼'으로만)
     반환: {window, minApp, players:[{pcode,name,team,recent{...},season{...}}]}
     """
     out = {"window": window, "minApp": min_app, "players": []}
     if box is None or box.empty:
         return out
-    starters = (set(rotation["pcode"]) if rotation is not None
-                and len(rotation) else set())
+    rot = (set(rotation["pcode"]) if rotation is not None and len(rotation) else set())
     df = box.copy()
     df["outs"] = df["inn"].map(_innings_to_outs)
 
@@ -421,7 +420,10 @@ def recent_relief_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
                 "bb": int(sub["bb"].sum()), "h": int(sub["hit"].sum())}
 
     for pcode, g in df.groupby("pcode"):
-        if not pcode or pcode in starters:
+        if not pcode:
+            continue
+        is_starter = pcode in rot
+        if (role == "start") != is_starter:   # 역할 불일치 제외
             continue
         g = g.sort_values("date")
         s = sums(g)
@@ -436,6 +438,44 @@ def recent_relief_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
         out["players"].append({
             "pcode": pcode, "name": last["name"], "team": last["team"],
             "recent": r, "season": s})
+    return out
+
+
+def hit_streaks(bat_df: pd.DataFrame, min_streak: int = 5, top: int = 15) -> dict:
+    """현재 진행 중인 연속 안타/출루 행진.
+
+    - 안타 행진: 최근 경기부터, '타수 있고 무안타'면 끊김. 타석 없는 경기(대주자 등)는 유지.
+    - 출루 행진: 최근부터, '타석 있고 안타·볼넷 모두 0'이면 끊김.
+    반환: {minStreak, hit:[{pcode,name,team,streak,last}], onbase:[...]}
+    """
+    out = {"minStreak": min_streak, "hit": [], "onbase": []}
+    if bat_df is None or bat_df.empty:
+        return out
+    for pcode, g in bat_df.groupby("pcode"):
+        if not pcode:
+            continue
+        recs = g.sort_values("date").to_dict("records")
+        hs = 0
+        for r in reversed(recs):
+            if r["hit"] >= 1:
+                hs += 1
+            elif r["ab"] > 0:
+                break
+        os_ = 0
+        for r in reversed(recs):
+            if r["hit"] + r["bb"] >= 1:
+                os_ += 1
+            elif r["ab"] + r["bb"] > 0:
+                break
+        last = recs[-1]
+        if hs >= min_streak:
+            out["hit"].append({"pcode": pcode, "name": last["name"],
+                               "team": last["team"], "streak": hs, "last": str(last["date"])})
+        if os_ >= min_streak:
+            out["onbase"].append({"pcode": pcode, "name": last["name"],
+                                  "team": last["team"], "streak": os_, "last": str(last["date"])})
+    out["hit"] = sorted(out["hit"], key=lambda x: -x["streak"])[:top]
+    out["onbase"] = sorted(out["onbase"], key=lambda x: -x["streak"])[:top]
     return out
 
 

@@ -64,11 +64,17 @@ def main() -> None:
     print(f"  → 최근 타격 폼 풀 {len(hotcold['players'])}명 "
           f"(최근 {hotcold['window']}경기, 최소 {hotcold['minPa']}타석)")
 
-    # 최근 폼(필승/방화 불펜) — 이미 모은 투수 박스로그(box) 재활용, 선발 제외
+    # 최근 폼(수호신/방화 불펜, 에이스/붕괴 선발) — 투수 박스로그(box) 재활용
     rotation = boxscore.identify_rotation(box)
-    bullpen_form = boxscore.recent_relief_form(box, rotation)
-    print(f"  → 최근 불펜 폼 풀 {len(bullpen_form['players'])}명 "
-          f"(최근 {bullpen_form['window']}등판, 최소 {bullpen_form['minApp']}등판)")
+    bullpen_form = boxscore.recent_pitch_form(box, rotation, role="relief")
+    starter_form = boxscore.recent_pitch_form(box, rotation, role="start",
+                                              min_recent_outs=45, min_season_outs=90)
+    print(f"  → 최근 투수 폼: 불펜 {len(bullpen_form['players'])}명 · "
+          f"선발 {len(starter_form['players'])}명")
+
+    # 연속 안타·출루 행진(현재 진행 중)
+    streaks = boxscore.hit_streaks(bat_log)
+    print(f"  → 진행 중 행진: 안타 {len(streaks['hit'])}명 · 출루 {len(streaks['onbase'])}명")
 
     stuff = kbostuff_client.fetch_pitching_metrics(args.season)
     location = kbostuff_client.summarize_location(stuff)
@@ -141,7 +147,8 @@ def main() -> None:
     latest_game = box["date"].max() if len(box) else None
     html = player_dashboard.save_player_dashboard(
         pitchers, batters, p_screens, b_screens, lg_era, latest_game,
-        hotcold=hotcold, bullpen_form=bullpen_form)
+        hotcold=hotcold, bullpen_form=bullpen_form, starter_form=starter_form,
+        streaks=streaks)
 
     print(f"\nCSV 저장 완료 → {p_csv}, {b_csv}")
     print(f"대시보드 저장 완료 → {html}")
