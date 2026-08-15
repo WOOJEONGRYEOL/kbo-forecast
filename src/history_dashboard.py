@@ -79,6 +79,46 @@ def _record_chase(bats, pits):
     return out
 
 
+def _field_svg() -> str:
+    """야구장 배경 SVG(잔디 부채꼴 줄무늬·내야 흙·베이스·마운드·파울라인)."""
+    import math
+    hx, hy = 50.0, 84.0
+    Lx, Ly, Rx, Ry = 7.0, 30.0, 93.0, 30.0
+    aL = math.atan2(Ly - hy, Lx - hx)
+    aR = math.atan2(Ry - hy, Rx - hx)
+    R = 82.0
+
+    def P(x, y):
+        return f"{x:.1f} {y:.1f}"
+
+    # 잔디 부채꼴 줄무늬(모잉 패턴)
+    wedges, N = [], 7
+    for i in range(N):
+        a1 = aL + (aR - aL) * i / N
+        a2 = aL + (aR - aL) * (i + 1) / N
+        x1, y1 = hx + R * math.cos(a1), hy + R * math.sin(a1)
+        x2, y2 = hx + R * math.cos(a2), hy + R * math.sin(a2)
+        col = "#2f7f3b" if i % 2 == 0 else "#37904a"
+        wedges.append(f'<path d="M{P(hx,hy)} L{P(x1,y1)} A{R:.0f} {R:.0f} 0 0 1 {P(x2,y2)} Z" fill="{col}"/>')
+    exL = (hx + R * math.cos(aL), hy + R * math.sin(aL))
+    exR = (hx + R * math.cos(aR), hy + R * math.sin(aR))
+    fence = f'<path d="M{P(*exL)} A{R:.0f} {R:.0f} 0 0 1 {P(*exR)}" fill="none" stroke="#eafff0" stroke-width="0.7" opacity=".7"/>'
+
+    home, b1, b2, b3 = (50, 82), (72, 58), (50, 34), (28, 58)
+    dirt = f'<path d="M{P(*home)} L{P(*b1)} L{P(*b2)} L{P(*b3)} Z" fill="#bb7b41"/>'
+    grass = '<path d="M50 75.5 L66.5 58 L50 40.5 L33.5 58 Z" fill="#2f7f3b"/>'
+    foul = (f'<line x1="{home[0]}" y1="{home[1]}" x2="{Lx}" y2="{Ly}" stroke="#fff" stroke-width="0.5" opacity=".85"/>'
+            f'<line x1="{home[0]}" y1="{home[1]}" x2="{Rx}" y2="{Ry}" stroke="#fff" stroke-width="0.5" opacity=".85"/>')
+    mound = '<circle cx="50" cy="58" r="3.4" fill="#bb7b41"/><rect x="49.5" y="57.4" width="1" height="1.2" fill="#fff"/>'
+
+    def base(c, s=2.4):
+        x, y = c
+        return f'<rect x="{x - s/2:.1f}" y="{y - s/2:.1f}" width="{s}" height="{s}" fill="#fff" transform="rotate(45 {x} {y})"/>'
+    bases = base(b1) + base(b2) + base(b3) + base(home, 2.0)
+    return ('<svg class="fieldbg" viewBox="0 0 100 92" preserveAspectRatio="none">'
+            + "".join(wedges) + fence + dirt + grass + foul + mound + bases + '</svg>')
+
+
 def save_history() -> Path:
     bats = _load("history_batters.csv")
     pits = _load("history_pitchers.csv")
@@ -111,6 +151,7 @@ def save_history() -> Path:
     }
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False,
                                                     separators=(",", ":")))
+    html = html.replace("__FIELD_SVG__", _field_svg())
     out = Path(config.DATA_DIR) / "history.html"
     out.write_text(html, encoding="utf-8")
     return out
@@ -193,10 +234,9 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .pagefoot { color:var(--muted); font-size:11.5px; line-height:1.7; text-align:center;
     margin:32px auto 8px; padding-top:16px; border-top:1px solid var(--line); max-width:720px; }
   .pagefoot b { color:#aab3c5; }
-  .field { position:relative; width:100%; max-width:660px; margin:8px auto 0; aspect-ratio:1 / 0.9;
-    background:radial-gradient(ellipse 92% 105% at 50% 84%, #2f7d3a, #245f2c 58%, #17431f); border-radius:14px; overflow:hidden; }
-  .field::before { content:""; position:absolute; left:50%; top:60%; width:46%; height:46%;
-    transform:translate(-50%,-50%) rotate(45deg); background:#b97b3a2e; border:2px solid #ffffff40; border-radius:4px; }
+  .field { position:relative; width:100%; max-width:680px; margin:8px auto 0; aspect-ratio:1 / 0.9;
+    background:#17431f; border-radius:14px; overflow:hidden; box-shadow:inset 0 0 40px #0006; }
+  .field .fieldbg { position:absolute; inset:0; width:100%; height:100%; }
   .chip { position:absolute; transform:translate(-50%,-50%); width:94px; text-align:center;
     background:#0e1117e8; border:1px solid #2a3345; border-left-width:3px; border-radius:9px; padding:4px 5px; box-shadow:0 2px 8px #0008; }
   .chip .pos { color:#3ecf8e; font-weight:800; font-size:10px; letter-spacing:.5px; }
@@ -243,7 +283,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
     <div class="seg" id="bestStat"><button class="on" data-s="war">WAR 기준</button><button data-s="wrc">타자 wRC+ 기준</button></div>
     <span style="color:var(--muted);font-size:12px">포지션별 최고 선수로 짠 시즌 베스트 라인업</span>
   </div>
-  <div id="diamond" class="field"></div>
+  <div id="diamond" class="field">__FIELD_SVG__<div id="lineup"></div></div>
   <p class="hint" style="margin-top:8px">각 포지션 <b>WAR 1위</b>(투수는 선발·불펜 각 1위). wRC+ 기준은 타자만(100타석 이상). 데이터: Statiz.</p>
 </div>
 
@@ -343,25 +383,56 @@ function _chip(x,y,pos,name,team,color,val){
     + `<div class="tm" style="color:${color}">${team}</div><div class="st">${val}</div></div>`;
 }
 function renderBest(){
-  const S=+el("bestSeason").value;
-  const bats=DATA.batters.filter(r=>r[B.season]===S);
-  const pits=DATA.pitchers.filter(r=>r[P.season]===S);
-  const top=(arr,key)=>arr.length?arr.reduce((a,b)=>b[key]>a[key]?b:a):null;
-  const chips=[];
-  ["C","1B","2B","3B","SS","LF","CF","RF","DH"].forEach(pos=>{
-    let cand=bats.filter(r=>r[B.pos]===pos);
-    if(bestStat==="wrc") cand=cand.filter(r=>r[B.pa]>=100);
-    const key=bestStat==="wrc"?B.wrc:B.war;
-    const r=top(cand,key); if(!r) return;
-    const [x,y]=BEST_SPOTS[pos];
-    const val=bestStat==="wrc"?`wRC+ ${Math.round(r[B.wrc])}`:`${r[B.war].toFixed(1)} WAR`;
-    chips.push(_chip(x,y,pos,r[B.name],r[B.team],r[B.color],val));
-  });
-  const sp=top(pits.filter(r=>r[P.role]==="선발"),P.war);
-  const rp=top(pits.filter(r=>r[P.role]==="불펜"),P.war);
-  if(sp){const[x,y]=BEST_SPOTS.SP; chips.push(_chip(x,y,"SP",sp[P.name],sp[P.team],sp[P.color],`${sp[P.war].toFixed(1)}WAR·${sp[P.era].toFixed(2)}`));}
-  if(rp){const[x,y]=BEST_SPOTS.RP; chips.push(_chip(x,y,"RP",rp[P.name],rp[P.team],rp[P.color],`${rp[P.war].toFixed(1)}WAR·${rp[P.sv]}S`));}
-  el("diamond").innerHTML=chips.join("");
+  const sel=el("bestSeason").value, career=(sel==="통산"), S=+sel;
+  const POS=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const wrc=(bestStat==="wrc");
+  const top=(arr,f)=>arr.length?arr.reduce((a,b)=>f(b)>f(a)?b:a):null;
+  const chips=[], bat={};
+  if(!career){
+    const b=DATA.batters.filter(r=>r[B.season]===S);
+    POS.forEach(pos=>{
+      let c=b.filter(r=>r[B.pos]===pos);
+      if(wrc) c=c.filter(r=>r[B.pa]>=100);
+      const r=top(c, x=> wrc?x[B.wrc]:x[B.war]); if(!r) return;
+      bat[pos]={name:r[B.name],team:r[B.team],color:r[B.color],
+        val: wrc?`wRC+ ${Math.round(r[B.wrc])}`:`${r[B.war].toFixed(1)} WAR`};
+    });
+  } else {
+    const agg={};   // pno|pos → 통산 합
+    DATA.batters.forEach(r=>{ const pos=r[B.pos]; if(!POS.includes(pos)) return;
+      const k=r[B.pno]+"|"+pos, a=agg[k]||(agg[k]={war:0,paw:0,pa:0});
+      a.war+=r[B.war]; a.pa+=r[B.pa]; a.paw+=r[B.wrc]*r[B.pa];
+      a.name=r[B.name]; a.team=r[B.team]; a.color=r[B.color]; });
+    POS.forEach(pos=>{
+      let c=Object.entries(agg).filter(([k])=>k.endsWith("|"+pos)).map(([,a])=>a);
+      if(wrc) c=c.filter(a=>a.pa>=3000);
+      const a=top(c, x=> wrc?x.paw/x.pa:x.war); if(!a) return;
+      bat[pos]={name:a.name,team:a.team,color:a.color,
+        val: wrc?`wRC+ ${Math.round(a.paw/a.pa)}`:`${a.war.toFixed(1)} WAR`};
+    });
+  }
+  POS.forEach(pos=>{ const r=bat[pos]; if(!r) return; const[x,y]=BEST_SPOTS[pos];
+    chips.push(_chip(x,y,pos,r.name,r.team,r.color,r.val)); });
+  // 투수
+  let sp,rp;
+  if(!career){
+    const p=DATA.pitchers.filter(r=>r[P.season]===S);
+    const s=top(p.filter(r=>r[P.role]==="선발"), x=>x[P.war]);
+    const l=top(p.filter(r=>r[P.role]==="불펜"), x=>x[P.war]);
+    if(s) sp={name:s[P.name],team:s[P.team],color:s[P.color],val:`${s[P.war].toFixed(1)}WAR·${s[P.era].toFixed(2)}`};
+    if(l) rp={name:l[P.name],team:l[P.team],color:l[P.color],val:`${l[P.war].toFixed(1)}WAR·${l[P.sv]}S`};
+  } else {
+    const agg={};
+    DATA.pitchers.forEach(r=>{ const k=r[P.pno]+"|"+r[P.role], a=agg[k]||(agg[k]={war:0,sv:0,role:r[P.role]});
+      a.war+=r[P.war]; a.sv+=r[P.sv]; a.name=r[P.name]; a.team=r[P.team]; a.color=r[P.color]; });
+    const byRole=role=>top(Object.values(agg).filter(a=>a.role===role), x=>x.war);
+    const s=byRole("선발"), l=byRole("불펜");
+    if(s) sp={name:s.name,team:s.team,color:s.color,val:`${s.war.toFixed(1)} WAR`};
+    if(l) rp={name:l.name,team:l.team,color:l.color,val:`${l.war.toFixed(1)}WAR·${l.sv}S`};
+  }
+  if(sp){const[x,y]=BEST_SPOTS.SP; chips.push(_chip(x,y,"SP",sp.name,sp.team,sp.color,sp.val));}
+  if(rp){const[x,y]=BEST_SPOTS.RP; chips.push(_chip(x,y,"RP",rp.name,rp.team,rp.color,rp.val));}
+  el("lineup").innerHTML=chips.join("");
 }
 
 // 컨트롤 채우기
@@ -372,7 +443,8 @@ function renderBest(){
     DATA.seasons.slice().reverse().map(y=>`<option value="${y}">${y}</option>`).join("");
   ss.onchange=()=>{season=ss.value; render();};
   // 베스트 라인업: 시즌 select + 지표 토글
-  el("bestSeason").innerHTML = DATA.seasons.slice().reverse().map(y=>`<option value="${y}">${y}</option>`).join("");
+  el("bestSeason").innerHTML = '<option value="통산">통산 (역대)</option>'
+    + DATA.seasons.slice().reverse().map(y=>`<option value="${y}">${y}</option>`).join("");
   el("bestSeason").onchange=renderBest;
   el("bestStat").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     bestStat=b.dataset.s; el("bestStat").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderBest();
