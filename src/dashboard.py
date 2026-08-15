@@ -661,12 +661,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
     margin: 32px auto 8px; padding-top: 16px; border-top: 1px solid var(--line); max-width: 720px; }
   .pagefoot b { color: #aab3c5; }
   /* 팀 스타일 지문 카드 */
-  .stbl { width: 100%; border-collapse: collapse; }
+  .stbl { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 600px; }
   .stbl th, .stbl td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   .stbl th { font-size: 11.5px; font-weight: 600; color: var(--muted); overflow: hidden; }
   .stbl th .pl { float: left; color: #4a90d9; }
   .stbl th .pr { float: right; color: #e8874a; }
-  .stbl td:not(.stm) { width: 30%; min-width: 130px; }
+  .stbl td:not(.stm), .stbl th:not(:first-child) { width: 17.2%; }   /* 게이지 5열 동일 폭 */
   .stbl .stm { white-space: nowrap; font-size: 13px; }
   .stbl .stm img { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
   /* 스타일 게이지 (자동차 계기판식 반원 다이얼 + 바늘) */

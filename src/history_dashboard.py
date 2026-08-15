@@ -63,18 +63,28 @@ def _record_chase(bats, pits):
             continue
         for k, label, dec in M:
             fmt = (lambda v: round(v, dec)) if dec else (lambda v: int(round(v)))
-            at_key = max(car, key=lambda key: car[key][k])       # 역대 1위
-            act = [(key, car[key][k]) for key in car if meta[key][0] == cur]
-            if not act:
+            order = sorted(car, key=lambda key: car[key][k], reverse=True)
+            at_key = order[0]                                     # 역대 1위
+            active_top = meta[at_key][0] == cur                  # 역대 1위가 현역? (경신 중)
+            if active_top:
+                # 경신 중이면 '현역 1위'가 곧 역대 1위 → 대신 통산 2위를 비교로.
+                sec_key = order[1] if len(order) > 1 else None
+                sec_label = "통산 2위"
+            else:
+                # 아직 안 깨진 기록이면 현역 1위(가장 근접한 현역)를 비교로.
+                act = [key for key in car if meta[key][0] == cur]
+                sec_key = max(act, key=lambda key: car[key][k]) if act else None
+                sec_label = "현역 1위"
+            if sec_key is None:
                 continue
-            act_key, act_val = max(act, key=lambda x: x[1])       # 현역 1위
             out.append({
                 "label": f"{label}({tag})" if k == "war" else label,
                 "atName": meta[at_key][1], "atVal": fmt(car[at_key][k]),
-                "actName": meta[act_key][1], "actTeam": meta[act_key][2],
-                "actColor": meta[act_key][3], "actVal": fmt(act_val),
-                "gap": fmt(car[at_key][k] - act_val), "dec": dec,
-                "activeIsTop": meta[at_key][0] == cur,   # 역대 1위가 현역이면 경신 중
+                "secLabel": sec_label,
+                "secName": meta[sec_key][1], "secTeam": meta[sec_key][2],
+                "secColor": meta[sec_key][3], "secVal": fmt(car[sec_key][k]),
+                "gap": fmt(car[at_key][k] - car[sec_key][k]), "dec": dec,
+                "activeIsTop": active_top,
             })
     return out
 
@@ -304,8 +314,8 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 
 <div class="card" id="recordCard" style="margin-top:14px">
   <h2>🏁 역대 기록 도전 <span style="color:var(--muted);font-weight:400;font-size:12px">— 역대 통산 1위 vs 현역 1위</span></h2>
-  <p class="hint">주요 통산 기록의 <b>역대 1위</b>와 <b>현역 1위</b>, 그리고 격차. <b>🔥 경신중</b>은 현역 선수가 역대 1위 기록을 지금도 늘리고 있다는 뜻. 데이터: Statiz.</p>
-  <div class="table-scroll"><table><thead><tr><th>기록</th><th>역대 1위</th><th>현역 1위</th><th>격차</th></tr></thead>
+  <p class="hint">주요 통산 기록의 <b>역대 1위</b>와 비교 대상, 격차. <b>🔥 경신중</b>(역대 1위가 현역)이면 비교 대상은 <b>통산 2위</b>, 아직 안 깨진 기록이면 <b>현역 1위</b>를 보여줍니다. 데이터: Statiz.</p>
+  <div class="table-scroll"><table><thead><tr><th>기록</th><th>역대 1위</th><th>비교</th><th>격차</th></tr></thead>
   <tbody id="tb_record"></tbody></table></div>
 </div>
 
@@ -968,13 +978,12 @@ function render(){
   const card = document.getElementById("recordCard");
   if(!rc.length){ if(card) card.style.display="none"; return; }
   document.getElementById("tb_record").innerHTML = rc.map(r=>{
-    const gap = r.activeIsTop
-      ? `<span style="color:#3ecf8e;font-weight:700">🔥 경신중</span>`
-      : `<b style="color:#ffb454">-${r.gap}</b>`;
-    const act = `<span style="color:${r.actColor};font-weight:600">${r.actName}</span> <b>${r.actVal}</b>`;
+    const badge = r.activeIsTop ? ` <span style="color:#3ecf8e;font-size:11px">🔥경신중</span>` : "";
+    const sec = `<span style="color:var(--muted);font-size:11px">${r.secLabel}</span> `
+      + `<span style="color:${r.secColor};font-weight:600">${r.secName}</span> <b>${r.secVal}</b>`;
     return `<tr><td><b>${r.label}</b></td>`
-      + `<td>${r.atName} <b>${r.atVal}</b></td>`
-      + `<td>${act}</td><td>${gap}</td></tr>`;
+      + `<td>${r.atName} <b>${r.atVal}</b>${badge}</td>`
+      + `<td>${sec}</td><td><b style="color:#ffb454">${r.gap}</b></td></tr>`;
   }).join("");
 })();
 </script>
