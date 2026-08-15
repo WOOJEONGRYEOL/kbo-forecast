@@ -344,56 +344,68 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         ' 행에 커서를 올리면 원자료가 보입니다.</p></div>')
 
 
-def _magic_numbers(sim_table, spots: int = 5):
-    """KBO 가을야구 컷(5위) 기준 매직/트래직 넘버(근사).
-    - 컷 이상: 매직 = 6위팀 최대가능승 − 현재승 + 1  (0이면 확정)
-    - 컷 미만: 트래직 = 5위팀 현재승 − (현재승 + 잔여) + 1  (0이면 탈락)
+def _magic_races(sim_table, spots: int = 5):
+    """의미 있는 두 경쟁만: 정규시즌 우승(1위 vs 2위)·가을야구 막차(5위 vs 6위).
+    매직넘버 = 앞선 팀이 확정하는 데 필요한 (자기 승 + 경쟁팀 패) 조합수.
     무승부·상대전적 타이브레이크는 무시한 근사치."""
     if sim_table is None or sim_table.empty:
-        return []
+        return None
     d = sim_table.copy()
     tot = (d["w"] + d["l"]).replace(0, pd.NA)
     d["wpct"] = (d["w"] / tot).fillna(0.0)
     d = d.sort_values("wpct", ascending=False)
     teams = list(d.index)
     W, L, REM = d["w"].astype(int), d["l"].astype(int), d["remaining"].astype(int)
-    fifth = teams[spots - 1] if len(teams) >= spots else teams[-1]
-    sixth = teams[spots] if len(teams) > spots else None
-    out = []
-    for i, t in enumerate(teams):
-        row = {"team": t, "rank": i + 1, "w": int(W[t]), "l": int(L[t]),
-               "rem": int(REM[t]), "p": float(d.loc[t, "p_playoff"])}
-        if i < spots:
-            m = (int(W[sixth] + REM[sixth]) - int(W[t]) + 1) if sixth is not None else 0
-            row["kind"], row["num"] = "magic", max(0, m)
-        else:
-            # 트래직 = 5위팀이 이 팀 위로 확정짓는 데 필요한 (5위 승 + 이 팀 패) 조합수.
-            # = (이 팀 최대가능승 − 5위 현재승) + 1. 0이면 이미 수학적 탈락.
-            row["kind"] = "tragic"
-            row["num"] = max(0, int(W[t]) + int(REM[t]) - int(W[fifth]) + 1)
-        out.append(row)
+
+    def gb(a, b):     # a(앞) 대비 b(뒤) 게임차
+        return ((int(W[a]) - int(W[b])) + (int(L[b]) - int(L[a]))) / 2
+
+    def race(a, b):   # a가 b보다 앞. a의 매직넘버.
+        return {"leader": a, "rival": b,
+                "magic": max(0, int(W[b] + REM[b]) - int(W[a]) + 1),
+                "gb": round(gb(a, b), 1),
+                "lw": int(W[a]), "ll": int(L[a])}
+
+    out = {}
+    if len(teams) >= 2:
+        out["champ"] = race(teams[0], teams[1])            # 정규시즌 우승
+    if len(teams) > spots:
+        out["playoff"] = race(teams[spots - 1], teams[spots])  # 가을야구 막차
     return out
 
 
-def _magic_rows(sim_table, logos) -> str:
-    rows = []
-    for r in _magic_numbers(sim_table):
-        name = config.TEAM_NAMES.get(r["team"], r["team"])
-        logo = logos.get(r["team"], "")
-        cut = TEAM_COLORS.get(r["team"], "#4a90d9")
-        if r["kind"] == "magic":
-            tag = ('<span class="pos">🎉 PO 확정</span>' if r["num"] == 0
-                   else f'<b style="color:#3ecf8e">매직 {r["num"]}</b>')
-        else:
-            tag = ('<span class="neg">❌ 탈락</span>' if r["num"] == 0
-                   else f'<b style="color:#e0555f">트래직 {r["num"]}</b>')
-        rows.append(
-            f'<tr><td>{r["rank"]}</td>'
-            f'<td style="border-left:3px solid {cut};padding-left:6px">'
-            f'<img src="{logo}" alt="" style="height:16px;vertical-align:-3px;margin-right:4px">{name}</td>'
-            f'<td>{r["w"]}-{r["l"]}</td><td>{r["rem"]}</td>'
-            f'<td>{r["p"] * 100:.1f}%</td><td>{tag}</td></tr>')
-    return "".join(rows)
+def _race_block(race, logos, title, sub_label, clinch_msg) -> str:
+    if not race:
+        return ""
+    name = config.TEAM_NAMES.get(race["leader"], race["leader"])
+    rival = config.TEAM_NAMES.get(race["rival"], race["rival"])
+    logo = logos.get(race["leader"], "")
+    cut = TEAM_COLORS.get(race["leader"], "#4a90d9")
+    if race["magic"] == 0:
+        num = f'<span class="pos" style="font-size:15px;font-weight:700">{clinch_msg} 🎉</span>'
+    else:
+        num = f'매직넘버 <b style="color:#3ecf8e;font-size:22px">{race["magic"]}</b>'
+    return (
+        f'<div style="padding:11px 13px;border-left:3px solid {cut};'
+        f'background:rgba(255,255,255,.03);border-radius:8px">'
+        f'<div style="color:var(--muted);font-size:12px;margin-bottom:3px">{title}</div>'
+        f'<div style="margin:2px 0">'
+        f'<img src="{logo}" alt="" style="height:18px;vertical-align:-4px;margin-right:5px">'
+        f'<b>{name}</b> <span style="color:var(--muted)">({race["lw"]}-{race["ll"]})</span> — {num}</div>'
+        f'<div style="color:var(--muted);font-size:12px">{sub_label} {rival} · {race["gb"]}경기 차</div></div>')
+
+
+def _magic_html(sim_table, logos) -> str:
+    races = _magic_races(sim_table)
+    if not races:
+        return ""
+    blocks = [
+        _race_block(races.get("champ"), logos, "🏆 정규시즌 우승 (1위 직행)",
+                    "2위", "정규시즌 우승 확정"),
+        _race_block(races.get("playoff"), logos, "🎟️ 가을야구 막차 (5위 컷)",
+                    "6위", "가을야구 확정"),
+    ]
+    return "".join(b for b in blocks if b)
 
 
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
@@ -449,7 +461,7 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
-    html = html.replace("__MAGIC_ROWS__", _magic_rows(sim_table, logos))
+    html = html.replace("__MAGIC_BODY__", _magic_html(sim_table, logos))
     html = html.replace("__STYLE_CARD__", _team_style_card(logos, order))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
@@ -736,14 +748,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
       잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
   </div>
 
-  <div class="card wide" id="magicCard">
-    <h2>🍂 가을야구 매직넘버 <span style="color:var(--muted);font-weight:400">— 5위 컷 기준(근사)</span></h2>
-    <p class="mc-note"><b>매직넘버</b> = 그만큼 이기거나(또는 6위팀이 지면) 가을야구 확정.
-      <b>트래직넘버</b> = 그만큼 지면 탈락 확정. 무승부·상대전적 타이브레이크는 무시한 근사치입니다.</p>
-    <div class="table-scroll"><table>
-      <thead><tr><th>순위</th><th>팀</th><th>승-패</th><th>잔여</th><th>가을 확률</th><th>매직/트래직</th></tr></thead>
-      <tbody>__MAGIC_ROWS__</tbody>
-    </table></div>
+  <div class="card" id="magicCard">
+    <h2>🍂 매직넘버 <span style="color:var(--muted);font-weight:400">— 우승·막차 두 갈래</span></h2>
+    <p class="mc-note"><b>매직넘버</b> = 그만큼 <b>이기거나(경쟁팀이 지면)</b> 확정. KBO에서 의미 있는 건
+      <b>정규시즌 1위(직행)</b>와 <b>5위(가을야구 막차)</b> 두 경쟁뿐이라 그것만 표시합니다.
+      무승부·상대전적 타이브레이크는 무시한 근사치.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">__MAGIC_BODY__</div>
   </div>
 
   <div class="card">
