@@ -186,11 +186,16 @@ def _load_statiz(season):
 
 
 def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
-                          latest_game=None):
+                          latest_game=None, hotcold=None):
     """선수 평가 대시보드를 data/players.html 로 저장합니다.
 
     latest_game : 반영된 최신 경기일(투수 박스스코어 기준). 자막에 표시.
+    hotcold     : boxscore.recent_form() 결과(물오른/식은 방망이). 없으면 카드 숨김.
     """
+    def hc_rec(r):
+        return {**r,
+                "teamName": config.TEAM_NAMES.get(r["team"], r["team"]),
+                "color": TEAM_COLORS.get(r["team"], "#888")}
 
     def pit_rec(r):
         return {
@@ -250,6 +255,11 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
         # Statiz WAR 스냅샷 (있을 때만; 없으면 빈 리스트 → 카드 자동 숨김)
         "statizBatters": statiz_bats,
         "relievers": relievers,
+        # 최근 폼(물오른/식은 방망이) — 없으면 빈 → 카드 자동 숨김
+        "hotcold": ({"window": hotcold["window"], "minPa": hotcold["minPa"],
+                     "hot": [hc_rec(r) for r in hotcold["hot"]],
+                     "cold": [hc_rec(r) for r in hotcold["cold"]]}
+                    if hotcold else {"window": 0, "minPa": 0, "hot": [], "cold": []}),
     }
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
@@ -500,6 +510,25 @@ _TEMPLATE = r"""<!DOCTYPE html>
       (PA≥100, 저표본 dWAR 노이즈 컷)</p>
     <div class="chart-box"><canvas id="warQuadChart"></canvas></div>
     <div class="pick"><div class="pick-info" id="pick_war_info"></div></div>
+  </div>
+
+  <div class="card wide" id="hotcoldCard">
+    <h2><span class="badge">🔥</span>물오른 방망이 · 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— 최근 <b id="hcWindow"></b>경기 OPS − 시즌 OPS (Δ)</span></h2>
+    <p class="hint"><b>최근 폼</b>입니다. 최근 등판 경기 OPS가 시즌 평균보다 얼마나 뜨거운지(Δ)로 줄 세웁니다.
+      표본이 작아 <b>운(BABIP)</b>이 많이 섞이니 '실력'이 아니라 <b>'요즘 감'</b>으로 보세요.
+      최소 <b id="hcMinPa"></b>타석(최근) · 시즌 80타석 이상 · OPS≈출루+장타 근사.</p>
+    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+      <div>
+        <h3 style="margin:0 0 6px;color:#ff7a45;font-size:14px">🔥 물오른 방망이 <span style="color:var(--muted);font-weight:400">— Δ 상위</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근OPS</th><th>시즌OPS</th><th>Δ</th><th>HR·타점</th></tr></thead>
+        <tbody id="tb_hot"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🧊 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— Δ 하위</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근OPS</th><th>시즌OPS</th><th>Δ</th><th>HR·타점</th></tr></thead>
+        <tbody id="tb_cold"></tbody></table></div>
+      </div>
+    </div>
   </div>
 
   <div class="card wide" id="bullpenCard">
@@ -1048,6 +1077,26 @@ if (!sbats.length) {
           : d.owar >= 2 ? "🏏 공격형" : d.dwar >= 0.5 ? "🧤 수비형" : "➖ 평범"}`
       + `<br><span style="color:var(--muted)">규율 ${tip("BB%")} ${d.bbpct} · ${tip("K%")} ${d.kpct} · ${tip("ISO")} ${d.iso} · 주루 도루 ${d.sb}(실패 ${d.cs}) · 병살 ${d.gdp}</span>`));
 }
+
+// ── 물오른/식은 방망이 (최근 폼, 네이버 박스스코어) ──
+(function hotColdBoard() {
+  const hc = DATA.hotcold || { hot: [], cold: [] };
+  const card = document.getElementById("hotcoldCard");
+  if (!hc.hot.length && !hc.cold.length) { if (card) card.style.display = "none"; return; }
+  const w = document.getElementById("hcWindow"); if (w) w.textContent = hc.window;
+  const mp = document.getElementById("hcMinPa"); if (mp) mp.textContent = hc.minPa;
+  const logo = t => DATA.logos[t]
+    ? `<img src="${DATA.logos[t]}" alt="" style="height:14px;vertical-align:-2px;margin-right:3px">` : "";
+  const dcol = d => d >= 0 ? "#ff7a45" : "#5aa9ff";
+  const row = r => `<tr><td>${logo(r.team)}${r.name}</td><td>${r.teamName}</td>`
+    + `<td style="color:var(--muted)">${r.games}G·${r.pa}타석</td>`
+    + `<td><b>${r.recentOps.toFixed(3)}</b></td>`
+    + `<td style="color:var(--muted)">${r.seasonOps.toFixed(3)}</td>`
+    + `<td style="color:${dcol(r.delta)};font-weight:600">${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(3)}</td>`
+    + `<td>${r.hr}·${r.rbi}</td></tr>`;
+  document.getElementById("tb_hot").innerHTML = hc.hot.map(row).join("");
+  document.getElementById("tb_cold").innerHTML = hc.cold.map(row).join("");
+})();
 
 // ── ⑥ 불펜 리더보드 (Statiz) ──
 (function bullpenBoard() {

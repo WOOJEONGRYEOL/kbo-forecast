@@ -53,6 +53,46 @@ def _cache_path(game_id: str) -> Path:
     return Path(config.DATA_DIR) / "box" / f"{game_id}.json"
 
 
+def _bat_cache_path(game_id: str) -> Path:
+    return Path(config.DATA_DIR) / "box_bat" / f"{game_id}.json"
+
+
+def _extract_batters(body: dict, game_id: str) -> list[dict]:
+    """record 응답에서 타자 경기기록(홈+원정)을 평평하게 뽑는다.
+    이닝별 결과(inn1..)에서 2·3루타를 세어 총루타(tb)까지 계산."""
+    record = (body.get("result") or {}).get("recordData")
+    if not record:
+        return []
+    game_info = record.get("gameInfo", {})
+    box = record.get("battersBoxscore", {})
+    rows = []
+    for side, team_key in (("home", "hCode"), ("away", "aCode")):
+        team = game_info.get(team_key, "")
+        for b in box.get(side, []) or []:
+            def iv(k):
+                try:
+                    return int(b.get(k, 0) or 0)
+                except (TypeError, ValueError):
+                    return 0
+            ab, hit, hr = iv("ab"), iv("hit"), iv("hr")
+            dbl = tpl = 0
+            for k, v in b.items():
+                if k.startswith("inn") and isinstance(v, str):
+                    if v == "2루타":
+                        dbl += 1
+                    elif v == "3루타":
+                        tpl += 1
+            singles = max(0, hit - dbl - tpl - hr)
+            tb = singles + 2 * dbl + 3 * tpl + 4 * hr
+            rows.append({
+                "game_id": game_id, "team": team,
+                "pcode": str(b.get("playerCode", "")), "name": b.get("name", ""),
+                "ab": ab, "hit": hit, "hr": hr, "bb": iv("bb"), "kk": iv("kk"),
+                "rbi": iv("rbi"), "run": iv("run"), "sb": iv("sb"), "tb": tb,
+            })
+    return rows
+
+
 def fetch_game_pitchers(game_id: str, session: requests.Session) -> list[dict]:
     """
     한 경기의 투수 기록(홈+원정)을 리스트로 반환합니다.
@@ -97,7 +137,27 @@ def fetch_game_pitchers(game_id: str, session: requests.Session) -> list[dict]:
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
     _cache_linescore_from_record(game_id, body)   # 같은 응답에서 이닝별 득점도 저장(추가 요청 X)
+    bat_cache = _bat_cache_path(game_id)          # 같은 응답에서 타자 기록도 저장(추가 요청 X)
+    if not bat_cache.exists():
+        bat_cache.parent.mkdir(parents=True, exist_ok=True)
+        bat_cache.write_text(json.dumps(_extract_batters(body, game_id),
+                                        ensure_ascii=False), encoding="utf-8")
     time.sleep(BOX_DELAY_SEC)  # 새로 받아온 경우에만 잠깐 쉬기
+    return rows
+
+
+def fetch_game_batters(game_id: str, session: requests.Session) -> list[dict]:
+    """한 경기의 타자 기록(홈+원정). 캐시 우선, 없으면 API에서 받아 저장."""
+    cache = _bat_cache_path(game_id)
+    if cache.exists():
+        return json.loads(cache.read_text(encoding="utf-8"))
+    resp = session.get(RECORD_URL.format(game_id=game_id),
+                       timeout=config.REQUEST_TIMEOUT_SEC)
+    resp.raise_for_status()
+    rows = _extract_batters(resp.json(), game_id)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    time.sleep(BOX_DELAY_SEC)
     return rows
 
 
@@ -277,6 +337,76 @@ def collect_season_pitching(games: list[dict]) -> pd.DataFrame:
     print(f"  → 박스스코어 {len(done)}경기 (신규 {new_fetch}, "
           f"캐시 {len(done) - new_fetch})")
     return pd.DataFrame(all_rows)
+
+
+def collect_season_batting(games: list[dict]) -> pd.DataFrame:
+    """완료 경기 전체의 타자 박스스코어를 '한 행 = 한 타자의 한 경기'로 모은다."""
+    session = requests.Session()
+    session.headers.update({"User-Agent": config.USER_AGENT,
+                            "Accept": "application/json"})
+    done = [g for g in games
+            if g.get("statusCode") == "RESULT" and not g.get("cancel")]
+    all_rows: list[dict] = []
+    new_fetch = 0
+    for i, g in enumerate(done):
+        cached = _bat_cache_path(g["gameId"]).exists()
+        rows = fetch_game_batters(g["gameId"], session)
+        for r in rows:
+            r["date"] = g["gameDate"]
+        all_rows.extend(rows)
+        if not cached:
+            new_fetch += 1
+            if new_fetch % 50 == 0:
+                print(f"    ... 타자 박스스코어 신규 수집 {new_fetch}경기 "
+                      f"(전체 {i + 1}/{len(done)})")
+    print(f"  → 타자 박스스코어 {len(done)}경기 (신규 {new_fetch}, "
+          f"캐시 {len(done) - new_fetch})")
+    return pd.DataFrame(all_rows)
+
+
+def recent_form(bat_df: pd.DataFrame, window: int = 10, min_pa: int = 15,
+                min_season_pa: int = 80, top: int = 15) -> dict:
+    """최근 window경기 타격 생산력(OPS)과 시즌 대비 Δ로 '물오름/식음' 순위.
+
+    - OBP ≈ (H+BB)/(AB+BB), SLG = TB/AB, OPS = OBP+SLG (HBP·SF 무시, 재미용 근사)
+    - 최근 표본은 운(BABIP)이 많이 섞이므로 '최근 폼'으로만 해석. 최소타석 필터 적용.
+    반환: {window, minPa, hot:[...Δ상위], cold:[...Δ하위]}
+    """
+    empty = {"window": window, "minPa": min_pa, "hot": [], "cold": []}
+    if bat_df is None or bat_df.empty:
+        return empty
+
+    def ops(sub):
+        ab = int(sub["ab"].sum()); bb = int(sub["bb"].sum())
+        hit = int(sub["hit"].sum()); tb = int(sub["tb"].sum())
+        pa = ab + bb
+        obp = (hit + bb) / pa if pa else 0.0
+        slg = tb / ab if ab else 0.0
+        return pa, obp + slg
+
+    recs = []
+    for pcode, g in bat_df.groupby("pcode"):
+        if not pcode:
+            continue
+        g = g.sort_values("date")
+        s_pa, s_ops = ops(g)
+        if s_pa < min_season_pa:
+            continue
+        recent = g.tail(window)
+        r_pa, r_ops = ops(recent)
+        if r_pa < min_pa:
+            continue
+        last = g.iloc[-1]
+        recs.append({
+            "pcode": pcode, "name": last["name"], "team": last["team"],
+            "games": int(recent["game_id"].nunique()), "pa": int(r_pa),
+            "recentOps": round(r_ops, 3), "seasonOps": round(s_ops, 3),
+            "delta": round(r_ops - s_ops, 3),
+            "hr": int(recent["hr"].sum()), "rbi": int(recent["rbi"].sum()),
+        })
+    hot = sorted(recs, key=lambda x: -x["delta"])[:top]
+    cold = sorted(recs, key=lambda x: x["delta"])[:top]
+    return {"window": window, "minPa": min_pa, "hot": hot, "cold": cold}
 
 
 def identify_rotation(box: pd.DataFrame, min_starts: int = 3) -> pd.DataFrame:
