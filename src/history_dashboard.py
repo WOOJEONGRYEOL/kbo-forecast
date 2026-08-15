@@ -193,6 +193,17 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .pagefoot { color:var(--muted); font-size:11.5px; line-height:1.7; text-align:center;
     margin:32px auto 8px; padding-top:16px; border-top:1px solid var(--line); max-width:720px; }
   .pagefoot b { color:#aab3c5; }
+  .field { position:relative; width:100%; max-width:660px; margin:8px auto 0; aspect-ratio:1 / 0.9;
+    background:radial-gradient(ellipse 92% 105% at 50% 84%, #2f7d3a, #245f2c 58%, #17431f); border-radius:14px; overflow:hidden; }
+  .field::before { content:""; position:absolute; left:50%; top:60%; width:46%; height:46%;
+    transform:translate(-50%,-50%) rotate(45deg); background:#b97b3a2e; border:2px solid #ffffff40; border-radius:4px; }
+  .chip { position:absolute; transform:translate(-50%,-50%); width:94px; text-align:center;
+    background:#0e1117e8; border:1px solid #2a3345; border-left-width:3px; border-radius:9px; padding:4px 5px; box-shadow:0 2px 8px #0008; }
+  .chip .pos { color:#3ecf8e; font-weight:800; font-size:10px; letter-spacing:.5px; }
+  .chip .nm { font-weight:700; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chip .tm { font-size:10px; font-weight:600; }
+  .chip .st { color:#ffd479; font-size:11px; font-weight:700; }
+  @media (max-width:560px){ .chip{width:70px;padding:3px 3px} .chip .nm{font-size:11px} .chip .st{font-size:10px} }
 </style></head><body><div class="wrap">
 <div class="nav">
   <a class="home" href="../index.html">🏠</a>
@@ -204,7 +215,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <div class="sub">1982~현재 전 시즌. 시즌·포지션별 순위와 통산 리더보드. 데이터: Statiz (WAR·wRC+ 등)</div>
 
 <div class="seg" id="view" style="margin-bottom:12px">
-  <button class="on" data-w="rank">📊 순위·선수</button><button data-w="trend">📈 리그 진화</button><button data-w="team">🏟️ 팀 전성기</button>
+  <button class="on" data-w="rank">📊 순위·선수</button><button data-w="trend">📈 리그 진화</button><button data-w="team">🏟️ 팀 전성기</button><button data-w="best">⚾ 베스트 라인업</button>
 </div>
 
 <div class="controls">
@@ -225,6 +236,16 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 </div>
 
 <div class="card" id="detailCard" style="display:none"></div>
+
+<div class="card" id="bestCard" style="display:none">
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+    <div><label>시즌</label><select id="bestSeason"></select></div>
+    <div class="seg" id="bestStat"><button class="on" data-s="war">WAR 기준</button><button data-s="wrc">타자 wRC+ 기준</button></div>
+    <span style="color:var(--muted);font-size:12px">포지션별 최고 선수로 짠 시즌 베스트 라인업</span>
+  </div>
+  <div id="diamond" class="field"></div>
+  <p class="hint" style="margin-top:8px">각 포지션 <b>WAR 1위</b>(투수는 선발·불펜 각 1위). wRC+ 기준은 타자만(100타석 이상). 데이터: Statiz.</p>
+</div>
 
 <div class="card" id="teamCard" style="display:none">
   <h2 style="margin:0 0 4px;font-size:16px">🏟️ 팀 역대 최강 시즌 <span style="color:var(--muted);font-weight:400;font-size:12px">— 팀-시즌 선수 WAR 총합</span></h2>
@@ -254,7 +275,7 @@ const DATA = __DATA__;
 const B = {season:0,pno:1,name:2,team:3,color:4,pos:5,war:6,owar:7,dwar:8,wrc:9,pa:10,hr:11,ops:12,sb:13,rbi:14,hit:15,run:16,iso:17,kpct:18,bbpct:19,sbrate:20,arch:21};
 const P = {season:0,pno:1,name:2,team:3,color:4,role:5,war:6,era:7,fip:8,ip:9,so:10,gs:11,sv:12,hd:13,win:14,k9:15,bb9:16,hr9:17,arch:18};
 let side="bat", season="통산", pos="전체", sortKey="war", sortDir=-1;
-let view="rank", metric="", archF="전체", minFilter=true;
+let view="rank", metric="", archF="전체", minFilter=true, bestStat="war";
 // 통산 비율지표(작은 표본이면 왜곡)엔 최소 표본 필터 적용
 const RATE_KEYS=new Set(["wrc","ops","era","fip"]);
 // ABS(자동 볼판정) 2024 전면도입 — 존 판정이 직접 좌우하는 지표에만 마커 표시.
@@ -313,6 +334,36 @@ const COUNT_PIT = ["so","win","sv","hd"];
 function el(id){return document.getElementById(id);}
 function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
 
+// ── 시즌 베스트 라인업 (다이아몬드) ──
+const BEST_SPOTS = {C:[50,84],"1B":[76,58],"2B":[63,45],"3B":[24,58],SS:[37,45],
+  LF:[24,24],CF:[50,13],RF:[76,24],DH:[13,86],SP:[50,56],RP:[87,86]};
+function _chip(x,y,pos,name,team,color,val){
+  return `<div class="chip" style="left:${x}%;top:${y}%;border-left-color:${color}">`
+    + `<div class="pos">${pos}</div><div class="nm">${name}</div>`
+    + `<div class="tm" style="color:${color}">${team}</div><div class="st">${val}</div></div>`;
+}
+function renderBest(){
+  const S=+el("bestSeason").value;
+  const bats=DATA.batters.filter(r=>r[B.season]===S);
+  const pits=DATA.pitchers.filter(r=>r[P.season]===S);
+  const top=(arr,key)=>arr.length?arr.reduce((a,b)=>b[key]>a[key]?b:a):null;
+  const chips=[];
+  ["C","1B","2B","3B","SS","LF","CF","RF","DH"].forEach(pos=>{
+    let cand=bats.filter(r=>r[B.pos]===pos);
+    if(bestStat==="wrc") cand=cand.filter(r=>r[B.pa]>=100);
+    const key=bestStat==="wrc"?B.wrc:B.war;
+    const r=top(cand,key); if(!r) return;
+    const [x,y]=BEST_SPOTS[pos];
+    const val=bestStat==="wrc"?`wRC+ ${Math.round(r[B.wrc])}`:`${r[B.war].toFixed(1)} WAR`;
+    chips.push(_chip(x,y,pos,r[B.name],r[B.team],r[B.color],val));
+  });
+  const sp=top(pits.filter(r=>r[P.role]==="선발"),P.war);
+  const rp=top(pits.filter(r=>r[P.role]==="불펜"),P.war);
+  if(sp){const[x,y]=BEST_SPOTS.SP; chips.push(_chip(x,y,"SP",sp[P.name],sp[P.team],sp[P.color],`${sp[P.war].toFixed(1)}WAR·${sp[P.era].toFixed(2)}`));}
+  if(rp){const[x,y]=BEST_SPOTS.RP; chips.push(_chip(x,y,"RP",rp[P.name],rp[P.team],rp[P.color],`${rp[P.war].toFixed(1)}WAR·${rp[P.sv]}S`));}
+  el("diamond").innerHTML=chips.join("");
+}
+
 // 컨트롤 채우기
 (function init(){
   const ss=el("season");
@@ -320,6 +371,12 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
     '<option value="역대">역대 단일시즌 TOP</option>'+
     DATA.seasons.slice().reverse().map(y=>`<option value="${y}">${y}</option>`).join("");
   ss.onchange=()=>{season=ss.value; render();};
+  // 베스트 라인업: 시즌 select + 지표 토글
+  el("bestSeason").innerHTML = DATA.seasons.slice().reverse().map(y=>`<option value="${y}">${y}</option>`).join("");
+  el("bestSeason").onchange=renderBest;
+  el("bestStat").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    bestStat=b.dataset.s; el("bestStat").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderBest();
+  });
   el("side").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     side=b.dataset.v; el("side").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
     pos="전체"; sortKey="war"; buildPos(); buildSort(); buildArch(); buildMetric();
@@ -327,15 +384,16 @@ function num(v,d){return (v==null||isNaN(v))?"-":(d!=null?v.toFixed(d):v);}
   });
   el("view").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     view=b.dataset.w; el("view").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
-    const trend=view==="trend", team=view==="team", rank=view==="rank";
-    el("side").style.display=team?"none":"";   // 팀 뷰는 타자·투수 통합 → 토글 숨김
+    const trend=view==="trend", team=view==="team", rank=view==="rank", best=view==="best";
+    el("side").style.display=(team||best)?"none":"";   // 팀·베스트 뷰는 타자·투수 통합 → 토글 숨김
     el("trendCard").style.display=trend?"block":"none";
     el("trendControls").style.display=trend?"block":"none";
     el("teamCard").style.display=team?"block":"none";
     el("rankControls").style.display=rank?"contents":"none";
     el("rankCard").style.display=rank?"block":"none";
     el("detailCard").style.display="none";
-    if(trend) renderTrend(); else if(team) renderTeam(); else render();
+    el("bestCard").style.display=best?"block":"none";
+    if(trend) renderTrend(); else if(team) renderTeam(); else if(best) renderBest(); else render();
   });
   el("minf").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     minFilter=b.dataset.m==="1";
