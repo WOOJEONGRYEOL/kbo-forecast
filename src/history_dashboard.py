@@ -32,6 +32,51 @@ def _load(name):
     return list(csv.DictReader(open(p, encoding="utf-8-sig")))
 
 
+def _milestones(bats, pits, top: int = 24):
+    """통산 누적이 다음 이정표에 임박한 선수. (career = pno별 시즌 합)"""
+    MB = {"hit": ("통산 안타", [1000, 1500, 2000, 2500, 3000], 40),
+          "hr":  ("통산 홈런", [100, 200, 300, 400, 500], 12),
+          "rbi": ("통산 타점", [500, 1000, 1500, 2000], 40),
+          "sb":  ("통산 도루", [100, 200, 300, 400, 500], 12),
+          "run": ("통산 득점", [500, 1000, 1500, 2000], 40)}
+    MP = {"win": ("통산 승", [50, 100, 150, 200], 8),
+          "sv":  ("통산 세이브", [100, 200, 300, 400], 12),
+          "so":  ("통산 탈삼진", [1000, 1500, 2000, 2500, 3000], 60)}
+
+    def agg(rows, stats):
+        car, meta = {}, {}
+        for r in rows:
+            key = r.get("pno") or r["name"]
+            c = car.setdefault(key, {k: 0 for k in stats})
+            for k in stats:
+                c[k] += int(float(r.get(k, 0) or 0))
+            s = int(r["season"])
+            if key not in meta or s >= meta[key][0]:
+                meta[key] = (s, r["name"], r["team"], r["color"])
+        return car, meta
+
+    # 현역만: 최신 시즌(=데이터 최대 연도)에 출전한 선수만. 은퇴 선수 제외.
+    cur = max([int(r["season"]) for r in bats] + [int(r["season"]) for r in pits],
+              default=0)
+    out = []
+    for rows, M in ((bats, MB), (pits, MP)):
+        car, meta = agg(rows, list(M.keys()))
+        for key, c in car.items():
+            if meta[key][0] != cur:      # 올 시즌 출전 안 하면 스킵(은퇴/이탈)
+                continue
+            for k, (label, marks, win) in M.items():
+                tot = c[k]
+                nxt = next((m for m in marks if m > tot), None)
+                if nxt is None or (nxt - tot) > win:
+                    continue
+                _, name, team, color = meta[key]
+                out.append({"name": name, "team": team, "color": color,
+                            "label": label, "career": tot, "mark": nxt,
+                            "remaining": nxt - tot})
+    out.sort(key=lambda x: x["remaining"])
+    return out[:top]
+
+
 def save_history() -> Path:
     bats = _load("history_batters.csv")
     pits = _load("history_pitchers.csv")
@@ -60,6 +105,7 @@ def save_history() -> Path:
         "legend": TEAM_LEGEND,
         "batters": [bnum(r) for r in bats],
         "pitchers": [pnum(r) for r in pits],
+        "milestones": _milestones(bats, pits),
     }
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False,
                                                     separators=(",", ":")))
@@ -157,6 +203,13 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 
 <div class="seg" id="view" style="margin-bottom:12px">
   <button class="on" data-w="rank">📊 순위·선수</button><button data-w="trend">📈 리그 진화</button><button data-w="team">🏟️ 팀 전성기</button>
+</div>
+
+<div class="card" id="milestoneCard" style="margin-bottom:14px">
+  <h2>🏁 통산 마일스톤 카운트다운 <span style="color:var(--muted);font-weight:400;font-size:12px">— 대기록 임박(현역)</span></h2>
+  <p class="hint">통산 누적이 다음 이정표(100·200·300홈런, 1000·2000안타, 50·100·200승 등)에 임박한 <b>현역</b> 선수. 데이터: Statiz(최근 갱신 기준).</p>
+  <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>기록</th><th>현재</th><th>목표</th><th>남음</th></tr></thead>
+  <tbody id="tb_milestone"></tbody></table></div>
 </div>
 
 <div class="controls">
@@ -776,6 +829,17 @@ function render(){
     pop.style.left=Math.max(8, Math.min(window.innerWidth-8-pop.offsetWidth, r.left+r.width/2-pop.offsetWidth/2))+'px';
     pop.style.top=(window.scrollY+r.bottom+6)+'px';
   }, true);
+})();
+// ── 통산 마일스톤 카운트다운 ──
+(function milestoneBoard(){
+  const ms = DATA.milestones || [];
+  const card = document.getElementById("milestoneCard");
+  if(!ms.length){ if(card) card.style.display="none"; return; }
+  document.getElementById("tb_milestone").innerHTML = ms.map(m=>
+    `<tr><td>${m.name}</td>`
+    + `<td><span style="color:${m.color};font-weight:600">${m.team}</span></td>`
+    + `<td>${m.label}</td><td>${m.career}</td><td>${m.mark}</td>`
+    + `<td><b style="color:#ffb454">${m.remaining}</b></td></tr>`).join("");
 })();
 </script>
 <footer class="pagefoot">
