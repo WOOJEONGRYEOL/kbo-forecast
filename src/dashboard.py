@@ -340,22 +340,22 @@ def _team_style_card(logos: dict, rank_order: list | None = None,
             h = home_away[code]
             t5 = (f'홈 {h["hw"]}-{h["hl"]} ({h["hwpct"]:.3f}) · '
                   f'원정 {h["aw"]}-{h["al"]} ({h["awpct"]:.3f})  (격차 {h["gap"]:+.3f})')
-            hacell = f'<td>{_style_gauge(ha_ax[i], t5)}</td>'
+            hacell = f'<td>{_style_gauge(-ha_ax[i], t5)}</td>'
         body.append(
             f'<tr><td class="stm"><span class="srk">{rk}</span>'
-            f'<img src="{logo}" alt="">{name}</td>'
+            f'<img src="{logo}" alt="">{name}</td>{pcell}'
             f'<td>{_style_gauge(ax1[i], t1)}</td>'
             f'<td>{_style_gauge(ax2[i], t2)}</td>'
-            f'<td>{_style_gauge(ax3[i], t3)}</td>{pcell}{hacell}</tr>')
+            f'<td>{_style_gauge(ax3[i], t3)}</td>{hacell}</tr>')
 
     phase_th = '<th class="pth">초 · 중 · 후반<br><span style="font-weight:400">경기당 득실</span></th>' if ph is not None else ''
     phase_note = (' ④ <b>초·중·후반</b>: 각 구간 경기당 득실 마진 — '
                   '<span style="color:#3ecf8e">초록↑=상대 압도</span>·'
                   '<span style="color:#e0555f">빨강↓=밀림</span>.'
                   if ph is not None else '')
-    ha_th = ('<th><span class="pl">원정형</span><span class="pr">안방형</span></th>'
+    ha_th = ('<th><span class="pl">안방형</span><span class="pr">원정형</span></th>'
              if ha_ax is not None else '')
-    ha_note = (' ⑤ <b>홈/원정</b>: 홈 승률 − 원정 승률 (오른쪽=안방 강, 왼쪽=원정 강).'
+    ha_note = (' ⑤ <b>홈/원정</b>: 홈 승률 − 원정 승률 (왼쪽=안방 강, 오른쪽=원정 강).'
                if ha_ax is not None else '')
     return (
         '<div class="card wide">'
@@ -366,10 +366,11 @@ def _team_style_card(logos: dict, rank_order: list | None = None,
         '각 열 위 양극 라벨 참고. <b>다이얼에 커서를 올리면</b> 그렇게 판정한 근거 수치가 뜹니다.</p>'
         '<div class="table-scroll"><table class="stbl"><thead><tr>'
         '<th>팀</th>'
+        + phase_th +
         '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
         '<th><span class="pl">불펜형</span><span class="pr">선발형</span></th>'
         '<th><span class="pl">수비로</span><span class="pr">공격으로</span></th>'
-        + phase_th + ha_th +
+        + ha_th +
         '</tr></thead><tbody>' + "".join(body) + '</tbody></table></div>'
         '<p class="hint" style="margin-top:8px">'
         '① <b>빅볼</b>=장타(ISO) vs <b>스몰볼</b>=기동력(도루+번트). '
