@@ -33,43 +33,47 @@ def _load(name):
 
 
 def _record_chase(bats, pits):
-    """역대 통산 1위 기록 vs 현역 1위 기록의 격차. (career = pno별 시즌 합)"""
-    MB = {"hit": "통산 안타", "hr": "통산 홈런", "rbi": "통산 타점",
-          "sb": "통산 도루", "run": "통산 득점"}
-    MP = {"win": "통산 승", "so": "통산 탈삼진", "sv": "통산 세이브"}
+    """역대 통산 1위 기록 vs 현역 1위 기록의 격차. (career = pno별 시즌 합)
+    각 지표: (컬럼, 라벨, 소수자릿수). WAR만 float(1자리), 나머지 카운팅(0)."""
+    MB = [("war", "통산 WAR", 1), ("hit", "통산 안타", 0), ("hr", "통산 홈런", 0),
+          ("rbi", "통산 타점", 0), ("run", "통산 득점", 0), ("sb", "통산 도루", 0),
+          ("pa", "통산 타석", 0)]
+    MP = [("war", "통산 WAR", 1), ("win", "통산 승", 0), ("so", "통산 탈삼진", 0),
+          ("sv", "통산 세이브", 0), ("hd", "통산 홀드", 0)]
     cur = max([int(r["season"]) for r in bats] + [int(r["season"]) for r in pits],
               default=0)
 
-    def agg(rows, stats):
+    def agg(rows, keys):
         car, meta = {}, {}
         for r in rows:
             key = r.get("pno") or r["name"]
-            c = car.setdefault(key, {k: 0 for k in stats})
-            for k in stats:
-                c[k] += int(float(r.get(k, 0) or 0))
+            c = car.setdefault(key, {k: 0.0 for k in keys})
+            for k in keys:
+                c[k] += float(r.get(k, 0) or 0)
             s = int(r["season"])
             if key not in meta or s >= meta[key][0]:
                 meta[key] = (s, r["name"], r["team"], r["color"])
         return car, meta
 
     out = []
-    for rows, M in ((bats, MB), (pits, MP)):
-        car, meta = agg(rows, list(M.keys()))
+    for rows, M, tag in ((bats, MB, "타자"), (pits, MP, "투수")):
+        keys = [k for k, _, _ in M]
+        car, meta = agg(rows, keys)
         if not car:
             continue
-        for k, label in M.items():
+        for k, label, dec in M:
+            fmt = (lambda v: round(v, dec)) if dec else (lambda v: int(round(v)))
             at_key = max(car, key=lambda key: car[key][k])       # 역대 1위
-            at_val = car[at_key][k]
             act = [(key, car[key][k]) for key in car if meta[key][0] == cur]
             if not act:
                 continue
             act_key, act_val = max(act, key=lambda x: x[1])       # 현역 1위
             out.append({
-                "label": label,
-                "atName": meta[at_key][1], "atVal": at_val,
+                "label": f"{label}({tag})" if k == "war" else label,
+                "atName": meta[at_key][1], "atVal": fmt(car[at_key][k]),
                 "actName": meta[act_key][1], "actTeam": meta[act_key][2],
-                "actColor": meta[act_key][3], "actVal": act_val,
-                "gap": at_val - act_val,
+                "actColor": meta[act_key][3], "actVal": fmt(act_val),
+                "gap": fmt(car[at_key][k] - act_val), "dec": dec,
                 "activeIsTop": meta[at_key][0] == cur,   # 역대 1위가 현역이면 경신 중
             })
     return out
