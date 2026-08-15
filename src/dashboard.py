@@ -422,23 +422,21 @@ def _race_labels(sim_table, spots: int = 5) -> dict:
     fifth = teams[spots - 1] if len(teams) >= spots else None
     sixth = teams[spots] if len(teams) > spots else None
 
-    def mg(ahead, behind):   # ahead의 매직 = behind의 트래직
+    def mg(ahead, behind):   # ahead의 매직 = behind의 트래직(같은 수)
         return max(0, int(W[behind] + REM[behind]) - int(W[ahead]) + 1)
 
+    # 의미 있는 두 경쟁만: 1·2위(우승), 5·6위(가을 막차). 나머지 팀은 표시 안 함.
     out = {}
-    for i, t in enumerate(teams):
-        if i == 0 and second is not None:               # 1위: 우승 매직
-            n = mg(first, second)
-            out[t] = {"kind": "우승", "label": "매직", "num": n,
-                      "need": max(0, n - int(REM[t]))}
-        elif i == 1:                                     # 2위: 우승 트래직
-            out[t] = {"kind": "우승", "label": "트래직", "num": mg(first, second), "need": 0}
-        elif i < spots and sixth is not None:            # 3~5위: 가을 매직
-            n = mg(t, sixth)
-            out[t] = {"kind": "가을", "label": "매직", "num": n,
-                      "need": max(0, n - int(REM[t]))}
-        elif fifth is not None:                          # 6위~: 가을 트래직
-            out[t] = {"kind": "가을", "label": "트래직", "num": mg(fifth, t), "need": 0}
+    if second is not None:
+        n = mg(first, second)
+        out[first] = {"kind": "우승", "label": "매직", "num": n,
+                      "need": max(0, n - int(REM[first]))}
+        out[second] = {"kind": "우승", "label": "트래직", "num": n, "need": 0}
+    if fifth is not None and sixth is not None:
+        n = mg(fifth, sixth)
+        out[fifth] = {"kind": "가을", "label": "매직", "num": n,
+                      "need": max(0, n - int(REM[fifth]))}
+        out[sixth] = {"kind": "가을", "label": "트래직", "num": n, "need": 0}
     return out
 
 
@@ -745,8 +743,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div class="card wide">
     <h2>팀별 진단표 <span style="color:var(--muted);font-weight:400">— 현재 순위 순</span></h2>
     <p class="hint">위에서부터 현재 시즌 순위. 괴리율 <span class="pos">+초록</span>=경기력 대비 불운(반등 후보),
-      <span class="neg">−빨강</span>=과실현(하락 경계). <b>매직/트래직</b>: 1·2위=우승 경쟁, 3~5위=가을 진출 매직,
-      6위~=가을 트래직(그만큼 더 지면 탈락). '자력X'=매직>잔여라 경쟁팀 패도 필요.</p>
+      <span class="neg">−빨강</span>=과실현(하락 경계). <b>매직/트래직</b>: 의미 있는 <b>1·2위(우승)</b>와
+      <b>5·6위(가을 막차)</b> 경쟁만 표시. 매직=그만큼 이기면 확정, 트래직=그만큼 더 지면 탈락(같은 수).
+      '자력X'=매직>잔여라 경쟁팀 패도 필요.</p>
     <div class="table-scroll">
     <table>
       <thead><tr>
