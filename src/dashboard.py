@@ -344,6 +344,58 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         ' 행에 커서를 올리면 원자료가 보입니다.</p></div>')
 
 
+def _magic_numbers(sim_table, spots: int = 5):
+    """KBO 가을야구 컷(5위) 기준 매직/트래직 넘버(근사).
+    - 컷 이상: 매직 = 6위팀 최대가능승 − 현재승 + 1  (0이면 확정)
+    - 컷 미만: 트래직 = 5위팀 현재승 − (현재승 + 잔여) + 1  (0이면 탈락)
+    무승부·상대전적 타이브레이크는 무시한 근사치."""
+    if sim_table is None or sim_table.empty:
+        return []
+    d = sim_table.copy()
+    tot = (d["w"] + d["l"]).replace(0, pd.NA)
+    d["wpct"] = (d["w"] / tot).fillna(0.0)
+    d = d.sort_values("wpct", ascending=False)
+    teams = list(d.index)
+    W, L, REM = d["w"].astype(int), d["l"].astype(int), d["remaining"].astype(int)
+    fifth = teams[spots - 1] if len(teams) >= spots else teams[-1]
+    sixth = teams[spots] if len(teams) > spots else None
+    out = []
+    for i, t in enumerate(teams):
+        row = {"team": t, "rank": i + 1, "w": int(W[t]), "l": int(L[t]),
+               "rem": int(REM[t]), "p": float(d.loc[t, "p_playoff"])}
+        if i < spots:
+            m = (int(W[sixth] + REM[sixth]) - int(W[t]) + 1) if sixth is not None else 0
+            row["kind"], row["num"] = "magic", max(0, m)
+        else:
+            # 트래직 = 5위팀이 이 팀 위로 확정짓는 데 필요한 (5위 승 + 이 팀 패) 조합수.
+            # = (이 팀 최대가능승 − 5위 현재승) + 1. 0이면 이미 수학적 탈락.
+            row["kind"] = "tragic"
+            row["num"] = max(0, int(W[t]) + int(REM[t]) - int(W[fifth]) + 1)
+        out.append(row)
+    return out
+
+
+def _magic_rows(sim_table, logos) -> str:
+    rows = []
+    for r in _magic_numbers(sim_table):
+        name = config.TEAM_NAMES.get(r["team"], r["team"])
+        logo = logos.get(r["team"], "")
+        cut = TEAM_COLORS.get(r["team"], "#4a90d9")
+        if r["kind"] == "magic":
+            tag = ('<span class="pos">🎉 PO 확정</span>' if r["num"] == 0
+                   else f'<b style="color:#3ecf8e">매직 {r["num"]}</b>')
+        else:
+            tag = ('<span class="neg">❌ 탈락</span>' if r["num"] == 0
+                   else f'<b style="color:#e0555f">트래직 {r["num"]}</b>')
+        rows.append(
+            f'<tr><td>{r["rank"]}</td>'
+            f'<td style="border-left:3px solid {cut};padding-left:6px">'
+            f'<img src="{logo}" alt="" style="height:16px;vertical-align:-3px;margin-right:4px">{name}</td>'
+            f'<td>{r["w"]}-{r["l"]}</td><td>{r["rem"]}</td>'
+            f'<td>{r["p"] * 100:.1f}%</td><td>{tag}</td></tr>')
+    return "".join(rows)
+
+
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
                    rotation_detail: dict | None = None,
                    standings: "pd.DataFrame | None" = None) -> Path:
@@ -397,6 +449,7 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
+    html = html.replace("__MAGIC_ROWS__", _magic_rows(sim_table, logos))
     html = html.replace("__STYLE_CARD__", _team_style_card(logos, order))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
@@ -681,6 +734,16 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <p class="hint" style="margin-top:8px">※ 예측력은 <b>시즌 초반일수록</b> 큽니다(운을 걷어내므로).
       중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
       잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
+  </div>
+
+  <div class="card wide" id="magicCard">
+    <h2>🍂 가을야구 매직넘버 <span style="color:var(--muted);font-weight:400">— 5위 컷 기준(근사)</span></h2>
+    <p class="mc-note"><b>매직넘버</b> = 그만큼 이기거나(또는 6위팀이 지면) 가을야구 확정.
+      <b>트래직넘버</b> = 그만큼 지면 탈락 확정. 무승부·상대전적 타이브레이크는 무시한 근사치입니다.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>순위</th><th>팀</th><th>승-패</th><th>잔여</th><th>가을 확률</th><th>매직/트래직</th></tr></thead>
+      <tbody>__MAGIC_ROWS__</tbody>
+    </table></div>
   </div>
 
   <div class="card">
