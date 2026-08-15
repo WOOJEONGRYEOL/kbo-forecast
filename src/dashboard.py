@@ -425,11 +425,11 @@ def _projection_card(proj, logos) -> str:
                   '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
                   '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'
                   f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
-                  f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·{c["spInn"]}이닝 '
-                  f'＋ 불펜 {c["bpAway"]}·{c["bpInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
+                  f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·평균 {c["spAwayInn"]}이닝 '
+                  f'＋ 불펜 {c["bpAway"]}·{c["bpAwayInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
                   f'원정 <b style="color:var(--text)">{g["erAway"]}</b> = 리그 {c["lg"]} × 원정공격 {c["oIdxAway"]}(RS/G {c["offAway"]}) '
-                  f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·{c["spInn"]}이닝 '
-                  f'＋ 불펜 {c["bpHome"]}·{c["bpInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
+                  f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·평균 {c["spHomeInn"]}이닝 '
+                  f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
                   '<span style="opacity:.8">지수=(팀값/리그−1)×0.85+1 수축 · 승률=로지스틱((홈−원정)/5.5)</span>'
                   '</div></details>')
         cards.append(

@@ -72,10 +72,12 @@ def _pitcher_stats(box):
     out = {}
     for pcode, g in df.groupby("pcode"):
         outs = int(g["outs"].sum()); r = int(g["r"].sum())
+        starts = g[g["outs"] >= 9]              # 3이닝+ 등판 = 선발 근사
         out[str(pcode)] = {
             "team": g.iloc[-1]["team"], "name": g.iloc[-1]["name"],
             "outs": outs, "r": r,
             "ra9": (r * 27 / outs) if outs else None,
+            "start_outs_avg": float(starts["outs"].mean()) if len(starts) >= 3 else None,
             "dates": set(str(d) for d in g["date"]),
         }
     return out
@@ -106,12 +108,19 @@ def available_bullpen(box, team, rotation, asof, lg_ra9):
 
 
 def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
-    """선발(SP_INN) + 불펜(BP_INN) 혼합 RA9. 반환 (혼합, 선발RA9, 선발기록여부)."""
+    """선발(평균 소화이닝) + 불펜(9−선발이닝) 혼합 RA9.
+    반환 (혼합, 선발RA9, 선발기록여부, 선발이닝)."""
     sp = ps.get(str(sp_pcode)) if sp_pcode else None
     known = bool(sp and sp["ra9"] and sp["outs"] >= 30)
     sp_ra9 = sp["ra9"] if known else lg_ra9
-    blended = (SP_INN * sp_ra9 + BP_INN * bp_ra9) / (SP_INN + BP_INN)
-    return blended, sp_ra9, known
+    # 선발별 평균 소화이닝 반영(있으면), 없으면 기본값. 3.5~7.0이닝으로 제한.
+    if sp and sp.get("start_outs_avg"):
+        sp_inn = max(3.5, min(7.0, sp["start_outs_avg"] / 3))
+    else:
+        sp_inn = SP_INN
+    bp_inn = 9 - sp_inn
+    blended = (sp_inn * sp_ra9 + bp_inn * bp_ra9) / 9
+    return blended, sp_ra9, known, round(sp_inn, 1)
 
 
 def project_games(games: list, box, ref_date: str = None) -> dict:
@@ -136,8 +145,8 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
         bpH, outH = available_bullpen(box, h, rotation, day, lg_ra9)
         bpA, outA = available_bullpen(box, a, rotation, day, lg_ra9)
         # 상대 이 경기 실점력(선발+가용불펜)
-        pitchH, spH_ra9, spH_known = _game_ra9(sp["home"][1], ps, bpH, lg_ra9)  # 홈 실점력
-        pitchA, spA_ra9, spA_known = _game_ra9(sp["away"][1], ps, bpA, lg_ra9)
+        pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9)
+        pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9)
         oH, oA = rsg.get(h, lg), rsg.get(a, lg)
         # 지수(리그평균=1.0)로 만들고 수축(회귀). 극단 팀을 평균 쪽으로 당김.
         def idx(v, base):
@@ -158,11 +167,13 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
             "winHome": round(pH * 100), "winAway": round((1 - pH) * 100),
             "bpOutHome": outH, "bpOutAway": outA,
             "calc": {
-                "lg": r2(lg), "spInn": SP_INN, "bpInn": BP_INN, "boost": HOME_BOOST,
+                "lg": r2(lg), "boost": HOME_BOOST,
                 "offHome": r2(oH), "offAway": r2(oA), "oIdxHome": r2(oH_i), "oIdxAway": r2(oA_i),
-                "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "bpHome": r2(bpH),
+                "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "spHomeInn": spH_inn,
+                "bpHome": r2(bpH), "bpHomeInn": r2(9 - spH_inn),
                 "pitchHome": r2(pitchH), "pIdxHome": r2(pH_i),
-                "spAwayRa9": r2(spA_ra9), "spAwayKnown": spA_known, "bpAway": r2(bpA),
+                "spAwayRa9": r2(spA_ra9), "spAwayKnown": spA_known, "spAwayInn": spA_inn,
+                "bpAway": r2(bpA), "bpAwayInn": r2(9 - spA_inn),
                 "pitchAway": r2(pitchA), "pIdxAway": r2(pA_i),
             },
         })
