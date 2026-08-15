@@ -479,6 +479,90 @@ def hit_streaks(bat_df: pd.DataFrame, min_streak: int = 5, top: int = 15) -> dic
     return out
 
 
+def _ops_tuple(sub):
+    ab = int(sub["ab"].sum()); bb = int(sub["bb"].sum())
+    hit = int(sub["hit"].sum()); tb = int(sub["tb"].sum())
+    pa = ab + bb
+    obp = (hit + bb) / pa if pa else 0.0
+    slg = tb / ab if ab else 0.0
+    avg = hit / ab if ab else 0.0
+    return pa, obp + slg, avg
+
+
+def monthly_leaders(bat_df: pd.DataFrame, box: pd.DataFrame,
+                    min_pa: int = 25, min_ip: int = 10, min_days: int = 5,
+                    top: int = 5) -> dict:
+    """이달의 선수: 월별 타자(OPS)·투수(ERA) 상위. 반환 {months, batters{m:[]}, pitchers{m:[]}}.
+
+    경기일수 min_days 미만인 달(개막주·폭염 취소 등)은 토글에서 제외.
+    (부분/현재 달은 표본이 작으니 재미용 참고로)
+    """
+    out = {"months": [], "batters": {}, "pitchers": {}}
+    if bat_df is None or bat_df.empty:
+        return out
+    bat = bat_df.copy(); bat["month"] = bat["date"].astype(str).str[:7]
+    days = bat.groupby("month")["date"].nunique()
+    months = sorted(m for m in bat["month"].unique() if m and days.get(m, 0) >= min_days)
+    out["months"] = list(months)
+    for m in months:
+        recs = []
+        for pc, g in bat[bat["month"] == m].groupby("pcode"):
+            if not pc:
+                continue
+            pa, ops, avg = _ops_tuple(g)
+            if pa < min_pa:
+                continue
+            last = g.iloc[-1]
+            recs.append({"name": last["name"], "team": last["team"],
+                         "ops": round(ops, 3), "avg": round(avg, 3),
+                         "hr": int(g["hr"].sum()), "rbi": int(g["rbi"].sum()), "pa": int(pa)})
+        out["batters"][m] = sorted(recs, key=lambda x: -x["ops"])[:top]
+    if box is not None and not box.empty:
+        pb = box.copy(); pb["month"] = pb["date"].astype(str).str[:7]
+        pb["outs"] = pb["inn"].map(_innings_to_outs)
+        for m in months:
+            recs = []
+            for pc, g in pb[pb["month"] == m].groupby("pcode"):
+                if not pc:
+                    continue
+                outs = int(g["outs"].sum())
+                if outs < min_ip * 3:
+                    continue
+                ip = outs / 3
+                recs.append({"name": g.iloc[-1]["name"], "team": g.iloc[-1]["team"],
+                             "era": round(int(g["er"].sum()) * 9 / ip, 2),
+                             "ip": round(ip, 1), "so": int(g["kk"].sum())})
+            out["pitchers"][m] = sorted(recs, key=lambda x: x["era"])[:top]
+    return out
+
+
+def home_away_splits(bat_df: pd.DataFrame, games: list, min_pa_side: int = 60,
+                     top: int = 12) -> dict:
+    """홈/원정 OPS 격차. 반환 {minPa, homeStrong:[격차 큰 순], awayStrong:[반대]}."""
+    out = {"minPa": min_pa_side, "homeStrong": [], "awayStrong": []}
+    if bat_df is None or bat_df.empty:
+        return out
+    home_of = {g["gameId"]: g.get("homeTeamCode") for g in games if g.get("gameId")}
+    df = bat_df.copy()
+    df["side"] = ["home" if home_of.get(gid) == tm else "away"
+                  for gid, tm in zip(df["game_id"], df["team"])]
+    recs = []
+    for pc, g in df.groupby("pcode"):
+        if not pc:
+            continue
+        hpa, ho, _ = _ops_tuple(g[g["side"] == "home"])
+        apa, ao, _ = _ops_tuple(g[g["side"] == "away"])
+        if hpa < min_pa_side or apa < min_pa_side:
+            continue
+        last = g.iloc[-1]
+        recs.append({"name": last["name"], "team": last["team"],
+                     "homeOps": round(ho, 3), "awayOps": round(ao, 3),
+                     "gap": round(ho - ao, 3), "hpa": int(hpa), "apa": int(apa)})
+    out["homeStrong"] = sorted(recs, key=lambda x: -x["gap"])[:top]
+    out["awayStrong"] = sorted(recs, key=lambda x: x["gap"])[:top]
+    return out
+
+
 def identify_rotation(box: pd.DataFrame, min_starts: int = 3) -> pd.DataFrame:
     """
     박스스코어에서 팀별 '선발 로테이션'을 식별합니다.

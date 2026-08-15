@@ -187,7 +187,7 @@ def _load_statiz(season):
 
 def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
                           latest_game=None, hotcold=None, bullpen_form=None,
-                          starter_form=None, streaks=None):
+                          starter_form=None, streaks=None, monthly=None, splits=None):
     """선수 평가 대시보드를 data/players.html 로 저장합니다.
 
     latest_game  : 반영된 최신 경기일(투수 박스스코어 기준). 자막에 표시.
@@ -273,6 +273,14 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
                      "hit": [hc_rec(r) for r in streaks["hit"]],
                      "onbase": [hc_rec(r) for r in streaks["onbase"]]}
                     if streaks else {"minStreak": 0, "hit": [], "onbase": []}),
+        "monthly": ({"months": monthly["months"],
+                     "batters": {m: [hc_rec(r) for r in v] for m, v in monthly["batters"].items()},
+                     "pitchers": {m: [hc_rec(r) for r in v] for m, v in monthly["pitchers"].items()}}
+                    if monthly else {"months": [], "batters": {}, "pitchers": {}}),
+        "splits": ({"minPa": splits["minPa"],
+                    "homeStrong": [hc_rec(r) for r in splits["homeStrong"]],
+                    "awayStrong": [hc_rec(r) for r in splits["awayStrong"]]}
+                   if splits else {"minPa": 0, "homeStrong": [], "awayStrong": []}),
     }
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
@@ -590,6 +598,41 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <div class="mseg" id="streakToggle"></div>
     <div class="table-scroll" style="margin-top:8px"><table><thead><tr><th>순위</th><th>선수</th><th>팀</th><th>행진</th><th>최근 경기</th></tr></thead>
     <tbody id="tb_streak"></tbody></table></div>
+  </div>
+
+  <div class="card wide" id="monthlyCard">
+    <h2><span class="badge">🗓️</span>이달의 선수 <span style="color:var(--muted);font-weight:400">— 월별 최고 타자·투수</span></h2>
+    <p class="hint">타자 <b>OPS</b>·투수 <b>ERA</b> 순. 부분/현재 달은 표본이 작으니 참고용(타자 25타석·투수 10이닝 이상).</p>
+    <div class="mseg" id="monthToggle"></div>
+    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
+      <div>
+        <h3 style="margin:0 0 6px;color:#ff7a45;font-size:14px">🏏 이달의 타자 <span style="color:var(--muted);font-weight:400">— OPS</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>#</th><th>선수</th><th>팀</th><th>OPS</th><th>타율</th><th>HR·타점</th><th>타석</th></tr></thead>
+        <tbody id="tb_moBat"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">⚾ 이달의 투수 <span style="color:var(--muted);font-weight:400">— ERA</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>#</th><th>선수</th><th>팀</th><th>ERA</th><th>이닝</th><th>탈삼진</th></tr></thead>
+        <tbody id="tb_moPit"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card wide" id="splitsCard">
+    <h2><span class="badge">🏟️</span>안방 호랑이 · 원정 강자 <span style="color:var(--muted);font-weight:400">— 홈/원정 OPS 격차</span></h2>
+    <p class="hint">홈·원정 각 <b id="splitMin"></b>타석 이상인 타자의 <b>홈 − 원정 OPS 격차</b> 순.</p>
+    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
+      <div>
+        <h3 style="margin:0 0 6px;color:#ff7a45;font-size:14px">🏟️ 안방 호랑이 <span style="color:var(--muted);font-weight:400">— 홈에서 강함</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>홈</th><th>원정</th><th>격차</th></tr></thead>
+        <tbody id="tb_homeStrong"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">✈️ 원정 강자 <span style="color:var(--muted);font-weight:400">— 원정에서 강함</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>홈</th><th>원정</th><th>격차</th></tr></thead>
+        <tbody id="tb_awayStrong"></tbody></table></div>
+      </div>
+    </div>
   </div>
 
   <div class="card wide" id="bullpenCard">
@@ -1234,6 +1277,50 @@ if (!sbats.length) {
   }
   seg.onclick = e => { const b = e.target.closest("button"); if (!b) return; key = b.dataset.k; draw(); };
   draw();
+})();
+
+// ── 이달의 선수 (월별 최고 타자·투수) ──
+(function monthlyBoard() {
+  const M = DATA.monthly || { months: [] };
+  const card = document.getElementById("monthlyCard");
+  if (!M.months || !M.months.length) { if (card) card.style.display = "none"; return; }
+  const LOGO = t => DATA.logos[t]
+    ? `<img src="${DATA.logos[t]}" alt="" style="height:14px;vertical-align:-2px;margin-right:3px">` : "";
+  const seg = document.getElementById("monthToggle");
+  let key = M.months[M.months.length - 1];   // 최신 달 기본
+  function draw() {
+    seg.innerHTML = M.months.map(m => {
+      const on = m === key, lab = m.slice(5) + "월";
+      return `<button data-k="${m}" style="padding:3px 11px;margin:0 6px 0 0;border-radius:6px;`
+        + `border:1px solid ${on ? '#3ecf8e' : '#2a3345'};background:${on ? '#173a2b' : 'transparent'};`
+        + `color:${on ? '#3ecf8e' : '#8a94a8'};font-size:12px;cursor:pointer">${lab}</button>`;
+    }).join("");
+    document.getElementById("tb_moBat").innerHTML = (M.batters[key] || []).map((r, i) =>
+      `<tr><td>${i + 1}</td><td>${LOGO(r.team)}${r.name}</td><td>${r.teamName}</td>`
+      + `<td><b>${r.ops.toFixed(3)}</b></td><td style="color:#8a94a8">${r.avg.toFixed(3)}</td>`
+      + `<td>${r.hr}·${r.rbi}</td><td style="color:#8a94a8">${r.pa}</td></tr>`).join("");
+    document.getElementById("tb_moPit").innerHTML = (M.pitchers[key] || []).map((r, i) =>
+      `<tr><td>${i + 1}</td><td>${LOGO(r.team)}${r.name}</td><td>${r.teamName}</td>`
+      + `<td><b>${r.era.toFixed(2)}</b></td><td style="color:#8a94a8">${r.ip.toFixed(1)}</td>`
+      + `<td>${r.so}</td></tr>`).join("");
+  }
+  seg.onclick = e => { const b = e.target.closest("button"); if (!b) return; key = b.dataset.k; draw(); };
+  draw();
+})();
+
+// ── 안방 호랑이 · 원정 강자 (홈/원정 OPS 격차) ──
+(function splitsBoard() {
+  const S = DATA.splits || { homeStrong: [], awayStrong: [] };
+  const card = document.getElementById("splitsCard");
+  if (!S.homeStrong.length && !S.awayStrong.length) { if (card) card.style.display = "none"; return; }
+  const mEl = document.getElementById("splitMin"); if (mEl) mEl.textContent = S.minPa;
+  const LOGO = t => DATA.logos[t]
+    ? `<img src="${DATA.logos[t]}" alt="" style="height:14px;vertical-align:-2px;margin-right:3px">` : "";
+  const row = r => `<tr><td>${LOGO(r.team)}${r.name}</td><td>${r.teamName}</td>`
+    + `<td><b>${r.homeOps.toFixed(3)}</b></td><td>${r.awayOps.toFixed(3)}</td>`
+    + `<td style="color:${r.gap >= 0 ? '#ff7a45' : '#5aa9ff'};font-weight:600">${r.gap >= 0 ? '+' : ''}${r.gap.toFixed(3)}</td></tr>`;
+  document.getElementById("tb_homeStrong").innerHTML = S.homeStrong.map(row).join("");
+  document.getElementById("tb_awayStrong").innerHTML = S.awayStrong.map(row).join("");
 })();
 
 // ── ⑥ 불펜 리더보드 (Statiz) ──

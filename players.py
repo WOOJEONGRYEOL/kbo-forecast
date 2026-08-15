@@ -76,6 +76,11 @@ def main() -> None:
     streaks = boxscore.hit_streaks(bat_log)
     print(f"  → 진행 중 행진: 안타 {len(streaks['hit'])}명 · 출루 {len(streaks['onbase'])}명")
 
+    # 이달의 선수 + 홈/원정 스플릿
+    monthly = boxscore.monthly_leaders(bat_log, box)
+    splits = boxscore.home_away_splits(bat_log, games)
+    print(f"  → 월간 리더 {len(monthly['months'])}개월 · 홈원정 스플릿 {len(splits['homeStrong'])}명")
+
     stuff = kbostuff_client.fetch_pitching_metrics(args.season)
     location = kbostuff_client.summarize_location(stuff)
     bat_metrics = kbostuff_client.fetch_batter_metrics(args.season)
@@ -148,7 +153,7 @@ def main() -> None:
     html = player_dashboard.save_player_dashboard(
         pitchers, batters, p_screens, b_screens, lg_era, latest_game,
         hotcold=hotcold, bullpen_form=bullpen_form, starter_form=starter_form,
-        streaks=streaks)
+        streaks=streaks, monthly=monthly, splits=splits)
 
     print(f"\nCSV 저장 완료 → {p_csv}, {b_csv}")
     print(f"대시보드 저장 완료 → {html}")
