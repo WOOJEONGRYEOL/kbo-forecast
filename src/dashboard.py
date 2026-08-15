@@ -105,12 +105,30 @@ def _tip(label: str, key: str) -> str:
     return f'<span class="tip" data-tip="{tip}">{label}</span>'
 
 
-def _table_rows(standings: pd.DataFrame, logos: dict) -> str:
+def _race_cell(info) -> str:
+    """매직/트래직 셀 HTML. info=None이면 빈칸."""
+    if not info:
+        return '<span style="color:var(--muted)">—</span>'
+    kind = info["kind"]
+    if info["num"] == 0:
+        txt = "우승 확정 🎉" if (kind == "우승" and info["label"] == "매직") \
+            else ("가을 확정 🎉" if info["label"] == "매직" else "탈락 ❌")
+        col = "#3ecf8e" if info["label"] == "매직" else "#e0555f"
+        return f'<span style="color:{col};font-weight:600;font-size:12px">{txt}</span>'
+    col = "#3ecf8e" if info["label"] == "매직" else "#e0555f"
+    need = (f'<br><span style="color:#ffb454;font-size:10px">자력X·상대 {info["need"]}패↑</span>'
+            if info["need"] > 0 else "")
+    return (f'<span style="font-size:12px;color:var(--muted)">{kind} {info["label"]}</span> '
+            f'<b style="color:{col}">{info["num"]}</b>{need}')
+
+
+def _table_rows(standings: pd.DataFrame, logos: dict, race_labels: dict = None) -> str:
     """
-    표 골격만 만듭니다 (현재 순위·로고·팀명·타선+·클러치는 고정).
+    표 골격만 만듭니다 (현재 순위·로고·팀명·타선+·클러치·매직트래직은 고정).
     윈도우에 따라 바뀌는 셀(최근성적/실제/기대/괴리/구위+/모멘텀/진단)은
     비워두고 JS가 실시간으로 채웁니다.
     """
+    race_labels = race_labels or {}
     rows = []
     for rank, (team, r) in enumerate(standings.iterrows(), start=1):
         name = config.TEAM_NAMES.get(team, team)
@@ -127,6 +145,7 @@ def _table_rows(standings: pd.DataFrame, logos: dict) -> str:
           <td>{r['bat_wrc_pure']:.1f}</td>
           <td>{fcb}</td>
           <td class="c-mom"></td>
+          <td style="white-space:nowrap">{_race_cell(race_labels.get(team))}</td>
           <td class="c-diag diag"></td>
         </tr>""")
     return "".join(rows)
@@ -344,90 +363,92 @@ def _team_style_card(logos: dict, rank_order: list | None = None) -> str:
         ' 행에 커서를 올리면 원자료가 보입니다.</p></div>')
 
 
-def _magic_races(sim_table, spots: int = 5):
-    """의미 있는 두 경쟁만: 정규시즌 우승(1위 vs 2위)·가을야구 막차(5위 vs 6위).
-    매직넘버 = 앞선 팀이 확정하는 데 필요한 (자기 승 + 경쟁팀 패) 조합수.
-    무승부·상대전적 타이브레이크는 무시한 근사치."""
+def team_home_away(games) -> dict:
+    """팀별 홈/원정 승-패·승률. 점수로 승패 판정(무승부는 승률 계산서 제외)."""
+    from collections import defaultdict
+    rec = defaultdict(lambda: {"hw": 0, "hl": 0, "aw": 0, "al": 0})
+    for g in games:
+        if g.get("statusCode") != "RESULT" or g.get("cancel"):
+            continue
+        h, a = g.get("homeTeamCode"), g.get("awayTeamCode")
+        hs, as_ = g.get("homeTeamScore"), g.get("awayTeamScore")
+        if h is None or a is None or hs is None or as_ is None:
+            continue
+        if hs > as_:
+            rec[h]["hw"] += 1; rec[a]["al"] += 1
+        elif hs < as_:
+            rec[h]["hl"] += 1; rec[a]["aw"] += 1
+        # 무승부(hs==as_)는 승률 계산 제외
+    out = {}
+    for t, r in rec.items():
+        hwpct = r["hw"] / (r["hw"] + r["hl"]) if (r["hw"] + r["hl"]) else 0.0
+        awpct = r["aw"] / (r["aw"] + r["al"]) if (r["aw"] + r["al"]) else 0.0
+        out[t] = {**r, "hwpct": round(hwpct, 3), "awpct": round(awpct, 3),
+                  "gap": round(hwpct - awpct, 3)}
+    return out
+
+
+def _team_ha_rows(team_ha, order, logos) -> str:
+    if not team_ha:
+        return ""
+    rows = []
+    for rank, t in enumerate(order, start=1):
+        r = team_ha.get(t)
+        if not r:
+            continue
+        name = config.TEAM_NAMES.get(t, t)
+        gcol = "#3ecf8e" if r["gap"] >= 0 else "#e0555f"
+        rows.append(
+            f'<tr><td class="rank">{rank}</td>'
+            f'<td class="team"><img class="logo" src="{logos.get(t, "")}" alt="">{name}</td>'
+            f'<td>{r["hw"]}-{r["hl"]}</td><td><b>{r["hwpct"]:.3f}</b></td>'
+            f'<td>{r["aw"]}-{r["al"]}</td><td><b>{r["awpct"]:.3f}</b></td>'
+            f'<td style="color:{gcol};font-weight:600">{r["gap"] :+.3f}</td></tr>')
+    return "".join(rows)
+
+
+def _race_labels(sim_table, spots: int = 5) -> dict:
+    """팀별 매직/트래직 라벨(진단표 열용). 의미 있는 경쟁 기준으로 팀마다 하나씩:
+      1위 = 우승 매직(2위 대비) · 2위 = 우승 트래직 · 3~5위 = 가을 매직(6위 대비)
+      · 6위~ = 가을 트래직(5위 대비). 매직=트래직 동일 사건(같은 수).
+    반환 {team: {"kind","label","num","need"}}  (num=0이면 확정/탈락)"""
     if sim_table is None or sim_table.empty:
-        return None
+        return {}
     d = sim_table.copy()
     tot = (d["w"] + d["l"]).replace(0, pd.NA)
     d["wpct"] = (d["w"] / tot).fillna(0.0)
     d = d.sort_values("wpct", ascending=False)
     teams = list(d.index)
-    W, L, REM = d["w"].astype(int), d["l"].astype(int), d["remaining"].astype(int)
+    W, REM = d["w"].astype(int), d["remaining"].astype(int)
+    first = teams[0]
+    second = teams[1] if len(teams) > 1 else None
+    fifth = teams[spots - 1] if len(teams) >= spots else None
+    sixth = teams[spots] if len(teams) > spots else None
 
-    def gb(a, b):     # a(앞) 대비 b(뒤) 게임차
-        return ((int(W[a]) - int(W[b])) + (int(L[b]) - int(L[a]))) / 2
-
-    def side(t):
-        return {"team": t, "w": int(W[t]), "l": int(L[t]), "rem": int(REM[t])}
-
-    def race(a, b):   # a가 b보다 앞. a의 매직넘버 = b의 트래직넘버(같은 수).
-        return {"leader": side(a), "rival": side(b),
-                "num": max(0, int(W[b] + REM[b]) - int(W[a]) + 1),
-                "gb": round(gb(a, b), 1)}
+    def mg(ahead, behind):   # ahead의 매직 = behind의 트래직
+        return max(0, int(W[behind] + REM[behind]) - int(W[ahead]) + 1)
 
     out = {}
-    if len(teams) >= 2:
-        out["champ"] = race(teams[0], teams[1])            # 정규시즌 우승
-    if len(teams) > spots:
-        out["playoff"] = race(teams[spots - 1], teams[spots])  # 가을야구 막차
+    for i, t in enumerate(teams):
+        if i == 0 and second is not None:               # 1위: 우승 매직
+            n = mg(first, second)
+            out[t] = {"kind": "우승", "label": "매직", "num": n,
+                      "need": max(0, n - int(REM[t]))}
+        elif i == 1:                                     # 2위: 우승 트래직
+            out[t] = {"kind": "우승", "label": "트래직", "num": mg(first, second), "need": 0}
+        elif i < spots and sixth is not None:            # 3~5위: 가을 매직
+            n = mg(t, sixth)
+            out[t] = {"kind": "가을", "label": "매직", "num": n,
+                      "need": max(0, n - int(REM[t]))}
+        elif fifth is not None:                          # 6위~: 가을 트래직
+            out[t] = {"kind": "가을", "label": "트래직", "num": mg(fifth, t), "need": 0}
     return out
-
-
-def _race_block(race, logos, title, lead_lab, rival_lab, clinch_msg) -> str:
-    if not race:
-        return ""
-
-    def team_row(t, label, is_leader):
-        name = config.TEAM_NAMES.get(t["team"], t["team"])
-        logo = logos.get(t["team"], "")
-        if race["num"] == 0:
-            val = (f'<span class="pos" style="font-weight:700">{clinch_msg} 🎉</span>'
-                   if is_leader else '<span class="neg" style="font-weight:700">탈락 ❌</span>')
-        else:
-            col = "#3ecf8e" if is_leader else "#e0555f"
-            val = f'{label} <b style="color:{col};font-size:17px">{race["num"]}</b>'
-        return (
-            f'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0">'
-            f'<span><img src="{logo}" alt="" style="height:16px;vertical-align:-3px;margin-right:4px">{name} '
-            f'<span style="color:var(--muted);font-size:12px">{t["w"]}-{t["l"]} · 잔여 {t["rem"]}</span></span>'
-            f'<span>{val}</span></div>')
-
-    cut = TEAM_COLORS.get(race["leader"]["team"], "#4a90d9")
-    # 매직넘버가 앞선 팀 잔여경기보다 크면 자력 확정 불가 → 경쟁팀의 패가 필요.
-    need = race["num"] - race["leader"]["rem"]
-    note = ""
-    if 0 < race["num"] and need > 0:
-        rival_name = config.TEAM_NAMES.get(race["rival"]["team"], race["rival"]["team"])
-        note = (f'<div style="color:#ffb454;font-size:11px;margin-top:3px">'
-                f'⚠️ 자력 확정 불가 · {rival_name} {need}패 이상 더 필요</div>')
-    return (
-        f'<div style="padding:11px 13px;border-left:3px solid {cut};'
-        f'background:rgba(255,255,255,.03);border-radius:8px">'
-        f'<div style="color:var(--muted);font-size:12px;margin-bottom:5px">{title} '
-        f'<span style="opacity:.7">· {race["gb"]}경기 차</span></div>'
-        f'{team_row(race["leader"], lead_lab, True)}'
-        f'{team_row(race["rival"], rival_lab, False)}{note}</div>')
-
-
-def _magic_html(sim_table, logos) -> str:
-    races = _magic_races(sim_table)
-    if not races:
-        return ""
-    blocks = [
-        _race_block(races.get("champ"), logos, "🏆 정규시즌 우승 (1위 직행)",
-                    "매직", "트래직", "우승 확정"),
-        _race_block(races.get("playoff"), logos, "🎟️ 가을야구 막차 (5위 컷)",
-                    "진출 매직", "진출 트래직", "가을야구 확정"),
-    ]
-    return "".join(b for b in blocks if b)
 
 
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
                    rotation_detail: dict | None = None,
-                   standings: "pd.DataFrame | None" = None) -> Path:
+                   standings: "pd.DataFrame | None" = None,
+                   team_splits: dict | None = None) -> Path:
     """
     대시보드 HTML을 data/dashboard.html 로 저장하고 경로를 돌려줍니다.
 
@@ -476,9 +497,9 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     latest_game = max((g[-1]["d"] for g in games.values() if g), default="-")
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
-    html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos))
+    html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos, _race_labels(sim_table)))
+    html = html.replace("__TEAM_HA_ROWS__", _team_ha_rows(team_splits, order, logos))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
-    html = html.replace("__MAGIC_BODY__", _magic_html(sim_table, logos))
     html = html.replace("__STYLE_CARD__", _team_style_card(logos, order))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
@@ -728,16 +749,27 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div class="card wide">
     <h2>팀별 진단표 <span style="color:var(--muted);font-weight:400">— 현재 순위 순</span></h2>
     <p class="hint">위에서부터 현재 시즌 순위. 괴리율 <span class="pos">+초록</span>=경기력 대비 불운(반등 후보),
-      <span class="neg">−빨강</span>=과실현(하락 경계)</p>
+      <span class="neg">−빨강</span>=과실현(하락 경계). <b>매직/트래직</b>: 1·2위=우승 경쟁, 3~5위=가을 진출 매직,
+      6위~=가을 트래직(그만큼 더 지면 탈락). '자력X'=매직>잔여라 경쟁팀 패도 필요.</p>
     <div class="table-scroll">
     <table>
       <thead><tr>
         <th>__H_RANK__</th><th>팀</th><th>__H_RECENT__</th><th>__H_ACTUAL__</th><th>__H_EXPECTED__</th>
-        <th>__H_GAP__</th><th>__H_STUFF__</th><th>__H_BAT__</th><th>__H_CLUTCH__</th><th>__H_MOM__</th><th style="text-align:left">__H_DIAG__</th>
+        <th>__H_GAP__</th><th>__H_STUFF__</th><th>__H_BAT__</th><th>__H_CLUTCH__</th><th>__H_MOM__</th><th>매직/트래직</th><th style="text-align:left">__H_DIAG__</th>
       </tr></thead>
       <tbody>__TABLE_ROWS__</tbody>
     </table>
     </div>
+  </div>
+
+  <div class="card wide" id="teamHaCard">
+    <h2>🏟️ 팀별 홈/원정 승률 <span style="color:var(--muted);font-weight:400">— 안방 강팀 vs 원정 강팀</span></h2>
+    <p class="hint">현재 순위 순. <b>격차 = 홈 승률 − 원정 승률.</b> <span class="pos">+초록</span>=홈에서 강함(안방 호랑이),
+      <span class="neg">−빨강</span>=원정에서 강함. 무승부는 승률 계산서 제외.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>순위</th><th>팀</th><th>홈 승-패</th><th>홈 승률</th><th>원정 승-패</th><th>원정 승률</th><th>격차</th></tr></thead>
+      <tbody>__TEAM_HA_ROWS__</tbody>
+    </table></div>
   </div>
 
   <div class="card wide" id="standingsSimCard">
@@ -763,14 +795,6 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <p class="hint" style="margin-top:8px">※ 예측력은 <b>시즌 초반일수록</b> 큽니다(운을 걷어내므로).
       중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
       잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
-  </div>
-
-  <div class="card" id="magicCard">
-    <h2>🍂 매직넘버 <span style="color:var(--muted);font-weight:400">— 우승·막차 두 갈래</span></h2>
-    <p class="mc-note"><b>매직넘버</b> = 앞선 팀이 그만큼 이기면 확정. <b>트래직넘버</b> = 뒤진 팀이 그만큼 더 지면
-      (경쟁팀이 다 이기는 최악의 경우) 탈락 확정. <b>둘은 같은 수</b>입니다 — '앞 팀 확정'과 '뒤 팀 탈락'이 같은 사건이라서요.
-      의미 있는 <b>1·2위(우승)</b>와 <b>5·6위(막차)</b> 경쟁만 표시. 무승부·상대전적은 무시한 근사치.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">__MAGIC_BODY__</div>
   </div>
 
   <div class="card">
