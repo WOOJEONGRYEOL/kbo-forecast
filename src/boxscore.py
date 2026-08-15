@@ -365,48 +365,78 @@ def collect_season_batting(games: list[dict]) -> pd.DataFrame:
 
 
 def recent_form(bat_df: pd.DataFrame, window: int = 10, min_pa: int = 15,
-                min_season_pa: int = 80, top: int = 15) -> dict:
-    """최근 window경기 타격 생산력(OPS)과 시즌 대비 Δ로 '물오름/식음' 순위.
+                min_season_pa: int = 80) -> dict:
+    """최근 window경기 타격 원자료(최근·시즌 합계)를 선수별로 반환.
 
-    - OBP ≈ (H+BB)/(AB+BB), SLG = TB/AB, OPS = OBP+SLG (HBP·SF 무시, 재미용 근사)
-    - 최근 표본은 운(BABIP)이 많이 섞이므로 '최근 폼'으로만 해석. 최소타석 필터 적용.
-    반환: {window, minPa, hot:[...Δ상위], cold:[...Δ하위]}
+    지표(OPS/타율/장타율)·Δ·랭킹은 대시보드(JS)에서 토글로 계산하도록,
+    여기서는 계산에 필요한 누적 합계만 심어준다.
+    (OPS≈출루+장타 근사, HBP·SF 무시. 최근 표본은 운이 섞이니 '최근 폼')
+    반환: {window, minPa, players:[{pcode,name,team,recent{...},season{...}}]}
     """
-    empty = {"window": window, "minPa": min_pa, "hot": [], "cold": []}
+    out = {"window": window, "minPa": min_pa, "players": []}
     if bat_df is None or bat_df.empty:
-        return empty
-
-    def ops(sub):
-        ab = int(sub["ab"].sum()); bb = int(sub["bb"].sum())
-        hit = int(sub["hit"].sum()); tb = int(sub["tb"].sum())
-        pa = ab + bb
-        obp = (hit + bb) / pa if pa else 0.0
-        slg = tb / ab if ab else 0.0
-        return pa, obp + slg
-
-    recs = []
+        return out
     for pcode, g in bat_df.groupby("pcode"):
         if not pcode:
             continue
         g = g.sort_values("date")
-        s_pa, s_ops = ops(g)
-        if s_pa < min_season_pa:
+        s = {k: int(g[k].sum()) for k in ("ab", "hit", "bb", "tb")}
+        if s["ab"] + s["bb"] < min_season_pa:
             continue
-        recent = g.tail(window)
-        r_pa, r_ops = ops(recent)
-        if r_pa < min_pa:
+        rg = g.tail(window)
+        r = {k: int(rg[k].sum()) for k in ("ab", "hit", "bb", "tb", "hr", "rbi")}
+        if r["ab"] + r["bb"] < min_pa:
             continue
         last = g.iloc[-1]
-        recs.append({
+        out["players"].append({
             "pcode": pcode, "name": last["name"], "team": last["team"],
-            "games": int(recent["game_id"].nunique()), "pa": int(r_pa),
-            "recentOps": round(r_ops, 3), "seasonOps": round(s_ops, 3),
-            "delta": round(r_ops - s_ops, 3),
-            "hr": int(recent["hr"].sum()), "rbi": int(recent["rbi"].sum()),
+            "recent": {"g": int(rg["game_id"].nunique()), "ab": r["ab"],
+                       "h": r["hit"], "bb": r["bb"], "tb": r["tb"],
+                       "hr": r["hr"], "rbi": r["rbi"]},
+            "season": {"ab": s["ab"], "h": s["hit"], "bb": s["bb"], "tb": s["tb"]},
         })
-    hot = sorted(recs, key=lambda x: -x["delta"])[:top]
-    cold = sorted(recs, key=lambda x: x["delta"])[:top]
-    return {"window": window, "minPa": min_pa, "hot": hot, "cold": cold}
+    return out
+
+
+def recent_relief_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
+                       window: int = 10, min_app: int = 5,
+                       min_recent_outs: int = 12, min_season_outs: int = 30) -> dict:
+    """최근 window등판 불펜 원자료(최근·시즌 합계)를 투수별로 반환.
+
+    선발 로테이션(rotation)은 제외 → 불펜만. 지표(ERA/RA9/WHIP)·Δ는 JS 토글.
+    (표본 작음: 한 번 대참사에 ERA 폭발 → '최근 폼'으로만. 최소 등판·이닝 필터)
+    반환: {window, minApp, players:[{pcode,name,team,recent{...},season{...}}]}
+    """
+    out = {"window": window, "minApp": min_app, "players": []}
+    if box is None or box.empty:
+        return out
+    starters = (set(rotation["pcode"]) if rotation is not None
+                and len(rotation) else set())
+    df = box.copy()
+    df["outs"] = df["inn"].map(_innings_to_outs)
+
+    def sums(sub):
+        return {"outs": int(sub["outs"].sum()), "er": int(sub["er"].sum()),
+                "r": int(sub["r"].sum()), "so": int(sub["kk"].sum()),
+                "bb": int(sub["bb"].sum()), "h": int(sub["hit"].sum())}
+
+    for pcode, g in df.groupby("pcode"):
+        if not pcode or pcode in starters:
+            continue
+        g = g.sort_values("date")
+        s = sums(g)
+        if len(g) < min_app or s["outs"] < min_season_outs:
+            continue
+        rg = g.tail(window)
+        r = sums(rg)
+        if len(rg) < min_app or r["outs"] < min_recent_outs:
+            continue
+        r["g"] = int(len(rg))
+        last = g.iloc[-1]
+        out["players"].append({
+            "pcode": pcode, "name": last["name"], "team": last["team"],
+            "recent": r, "season": s})
+    return out
 
 
 def identify_rotation(box: pd.DataFrame, min_starts: int = 3) -> pd.DataFrame:

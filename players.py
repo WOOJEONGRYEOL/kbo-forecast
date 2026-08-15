@@ -61,8 +61,14 @@ def main() -> None:
     # 최근 폼(물오른/식은 방망이) — 같은 박스스코어 응답의 타자 기록 재활용
     bat_log = boxscore.collect_season_batting(games)
     hotcold = boxscore.recent_form(bat_log)
-    print(f"  → 최근 폼: 물오름 {len(hotcold['hot'])}명 · 식음 {len(hotcold['cold'])}명 "
+    print(f"  → 최근 타격 폼 풀 {len(hotcold['players'])}명 "
           f"(최근 {hotcold['window']}경기, 최소 {hotcold['minPa']}타석)")
+
+    # 최근 폼(필승/방화 불펜) — 이미 모은 투수 박스로그(box) 재활용, 선발 제외
+    rotation = boxscore.identify_rotation(box)
+    bullpen_form = boxscore.recent_relief_form(box, rotation)
+    print(f"  → 최근 불펜 폼 풀 {len(bullpen_form['players'])}명 "
+          f"(최근 {bullpen_form['window']}등판, 최소 {bullpen_form['minApp']}등판)")
 
     stuff = kbostuff_client.fetch_pitching_metrics(args.season)
     location = kbostuff_client.summarize_location(stuff)
@@ -135,7 +141,7 @@ def main() -> None:
     latest_game = box["date"].max() if len(box) else None
     html = player_dashboard.save_player_dashboard(
         pitchers, batters, p_screens, b_screens, lg_era, latest_game,
-        hotcold=hotcold)
+        hotcold=hotcold, bullpen_form=bullpen_form)
 
     print(f"\nCSV 저장 완료 → {p_csv}, {b_csv}")
     print(f"대시보드 저장 완료 → {html}")

@@ -186,11 +186,12 @@ def _load_statiz(season):
 
 
 def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
-                          latest_game=None, hotcold=None):
+                          latest_game=None, hotcold=None, bullpen_form=None):
     """선수 평가 대시보드를 data/players.html 로 저장합니다.
 
-    latest_game : 반영된 최신 경기일(투수 박스스코어 기준). 자막에 표시.
-    hotcold     : boxscore.recent_form() 결과(물오른/식은 방망이). 없으면 카드 숨김.
+    latest_game  : 반영된 최신 경기일(투수 박스스코어 기준). 자막에 표시.
+    hotcold      : boxscore.recent_form() 결과(물오른/식은 방망이). 없으면 카드 숨김.
+    bullpen_form : boxscore.recent_relief_form() 결과(필승/방화 불펜). 없으면 숨김.
     """
     def hc_rec(r):
         return {**r,
@@ -255,11 +256,13 @@ def save_player_dashboard(pitchers, batters, p_screens, b_screens, lg_era,
         # Statiz WAR 스냅샷 (있을 때만; 없으면 빈 리스트 → 카드 자동 숨김)
         "statizBatters": statiz_bats,
         "relievers": relievers,
-        # 최근 폼(물오른/식은 방망이) — 없으면 빈 → 카드 자동 숨김
+        # 최근 폼(원자료 풀; 지표·Δ·랭킹은 JS 토글) — 없으면 빈 → 카드 자동 숨김
         "hotcold": ({"window": hotcold["window"], "minPa": hotcold["minPa"],
-                     "hot": [hc_rec(r) for r in hotcold["hot"]],
-                     "cold": [hc_rec(r) for r in hotcold["cold"]]}
-                    if hotcold else {"window": 0, "minPa": 0, "hot": [], "cold": []}),
+                     "players": [hc_rec(r) for r in hotcold["players"]]}
+                    if hotcold else {"window": 0, "minPa": 0, "players": []}),
+        "bullpenForm": ({"window": bullpen_form["window"], "minApp": bullpen_form["minApp"],
+                         "players": [hc_rec(r) for r in bullpen_form["players"]]}
+                        if bullpen_form else {"window": 0, "minApp": 0, "players": []}),
     }
 
     html = _TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
@@ -513,20 +516,41 @@ _TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <div class="card wide" id="hotcoldCard">
-    <h2><span class="badge">🔥</span>물오른 방망이 · 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— 최근 <b id="hcWindow"></b>경기 OPS − 시즌 OPS (Δ)</span></h2>
-    <p class="hint"><b>최근 폼</b>입니다. 최근 등판 경기 OPS가 시즌 평균보다 얼마나 뜨거운지(Δ)로 줄 세웁니다.
+    <h2><span class="badge">🔥</span>물오른 방망이 · 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— 최근 <b id="hcWindow"></b>경기, 평소 대비(Δ)</span></h2>
+    <p class="hint"><b>최근 폼</b>입니다. 선택 지표의 최근 값이 시즌 평균보다 얼마나 뜨거운지(Δ)로 줄 세웁니다.
       표본이 작아 <b>운(BABIP)</b>이 많이 섞이니 '실력'이 아니라 <b>'요즘 감'</b>으로 보세요.
-      최소 <b id="hcMinPa"></b>타석(최근) · 시즌 80타석 이상 · OPS≈출루+장타 근사.</p>
-    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+      최소 <b id="hcMinPa"></b>타석(최근) · 시즌 80타석 이상.</p>
+    <div class="mseg" id="hcMetric"></div>
+    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
       <div>
         <h3 style="margin:0 0 6px;color:#ff7a45;font-size:14px">🔥 물오른 방망이 <span style="color:var(--muted);font-weight:400">— Δ 상위</span></h3>
-        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근OPS</th><th>시즌OPS</th><th>Δ</th><th>HR·타점</th></tr></thead>
-        <tbody id="tb_hot"></tbody></table></div>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
+        <tbody id="tb_hcHot"></tbody></table></div>
       </div>
       <div>
         <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🧊 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— Δ 하위</span></h3>
-        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근OPS</th><th>시즌OPS</th><th>Δ</th><th>HR·타점</th></tr></thead>
-        <tbody id="tb_cold"></tbody></table></div>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
+        <tbody id="tb_hcCold"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card wide" id="bullpenFormCard">
+    <h2><span class="badge">🔥</span>필승 계투 · 방화범 <span style="color:var(--muted);font-weight:400">— 최근 <b id="bpWindow"></b>등판, 평소 대비(Δ)</span></h2>
+    <p class="hint"><b>최근 폼</b>(불펜만, 선발 제외). 선택 지표가 시즌 평균보다 좋아졌으면 필승, 나빠졌으면 방화 쪽입니다.
+      세이브 상황·승계주자 데이터가 없어 <b>진짜 레버리지가 아니라 '최근 실점 억제'</b> 근사이고,
+      불펜은 표본이 더 작아 <b>한 경기에 요동</b>칩니다. 최소 <b id="bpMinApp"></b>등판·최근 4이닝 이상.</p>
+    <div class="mseg" id="bpMetric"></div>
+    <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
+      <div>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🛡️ 필승 계투 <span style="color:var(--muted);font-weight:400">— 최근 좋아짐</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
+        <tbody id="tb_bpHot"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 6px;color:#ff5a5a;font-size:14px">🔥 방화범 <span style="color:var(--muted);font-weight:400">— 최근 나빠짐</span></h3>
+        <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
+        <tbody id="tb_bpCold"></tbody></table></div>
       </div>
     </div>
   </div>
@@ -1078,24 +1102,69 @@ if (!sbats.length) {
       + `<br><span style="color:var(--muted)">규율 ${tip("BB%")} ${d.bbpct} · ${tip("K%")} ${d.kpct} · ${tip("ISO")} ${d.iso} · 주루 도루 ${d.sb}(실패 ${d.cs}) · 병살 ${d.gdp}</span>`));
 }
 
-// ── 물오른/식은 방망이 (최근 폼, 네이버 박스스코어) ──
-(function hotColdBoard() {
-  const hc = DATA.hotcold || { hot: [], cold: [] };
-  const card = document.getElementById("hotcoldCard");
-  if (!hc.hot.length && !hc.cold.length) { if (card) card.style.display = "none"; return; }
-  const w = document.getElementById("hcWindow"); if (w) w.textContent = hc.window;
-  const mp = document.getElementById("hcMinPa"); if (mp) mp.textContent = hc.minPa;
-  const logo = t => DATA.logos[t]
+// ── 최근 폼 리더보드(지표 토글): 물오른/식은 방망이 · 필승/방화 불펜 ──
+(function recentFormBoards() {
+  const TOP = 15;
+  const LOGO = t => DATA.logos[t]
     ? `<img src="${DATA.logos[t]}" alt="" style="height:14px;vertical-align:-2px;margin-right:3px">` : "";
-  const dcol = d => d >= 0 ? "#ff7a45" : "#5aa9ff";
-  const row = r => `<tr><td>${logo(r.team)}${r.name}</td><td>${r.teamName}</td>`
-    + `<td style="color:var(--muted)">${r.games}G·${r.pa}타석</td>`
-    + `<td><b>${r.recentOps.toFixed(3)}</b></td>`
-    + `<td style="color:var(--muted)">${r.seasonOps.toFixed(3)}</td>`
-    + `<td style="color:${dcol(r.delta)};font-weight:600">${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(3)}</td>`
-    + `<td>${r.hr}·${r.rbi}</td></tr>`;
-  document.getElementById("tb_hot").innerHTML = hc.hot.map(row).join("");
-  document.getElementById("tb_cold").innerHTML = hc.cold.map(row).join("");
+  // 지표 정의: low=true면 낮을수록 좋음(ERA 등). calc(합계객체)→값.
+  const BAT = {
+    ops: { label: "OPS", dec: 3, low: false, calc: s => { const pa = s.ab + s.bb; const obp = pa ? (s.h + s.bb) / pa : 0; return obp + (s.ab ? s.tb / s.ab : 0); } },
+    avg: { label: "타율", dec: 3, low: false, calc: s => s.ab ? s.h / s.ab : 0 },
+    slg: { label: "장타율", dec: 3, low: false, calc: s => s.ab ? s.tb / s.ab : 0 },
+  };
+  const PIT = {
+    era: { label: "ERA", dec: 2, low: true, calc: s => s.outs ? s.er * 27 / s.outs : 0 },
+    ra9: { label: "RA9", dec: 2, low: true, calc: s => s.outs ? s.r * 27 / s.outs : 0 },
+    whip: { label: "WHIP", dec: 2, low: true, calc: s => s.outs ? (s.bb + s.h) * 3 / s.outs : 0 },
+  };
+
+  function formBoard(pool, metrics, ids, meta) {
+    const card = document.getElementById(ids.card);
+    if (!pool || !pool.length) { if (card) card.style.display = "none"; return; }
+    const wEl = document.getElementById(ids.win); if (wEl) wEl.textContent = meta.window;
+    const mEl = document.getElementById(ids.min); if (mEl) mEl.textContent = meta.min;
+    const seg = document.getElementById(ids.seg);
+    const keys = Object.keys(metrics);
+    let key = keys[0];
+
+    function draw() {
+      const m = metrics[key];
+      seg.innerHTML = keys.map(k => {
+        const on = k === key;
+        return `<button data-k="${k}" style="padding:3px 11px;margin:0 6px 0 0;border-radius:6px;`
+          + `border:1px solid ${on ? '#3ecf8e' : '#2a3345'};background:${on ? '#173a2b' : 'transparent'};`
+          + `color:${on ? '#3ecf8e' : '#8a94a8'};font-size:12px;cursor:pointer">${metrics[k].label}</button>`;
+      }).join("");
+      const scored = pool.map(r => {
+        const rv = m.calc(r.recent), sv = m.calc(r.season);
+        const imp = m.low ? (sv - rv) : (rv - sv);   // + = 좋아짐
+        return { r, rv, sv, imp };
+      }).filter(x => isFinite(x.imp));
+      const dcol = i => i >= 0 ? "#3ecf8e" : "#e0555f";
+      const rowHTML = x => `<tr><td>${LOGO(x.r.team)}${x.r.name}</td><td>${x.r.teamName}</td>`
+        + `<td style="color:#8a94a8">${meta.sample(x.r.recent)}</td>`
+        + `<td><b>${x.rv.toFixed(m.dec)}</b></td>`
+        + `<td style="color:#8a94a8">${x.sv.toFixed(m.dec)}</td>`
+        + `<td style="color:${dcol(x.imp)};font-weight:600">${x.imp >= 0 ? "+" : ""}${x.imp.toFixed(m.dec)}</td></tr>`;
+      document.getElementById(ids.hot).innerHTML =
+        scored.slice().sort((a, b) => b.imp - a.imp).slice(0, TOP).map(rowHTML).join("");
+      document.getElementById(ids.cold).innerHTML =
+        scored.slice().sort((a, b) => a.imp - b.imp).slice(0, TOP).map(rowHTML).join("");
+    }
+    seg.onclick = e => { const b = e.target.closest("button"); if (!b) return; key = b.dataset.k; draw(); };
+    draw();
+  }
+
+  const hc = DATA.hotcold || { players: [] };
+  formBoard(hc.players, BAT,
+    { card: "hotcoldCard", seg: "hcMetric", hot: "tb_hcHot", cold: "tb_hcCold", win: "hcWindow", min: "hcMinPa" },
+    { window: hc.window, min: hc.minPa, sample: r => `${r.g}G·${r.ab + r.bb}타석` });
+
+  const bp = DATA.bullpenForm || { players: [] };
+  formBoard(bp.players, PIT,
+    { card: "bullpenFormCard", seg: "bpMetric", hot: "tb_bpHot", cold: "tb_bpCold", win: "bpWindow", min: "bpMinApp" },
+    { window: bp.window, min: bp.minApp, sample: r => `${r.g}등판·${(r.outs / 3).toFixed(1)}이닝` });
 })();
 
 // ── ⑥ 불펜 리더보드 (Statiz) ──
