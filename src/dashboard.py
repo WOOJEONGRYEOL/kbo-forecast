@@ -419,6 +419,19 @@ def _projection_card(proj, logos) -> str:
             outs.append(f'{g["homeName"]} {"·".join(g["bpOutHome"])}')
         bp = (f'<div style="color:#ffb454;font-size:11px;margin-top:5px">⚠️ 3연투 결장: '
               f'{" / ".join(outs)}</div>') if outs else ''
+        c = g.get("calc") or {}
+        sn = lambda k: "" if k else "(기록부족→리그평균)"
+        detail = ('' if not c else
+                  '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
+                  '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'
+                  f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
+                  f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·{c["spInn"]}이닝 '
+                  f'＋ 불펜 {c["bpAway"]}·{c["bpInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
+                  f'원정 <b style="color:var(--text)">{g["erAway"]}</b> = 리그 {c["lg"]} × 원정공격 {c["oIdxAway"]}(RS/G {c["offAway"]}) '
+                  f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·{c["spInn"]}이닝 '
+                  f'＋ 불펜 {c["bpHome"]}·{c["bpInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
+                  '<span style="opacity:.8">지수=(팀값/리그−1)×0.85+1 수축 · 승률=로지스틱((홈−원정)/5.5)</span>'
+                  '</div></details>')
         cards.append(
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
@@ -431,7 +444,7 @@ def _projection_card(proj, logos) -> str:
             f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
             f'<div style="width:{g["winAway"]}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{g["winAway"]}%</div>'
             f'<div style="width:{g["winHome"]}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{g["winHome"]}%</div></div>'
-            f'{bp}</div>')
+            f'{bp}{detail}</div>')
     return (
         '<div class="card wide" id="projCard">'
         f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·팀 공격력·가용 불펜 기반</span></h2>'
@@ -461,10 +474,10 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 </style></head><body><div class="wrap">
 <nav>
   <a class="home" href="../index.html">🏠</a>
-  <a class="active" href="today.html">🔮 오늘의 경기</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
   <a href="history.html">🏆 역대</a>
+  <a class="active" href="today.html">🔮 오늘의 경기</a>
 </nav>
 <h1>🔮 오늘의 경기</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
@@ -789,10 +802,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
 <div class="nav">
   <a class="home" href="../index.html">🏠</a>
-  <a href="today.html">🔮 오늘의 경기</a>
   <a class="active" href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
   <a href="history.html">🏆 역대</a>
+  <a href="today.html">🔮 오늘의 경기</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
