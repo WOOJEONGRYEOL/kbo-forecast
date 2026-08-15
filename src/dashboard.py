@@ -404,6 +404,44 @@ def team_home_away(games) -> dict:
     return out
 
 
+def _projection_card(proj, logos) -> str:
+    """오늘의 기대 스코어 카드(서버렌더). proj=game_projection.project_games() 결과."""
+    if not proj or not proj.get("games"):
+        return ""
+    cards = []
+    for g in proj["games"]:
+        hl, al = logos.get(g["home"], ""), logos.get(g["away"], "")
+        hc, ac = TEAM_COLORS.get(g["home"], "#888"), TEAM_COLORS.get(g["away"], "#888")
+        outs = []
+        if g["bpOutAway"]:
+            outs.append(f'{g["awayName"]} {"·".join(g["bpOutAway"])}')
+        if g["bpOutHome"]:
+            outs.append(f'{g["homeName"]} {"·".join(g["bpOutHome"])}')
+        bp = (f'<div style="color:#ffb454;font-size:11px;margin-top:5px">⚠️ 3연투 결장: '
+              f'{" / ".join(outs)}</div>') if outs else ''
+        cards.append(
+            f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
+            f'border-radius:10px;padding:11px 13px">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
+            f'<span style="font-size:13px"><img src="{al}" alt="" style="height:18px;vertical-align:-4px;margin-right:3px">{g["awayName"]}</span>'
+            f'<b style="font-size:19px;white-space:nowrap">{g["erAway"]} <span style="color:var(--muted)">:</span> {g["erHome"]}</b>'
+            f'<span style="font-size:13px">{g["homeName"]}<img src="{hl}" alt="" style="height:18px;vertical-align:-4px;margin-left:3px"></span></div>'
+            f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:4px 0 6px">'
+            f'예고 {g["spAway"] or "미정"} vs {g["spHome"] or "미정"}</div>'
+            f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
+            f'<div style="width:{g["winAway"]}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{g["winAway"]}%</div>'
+            f'<div style="width:{g["winHome"]}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{g["winHome"]}%</div></div>'
+            f'{bp}</div>')
+    return (
+        '<div class="card wide" id="projCard">'
+        f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·팀 공격력·가용 불펜 기반</span></h2>'
+        '<p class="hint">기대 스코어(왼=원정, 오=홈)와 승리확률. <b>확률·기대값이지 예언이 아닙니다</b> — '
+        '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). 타순은 경기 직전 발표라 <b>팀 공격력으로 근사</b>, '
+        '최근 이틀 연속 등판(오늘 3연투) 불펜은 결장 처리.</p>'
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
+        + "".join(cards) + '</div></div>')
+
+
 def _race_labels(sim_table, spots: int = 5) -> dict:
     """팀별 매직/트래직 라벨(진단표 열용). 의미 있는 경쟁 기준으로 팀마다 하나씩:
       1위 = 우승 매직(2위 대비) · 2위 = 우승 트래직 · 3~5위 = 가을 매직(6위 대비)
@@ -443,7 +481,8 @@ def _race_labels(sim_table, spots: int = 5) -> dict:
 def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
                    rotation_detail: dict | None = None,
                    standings: "pd.DataFrame | None" = None,
-                   team_splits: dict | None = None) -> Path:
+                   team_splits: dict | None = None,
+                   projections: dict | None = None) -> Path:
     """
     대시보드 HTML을 data/dashboard.html 로 저장하고 경로를 돌려줍니다.
 
@@ -495,6 +534,7 @@ def save_dashboard(df: pd.DataFrame, team_log: pd.DataFrame, window: int,
     html = html.replace("__TABLE_ROWS__", _table_rows(standings, logos, _race_labels(sim_table)))
     html = html.replace("__STANDINGS_ROWS__", _standings_sim_rows(sim_table, logos))
     html = html.replace("__STYLE_CARD__", _team_style_card(logos, order, team_splits))
+    html = html.replace("__PROJ_CARD__", _projection_card(projections, logos))
     html = html.replace("__ROTATION_ROWS__",
                         _rotation_rows(standings, logos, rotation_detail or {}))
     html = html.replace("__MOMENTUM_EQ__", config.momentum_formula("·"))
@@ -719,6 +759,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
   데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
   아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
+
+__PROJ_CARD__
 
 <div class="controls">
   <div class="ctl">

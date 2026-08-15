@@ -161,9 +161,13 @@ def main() -> None:
     # 대시보드는 원시 경기 로그를 받아 JS에서 임의 윈도우로 즉석 계산합니다
     # (슬라이더로 경기 수를 자유롭게 바꾸는 인터랙션을 위해)
     team_splits = dashboard.team_home_away(games)   # 팀별 홈/원정 승률
+    import game_projection
+    projections = game_projection.project_games(games, box)   # 오늘 기대 스코어(box 재사용)
+    print(f"  → 오늘 기대 스코어: {len(projections['games'])}경기 ({projections['date']})")
     html_path = dashboard.save_dashboard(result, team_log, window=args.window,
                                          rotation_detail=rotation_detail,
-                                         standings=sim_table, team_splits=team_splits)
+                                         standings=sim_table, team_splits=team_splits,
+                                         projections=projections)
     print(f"대시보드 저장 완료 → {html_path}")
     print("  (브라우저에서 열기: open " + str(html_path) + ")\n")
 
