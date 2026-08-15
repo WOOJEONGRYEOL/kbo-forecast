@@ -760,8 +760,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card" id="magicCard">
     <h2>🍂 매직넘버 <span style="color:var(--muted);font-weight:400">— 우승·막차 두 갈래</span></h2>
-    <p class="mc-note"><b>매직넘버</b> = 앞선 팀이 그만큼 <b>이기거나(경쟁팀이 지면)</b> 확정. 뒤 팀엔 같은 수가
-      <b>트래직넘버</b>(그 안에 뒤집어야 함)입니다 — 한쪽 확정 = 다른 쪽 탈락이라 값이 같습니다.
+    <p class="mc-note"><b>매직넘버</b> = 앞선 팀이 그만큼 이기면 확정. <b>트래직넘버</b> = 뒤진 팀이 그만큼 더 지면
+      (경쟁팀이 다 이기는 최악의 경우) 탈락 확정. <b>둘은 같은 수</b>입니다 — '앞 팀 확정'과 '뒤 팀 탈락'이 같은 사건이라서요.
       의미 있는 <b>1·2위(우승)</b>와 <b>5·6위(막차)</b> 경쟁만 표시. 무승부·상대전적은 무시한 근사치.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">__MAGIC_BODY__</div>
   </div>
