@@ -516,19 +516,19 @@ _TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <div class="card wide" id="hotcoldCard">
-    <h2><span class="badge">🔥</span>물오른 방망이 · 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— 최근 <b id="hcWindow"></b>경기, 평소 대비(Δ)</span></h2>
+    <h2><span class="badge">🔥</span>불방망이 · 물방망이 <span style="color:var(--muted);font-weight:400">— 최근 <b id="hcWindow"></b>경기, 평소 대비(Δ)</span></h2>
     <p class="hint"><b>최근 폼</b>입니다. 선택 지표의 최근 값이 시즌 평균보다 얼마나 뜨거운지(Δ)로 줄 세웁니다.
       표본이 작아 <b>운(BABIP)</b>이 많이 섞이니 '실력'이 아니라 <b>'요즘 감'</b>으로 보세요.
       최소 <b id="hcMinPa"></b>타석(최근) · 시즌 80타석 이상.</p>
     <div class="mseg" id="hcMetric"></div>
     <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
       <div>
-        <h3 style="margin:0 0 6px;color:#ff7a45;font-size:14px">🔥 물오른 방망이 <span style="color:var(--muted);font-weight:400">— Δ 상위</span></h3>
+        <h3 style="margin:0 0 6px;color:#ff7a45;font-size:14px">🔥 불방망이 <span style="color:var(--muted);font-weight:400">— Δ 상위</span></h3>
         <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
         <tbody id="tb_hcHot"></tbody></table></div>
       </div>
       <div>
-        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🧊 식어버린 방망이 <span style="color:var(--muted);font-weight:400">— Δ 하위</span></h3>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">💧 물방망이 <span style="color:var(--muted);font-weight:400">— Δ 하위</span></h3>
         <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
         <tbody id="tb_hcCold"></tbody></table></div>
       </div>
@@ -536,14 +536,14 @@ _TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <div class="card wide" id="bullpenFormCard">
-    <h2><span class="badge">🔥</span>필승 계투 · 방화범 <span style="color:var(--muted);font-weight:400">— 최근 <b id="bpWindow"></b>등판, 평소 대비(Δ)</span></h2>
-    <p class="hint"><b>최근 폼</b>(불펜만, 선발 제외). 선택 지표가 시즌 평균보다 좋아졌으면 필승, 나빠졌으면 방화 쪽입니다.
+    <h2><span class="badge">🔥</span>수호신 · 방화범 <span style="color:var(--muted);font-weight:400">— 최근 <b id="bpWindow"></b>등판, 평소 대비(Δ)</span></h2>
+    <p class="hint"><b>최근 폼</b>(불펜만, 선발 제외). 선택 지표가 시즌 평균보다 좋아졌으면 수호신, 나빠졌으면 방화 쪽입니다.
       세이브 상황·승계주자 데이터가 없어 <b>진짜 레버리지가 아니라 '최근 실점 억제'</b> 근사이고,
       불펜은 표본이 더 작아 <b>한 경기에 요동</b>칩니다. 최소 <b id="bpMinApp"></b>등판·최근 4이닝 이상.</p>
     <div class="mseg" id="bpMetric"></div>
     <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
       <div>
-        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🛡️ 필승 계투 <span style="color:var(--muted);font-weight:400">— 최근 좋아짐</span></h3>
+        <h3 style="margin:0 0 6px;color:#5aa9ff;font-size:14px">🛡️ 수호신 <span style="color:var(--muted);font-weight:400">— 최근 좋아짐</span></h3>
         <div class="table-scroll"><table><thead><tr><th>선수</th><th>팀</th><th>최근</th><th>최근</th><th>시즌</th><th>Δ</th></tr></thead>
         <tbody id="tb_bpHot"></tbody></table></div>
       </div>
