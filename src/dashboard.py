@@ -360,11 +360,13 @@ def _magic_races(sim_table, spots: int = 5):
     def gb(a, b):     # a(앞) 대비 b(뒤) 게임차
         return ((int(W[a]) - int(W[b])) + (int(L[b]) - int(L[a]))) / 2
 
-    def race(a, b):   # a가 b보다 앞. a의 매직넘버.
-        return {"leader": a, "rival": b,
-                "magic": max(0, int(W[b] + REM[b]) - int(W[a]) + 1),
-                "gb": round(gb(a, b), 1),
-                "lw": int(W[a]), "ll": int(L[a])}
+    def side(t):
+        return {"team": t, "w": int(W[t]), "l": int(L[t]), "rem": int(REM[t])}
+
+    def race(a, b):   # a가 b보다 앞. a의 매직넘버 = b의 트래직넘버(같은 수).
+        return {"leader": side(a), "rival": side(b),
+                "num": max(0, int(W[b] + REM[b]) - int(W[a]) + 1),
+                "gb": round(gb(a, b), 1)}
 
     out = {}
     if len(teams) >= 2:
@@ -374,25 +376,33 @@ def _magic_races(sim_table, spots: int = 5):
     return out
 
 
-def _race_block(race, logos, title, sub_label, clinch_msg) -> str:
+def _race_block(race, logos, title, lead_lab, rival_lab, clinch_msg) -> str:
     if not race:
         return ""
-    name = config.TEAM_NAMES.get(race["leader"], race["leader"])
-    rival = config.TEAM_NAMES.get(race["rival"], race["rival"])
-    logo = logos.get(race["leader"], "")
-    cut = TEAM_COLORS.get(race["leader"], "#4a90d9")
-    if race["magic"] == 0:
-        num = f'<span class="pos" style="font-size:15px;font-weight:700">{clinch_msg} 🎉</span>'
-    else:
-        num = f'매직넘버 <b style="color:#3ecf8e;font-size:22px">{race["magic"]}</b>'
+
+    def team_row(t, label, is_leader):
+        name = config.TEAM_NAMES.get(t["team"], t["team"])
+        logo = logos.get(t["team"], "")
+        if race["num"] == 0:
+            val = (f'<span class="pos" style="font-weight:700">{clinch_msg} 🎉</span>'
+                   if is_leader else '<span class="neg" style="font-weight:700">탈락 ❌</span>')
+        else:
+            col = "#3ecf8e" if is_leader else "#e0555f"
+            val = f'{label} <b style="color:{col};font-size:17px">{race["num"]}</b>'
+        return (
+            f'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0">'
+            f'<span><img src="{logo}" alt="" style="height:16px;vertical-align:-3px;margin-right:4px">{name} '
+            f'<span style="color:var(--muted);font-size:12px">{t["w"]}-{t["l"]} · 잔여 {t["rem"]}</span></span>'
+            f'<span>{val}</span></div>')
+
+    cut = TEAM_COLORS.get(race["leader"]["team"], "#4a90d9")
     return (
         f'<div style="padding:11px 13px;border-left:3px solid {cut};'
         f'background:rgba(255,255,255,.03);border-radius:8px">'
-        f'<div style="color:var(--muted);font-size:12px;margin-bottom:3px">{title}</div>'
-        f'<div style="margin:2px 0">'
-        f'<img src="{logo}" alt="" style="height:18px;vertical-align:-4px;margin-right:5px">'
-        f'<b>{name}</b> <span style="color:var(--muted)">({race["lw"]}-{race["ll"]})</span> — {num}</div>'
-        f'<div style="color:var(--muted);font-size:12px">{sub_label} {rival} · {race["gb"]}경기 차</div></div>')
+        f'<div style="color:var(--muted);font-size:12px;margin-bottom:5px">{title} '
+        f'<span style="opacity:.7">· {race["gb"]}경기 차</span></div>'
+        f'{team_row(race["leader"], lead_lab, True)}'
+        f'{team_row(race["rival"], rival_lab, False)}</div>')
 
 
 def _magic_html(sim_table, logos) -> str:
@@ -401,9 +411,9 @@ def _magic_html(sim_table, logos) -> str:
         return ""
     blocks = [
         _race_block(races.get("champ"), logos, "🏆 정규시즌 우승 (1위 직행)",
-                    "2위", "정규시즌 우승 확정"),
+                    "매직", "트래직", "우승 확정"),
         _race_block(races.get("playoff"), logos, "🎟️ 가을야구 막차 (5위 컷)",
-                    "6위", "가을야구 확정"),
+                    "진출 매직", "진출 트래직", "가을야구 확정"),
     ]
     return "".join(b for b in blocks if b)
 
@@ -750,9 +760,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card" id="magicCard">
     <h2>🍂 매직넘버 <span style="color:var(--muted);font-weight:400">— 우승·막차 두 갈래</span></h2>
-    <p class="mc-note"><b>매직넘버</b> = 그만큼 <b>이기거나(경쟁팀이 지면)</b> 확정. KBO에서 의미 있는 건
-      <b>정규시즌 1위(직행)</b>와 <b>5위(가을야구 막차)</b> 두 경쟁뿐이라 그것만 표시합니다.
-      무승부·상대전적 타이브레이크는 무시한 근사치.</p>
+    <p class="mc-note"><b>매직넘버</b> = 앞선 팀이 그만큼 <b>이기거나(경쟁팀이 지면)</b> 확정. 뒤 팀엔 같은 수가
+      <b>트래직넘버</b>(그 안에 뒤집어야 함)입니다 — 한쪽 확정 = 다른 쪽 탈락이라 값이 같습니다.
+      의미 있는 <b>1·2위(우승)</b>와 <b>5·6위(막차)</b> 경쟁만 표시. 무승부·상대전적은 무시한 근사치.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">__MAGIC_BODY__</div>
   </div>
 
