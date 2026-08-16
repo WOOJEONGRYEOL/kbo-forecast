@@ -96,9 +96,9 @@ def _rest_days(pit):
         return 1
     if pit <= 60:
         return 2
-    if pit <= 75:
+    if pit < 75:
         return 3
-    return 4
+    return 4       # 75구 이상 → 4일
 
 
 def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None):
@@ -115,14 +115,19 @@ def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None):
         if s["team"] != team or pcode in starters or s["outs"] < 12:
             continue
         dates = s["dates"]
-        three = all((d0 - datetime.timedelta(days=k)).isoformat() in dates for k in (1, 2, 3))
-        last = s["apps"][-1]
-        days_since = (d0 - datetime.date.fromisoformat(last["date"])).days
-        rest = _rest_days(last["pit"])
-        if three:
+        # 3연투: 전날까지 3일 연속 등판
+        if all((d0 - datetime.timedelta(days=k)).isoformat() in dates for k in (1, 2, 3)):
             out_info.append({"name": s["name"], "reason": "3연투"}); continue
-        if 0 < days_since <= rest:
-            out_info.append({"name": s["name"], "reason": f"{last['pit']}구·{rest}일휴식"}); continue
+        # 투구수 휴식: 최근 4일 등판을 각각 확인 — 그 등판의 휴식창(등판+N일)이
+        # 오늘을 덮으면 결장. (며칠 전 대량 투구가 아직 안 풀린 경우도 포착)
+        binders = [(a, k) for a in s["apps"]
+                   for k in [(d0 - datetime.date.fromisoformat(a["date"])).days]
+                   if 1 <= k <= 4 and k <= _rest_days(a["pit"])]
+        if binders:
+            a, k = max(binders, key=lambda x: _rest_days(x[0]["pit"]))
+            rest = _rest_days(a["pit"])
+            tag = "전날" if k == 1 else f"{k}일전"
+            out_info.append({"name": s["name"], "reason": f"{tag} {a['pit']}구·{rest}일휴식"}); continue
         avail.append(s)
     if not avail:
         return lg_ra9, out_info
