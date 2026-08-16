@@ -412,12 +412,13 @@ def _projection_card(proj, logos) -> str:
     for g in proj["games"]:
         hl, al = logos.get(g["home"], ""), logos.get(g["away"], "")
         hc, ac = TEAM_COLORS.get(g["home"], "#888"), TEAM_COLORS.get(g["away"], "#888")
+        fo = lambda lst: "·".join(f'{o["name"]}({o["reason"]})' for o in lst)
         outs = []
         if g["bpOutAway"]:
-            outs.append(f'{g["awayName"]} {"·".join(g["bpOutAway"])}')
+            outs.append(f'{g["awayName"]} {fo(g["bpOutAway"])}')
         if g["bpOutHome"]:
-            outs.append(f'{g["homeName"]} {"·".join(g["bpOutHome"])}')
-        bp = (f'<div style="color:#ffb454;font-size:11px;margin-top:5px">⚠️ 3연투 결장: '
+            outs.append(f'{g["homeName"]} {fo(g["bpOutHome"])}')
+        bp = (f'<div style="color:#ffb454;font-size:11px;margin-top:5px">⚠️ 불펜 결장: '
               f'{" / ".join(outs)}</div>') if outs else ''
         c = g.get("calc") or {}
         sn = lambda k: "" if k else "(기록부족→리그평균)"
@@ -447,10 +448,11 @@ def _projection_card(proj, logos) -> str:
             f'{bp}{detail}</div>')
     return (
         '<div class="card wide" id="projCard">'
-        f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·팀 공격력·가용 불펜 기반</span></h2>'
+        f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·선발이닝·가용 불펜 기반 <b style="color:#ffb454">(라인업 반영 전)</b></span></h2>'
         '<p class="hint">기대 스코어(왼=원정, 오=홈)와 승리확률. <b>확률·기대값이지 예언이 아닙니다</b> — '
-        '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). 타순은 경기 직전 발표라 <b>팀 공격력으로 근사</b>, '
-        '최근 이틀 연속 등판(오늘 3연투) 불펜은 결장 처리.</p>'
+        '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). <b>지금은 라인업 반영 전</b>(타순 미발표라 팀 공격력 근사) — '
+        '라인업 발표(경기 ~1시간 전) 후 갱신판에 반영 예정. 불펜 결장: 3연투 또는 전날 <b>추정 투구수</b>별 휴식'
+        '(30~45구=1일·45~60=2일·60~75=3일 · 투구수는 API에 없어 상대타자수×3.9 추정).</p>'
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
         + "".join(cards) + '</div></div>')
 

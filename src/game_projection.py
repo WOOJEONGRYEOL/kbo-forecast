@@ -71,40 +71,66 @@ def _pitcher_stats(box):
     df["outs"] = df["inn"].map(_innings_to_outs)
     out = {}
     for pcode, g in df.groupby("pcode"):
+        g = g.sort_values("date")
         outs = int(g["outs"].sum()); r = int(g["r"].sum())
         starts = g[g["outs"] >= 9]              # 3이닝+ 등판 = 선발 근사
+        # 등판별 추정 투구수 = (아웃+피안타+볼넷사구) × 3.9  (API에 실투구수 없어 근사)
+        apps = [{"date": str(row["date"]),
+                 "pit": round((int(row["outs"]) + int(row.get("hit", 0))
+                               + int(row.get("bbhp", 0))) * 3.9)}
+                for _, row in g.iterrows()]
         out[str(pcode)] = {
             "team": g.iloc[-1]["team"], "name": g.iloc[-1]["name"],
             "outs": outs, "r": r,
             "ra9": (r * 27 / outs) if outs else None,
             "start_outs_avg": float(starts["outs"].mean()) if len(starts) >= 3 else None,
-            "dates": set(str(d) for d in g["date"]),
+            "apps": apps,
+            "dates": set(a["date"] for a in apps),
         }
     return out
 
 
-def available_bullpen(box, team, rotation, asof, lg_ra9):
-    """team의 가용 불펜 RA9(가중평균)와 결장 명단. asof=경기일(문자열).
-    최근 이틀 연속 등판(=오늘 3연투) 투수는 제외."""
+def _rest_days(pit):
+    """전날(최근) 투구수 → 필요 휴식일. 30↓=0, ~45=1, ~60=2, ~75=3, 초과=4."""
+    if pit <= 30:
+        return 0
+    if pit <= 45:
+        return 1
+    if pit <= 60:
+        return 2
+    if pit <= 75:
+        return 3
+    return 4
+
+
+def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None):
+    """team의 가용 불펜 RA9(가중평균)와 결장 사유. asof=경기일(문자열).
+    결장 규칙:
+      · 3연투: 전날까지 3일 연속 등판 → 당일 결장
+      · 투구수 휴식: 최근 등판 추정투구수 30~45=1일, 45~60=2일, 60~75=3일 결장
+    (투구수는 API에 없어 상대타자수×3.9로 추정)"""
     starters = set(rotation["pcode"].astype(str)) if len(rotation) else set()
-    ps = _pitcher_stats(box)
+    ps = ps or _pitcher_stats(box)
     d0 = datetime.date.fromisoformat(asof)
-    y1 = (d0 - datetime.timedelta(days=1)).isoformat()
-    y2 = (d0 - datetime.timedelta(days=2)).isoformat()
-    avail, out_names = [], []
+    avail, out_info = [], []
     for pcode, s in ps.items():
-        if s["team"] != team or pcode in starters:
+        if s["team"] != team or pcode in starters or s["outs"] < 12:
             continue
-        if s["outs"] < 12:                 # 표본 너무 적은 불펜 제외
-            continue
-        if y1 in s["dates"] and y2 in s["dates"]:   # 이틀 연속 → 오늘 결장(3연투 방지)
-            out_names.append(s["name"]); continue
+        dates = s["dates"]
+        three = all((d0 - datetime.timedelta(days=k)).isoformat() in dates for k in (1, 2, 3))
+        last = s["apps"][-1]
+        days_since = (d0 - datetime.date.fromisoformat(last["date"])).days
+        rest = _rest_days(last["pit"])
+        if three:
+            out_info.append({"name": s["name"], "reason": "3연투"}); continue
+        if 0 < days_since <= rest:
+            out_info.append({"name": s["name"], "reason": f"{last['pit']}구·{rest}일휴식"}); continue
         avail.append(s)
     if not avail:
-        return lg_ra9, out_names
-    tot_outs = sum(s["outs"] for s in avail)
-    ra9 = sum((s["ra9"] or lg_ra9) * s["outs"] for s in avail) / tot_outs
-    return ra9, out_names
+        return lg_ra9, out_info
+    tot = sum(s["outs"] for s in avail)
+    ra9 = sum((s["ra9"] or lg_ra9) * s["outs"] for s in avail) / tot
+    return ra9, out_info
 
 
 def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
