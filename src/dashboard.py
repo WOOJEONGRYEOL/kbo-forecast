@@ -494,17 +494,32 @@ def _one_game_card(g, logos) -> str:
             # 홈 타선은 원정 선발을, 원정 타선은 홈 선발을 상대
             lu_detail = (lu_block(g.get("lineupAway"), g.get("multAway"), g["awayName"], g.get("spHandHome"))
                          + lu_block(g.get("lineupHome"), g.get("multHome"), g["homeName"], g.get("spHandAway")))
+        # 라인업 발표 시 근거도 '반영 후' 숫자로(헤드라인과 일치). 미발표면 반영 전 값.
+        lu_on = g.get("lineupReady")
+        oiA = c.get("oIdxAwayLU") if lu_on else c["oIdxAway"]
+        oiH = c.get("oIdxHomeLU") if lu_on else c["oIdxHome"]
+        offA = (f'RS/G {c["offAway"]}×라인업 {g.get("multAway")}' if lu_on else f'RS/G {c["offAway"]}')
+        offH = (f'RS/G {c["offHome"]}×라인업 {g.get("multHome")}' if lu_on else f'RS/G {c["offHome"]}')
+        basis = '라인업 반영 후' if lu_on else '라인업 반영 전(팀 시즌 공격력)'
         detail = ('' if not c else
                   '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
                   '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'
                   + (f'<div style="color:var(--text);opacity:.9;margin-bottom:3px">{lu_detail}</div>' if lu_detail else '')
-                  + f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
+                  + f'<div style="opacity:.7;margin-bottom:2px">아래 값은 <b>{basis}</b> 기준(위 헤드라인과 동일)</div>'
+                  # 원정 → 홈 순서(스코어 표기와 동일). 자기 공격 × 상대 실점.
+                  + f'원정 <b style="color:var(--text)">{eA}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 원정공격 {oiA}({offA}) '
+                  f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·평균 {c["spHomeInn"]}이닝 '
+                  f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정 {c["boost"]}<br>'
+                  f'홈 <b style="color:var(--text)">{eH}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {oiH}({offH}) '
                   f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·평균 {c["spAwayInn"]}이닝 '
                   f'＋ 불펜 {c["bpAway"]}·{c["bpAwayInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
-                  f'원정 <b style="color:var(--text)">{g["erAway"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 원정공격 {c["oIdxAway"]}(RS/G {c["offAway"]}) '
-                  f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·평균 {c["spHomeInn"]}이닝 '
-                  f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
-                  f'<span style="opacity:.8">구장 {c["park"]}={c.get("stadium","")}(득점환경) · 라인업=타순가중 wRC+/팀상위9 · 지수=(팀값/리그−1)×0.85+1 · 예상범위=과분산 근사 · 승률=로지스틱((홈−원정)/5.5)</span>'
+                  # 승률 환산 설명
+                  + f'<b style="color:var(--text)">승률</b> = 로지스틱( (홈 {eH} − 원정 {eA}) ÷ 5.5 ) → 홈 {wH}% · 원정 {wA}%<br>'
+                  f'<span style="opacity:.8">└ 두 기대득점의 <b>차</b>를 0~100%로 환산(S자 곡선). ÷5.5는 단일경기 운이 커서 '
+                  f'큰 점수차도 과신 않도록 압축(예: 2.3점차 ≈ 60%). 차가 0이면 홈보정으로 50% 부근.</span><br>'
+                  f'<span style="opacity:.8">구장 {c["park"]}={c.get("stadium","")}(득점환경) · 지수=(팀값/리그−1)×0.85+1 수축'
+                  + (' · 공격=위 타순가중 wRC+/팀상위9(좌우 반영)' if lu_on else '')
+                  + ' · 예상범위=과분산 근사(√(μ+μ²/6))</span>'
                   '</div></details>')
         # 실제 결과(종료 경기) — 예측과 나란히, 적중 여부 표시
         st = g.get("status")

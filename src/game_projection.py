@@ -345,8 +345,9 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         multH, detH = lineup_multiplier(luH, wrc_by_p, team_base.get(h), spHand_away, spA_inn)
         multA, detA = lineup_multiplier(luA, wrc_by_p, team_base.get(a), spHand_home, spH_inn)
         lineup_ready = bool(luH) and bool(luA)
+        # 라인업 반영 공격지수(미발표면 multH=multA=1.0이라 반영 전과 동일)
+        oHi2, oAi2 = idx(oH * multH, lg), idx(oA * multA, lg)
         if lineup_ready:
-            oHi2, oAi2 = idx(oH * multH, lg), idx(oA * multA, lg)
             erH2 = lg * pf * oHi2 * pA_i * HOME_BOOST
             erA2 = lg * pf * oAi2 * pH_i / HOME_BOOST
             pH2 = 1 / (1 + math.exp(-(erH2 - erA2) / WIN_SCALE))
@@ -380,6 +381,7 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
             "calc": {
                 "lg": r2(lg), "boost": HOME_BOOST, "park": pf, "stadium": g.get("stadium"),
                 "offHome": r2(oH), "offAway": r2(oA), "oIdxHome": r2(oH_i), "oIdxAway": r2(oA_i),
+                "oIdxHomeLU": r2(oHi2), "oIdxAwayLU": r2(oAi2),  # 라인업 반영 공격지수
                 "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "spHomeInn": spH_inn,
                 "bpHome": r2(bpH), "bpHomeInn": r2(9 - spH_inn),
                 "pitchHome": r2(pitchH), "pIdxHome": r2(pH_i),
