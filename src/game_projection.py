@@ -307,7 +307,11 @@ def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
 def project_games(games: list, box, ref_date: str = None) -> dict:
     """오늘(없으면 다음 예정일) 경기들의 기대 스코어·승률. 반환 {date, games:[...]}."""
     today = ref_date or datetime.date.today().isoformat()
-    sched = [g for g in games if g.get("statusCode") == "BEFORE" and not g.get("cancel")]
+    # 경기 전 상태: BEFORE(예정) + READY(라인업 발표·임박 시 전환). 취소·과거일(서스펜디드
+    # 잔재) 제외. 오늘 경기가 임박해 READY로 바뀌면 BEFORE만 보던 과거엔 오늘을 놓쳤다.
+    PREGAME = {"BEFORE", "READY"}
+    sched = [g for g in games if g.get("statusCode") in PREGAME
+             and not g.get("cancel") and g.get("gameDate", "") >= today]
     day = today if any(g["gameDate"] == today for g in sched) else (
         min((g["gameDate"] for g in sched), default=None))
     if day is None:
