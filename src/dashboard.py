@@ -425,13 +425,13 @@ def _projection_card(proj, logos) -> str:
         detail = ('' if not c else
                   '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
                   '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'
-                  f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
+                  f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
                   f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·평균 {c["spAwayInn"]}이닝 '
                   f'＋ 불펜 {c["bpAway"]}·{c["bpAwayInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
-                  f'원정 <b style="color:var(--text)">{g["erAway"]}</b> = 리그 {c["lg"]} × 원정공격 {c["oIdxAway"]}(RS/G {c["offAway"]}) '
+                  f'원정 <b style="color:var(--text)">{g["erAway"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 원정공격 {c["oIdxAway"]}(RS/G {c["offAway"]}) '
                   f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·평균 {c["spHomeInn"]}이닝 '
                   f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
-                  '<span style="opacity:.8">지수=(팀값/리그−1)×0.85+1 수축 · 승률=로지스틱((홈−원정)/5.5)</span>'
+                  f'<span style="opacity:.8">구장 {c["park"]}={c.get("stadium","")}(득점환경) · 지수=(팀값/리그−1)×0.85+1 수축 · 예상범위=과분산 근사 · 승률=로지스틱((홈−원정)/5.5)</span>'
                   '</div></details>')
         cards.append(
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
@@ -440,7 +440,9 @@ def _projection_card(proj, logos) -> str:
             f'<span style="font-size:13px"><img src="{al}" alt="" style="height:18px;vertical-align:-4px;margin-right:3px">{g["awayName"]}</span>'
             f'<b style="font-size:19px;white-space:nowrap">{g["erAway"]} <span style="color:var(--muted)">:</span> {g["erHome"]}</b>'
             f'<span style="font-size:13px">{g["homeName"]}<img src="{hl}" alt="" style="height:18px;vertical-align:-4px;margin-left:3px"></span></div>'
-            f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:4px 0 6px">'
+            f'<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">'
+            f'예상범위 {g["bandAway"][0]}~{g["bandAway"][1]} : {g["bandHome"][0]}~{g["bandHome"][1]}</div>'
+            f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:3px 0 6px">'
             f'예고 {g["spAway"] or "미정"} vs {g["spHome"] or "미정"}</div>'
             f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
             f'<div style="width:{g["winAway"]}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{g["winAway"]}%</div>'

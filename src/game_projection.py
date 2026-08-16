@@ -65,23 +65,62 @@ def team_offense(games: list) -> tuple:
     return rsg, lg
 
 
+def park_factors(games: list) -> dict:
+    """구장별 득점 환경 팩터 = (구장 경기당 총득점)/(리그 경기당 총득점).
+    한 시즌은 표본이 작아 1.0으로 50% 수축. >1=타자친화, <1=투수친화."""
+    tot = defaultdict(lambda: [0.0, 0])
+    lg_r, lg_g = 0.0, 0
+    for g in games:
+        if g.get("statusCode") != "RESULT" or g.get("cancel"):
+            continue
+        hs, as_, st = g.get("homeTeamScore"), g.get("awayTeamScore"), g.get("stadium")
+        if None in (hs, as_) or not st:
+            continue
+        tot[st][0] += hs + as_; tot[st][1] += 1
+        lg_r += hs + as_; lg_g += 1
+    lg = lg_r / lg_g if lg_g else 9.6
+    out = {}
+    for st, (r, n) in tot.items():
+        out[st] = 1.0 if n < 20 else round(1 + ((r / n) / lg - 1) * 0.5, 3)
+    return out
+
+
+def _band(mu: float):
+    """단일 경기 득점의 대략적 범위(과분산 근사, ~50% 중심구간)."""
+    sd = math.sqrt(mu + mu * mu / 6)      # Var ≈ μ + μ²/6 (음이항 근사)
+    return [max(0, round(mu - 0.7 * sd)), round(mu + 0.7 * sd)]
+
+
 def _pitcher_stats(box):
     """pcode → {outs, r, ra9, last_dates:set}. box는 collect_season_pitching 결과."""
     df = box.copy()
     df["outs"] = df["inn"].map(_innings_to_outs)
+    # 그 경기의 '첫 투수' = 실제 선발 (box는 등판 순서 보존). 이 (경기,pcode) 쌍으로
+    # 등판별 선발 여부를 정확히 판정 — 3이닝 롱릴리프를 선발로 오인하지 않음.
+    firsts = df.drop_duplicates(["game_id", "team"], keep="first")
+    starter_pairs = set(zip(firsts["game_id"].astype(str), firsts["pcode"].astype(str)))
     out = {}
     for pcode, g in df.groupby("pcode"):
         g = g.sort_values("date")
         outs = int(g["outs"].sum()); r = int(g["r"].sum())
-        starts = g[g["outs"] >= 9]              # 3이닝+ 등판 = 선발 근사
+        starts = g[g["outs"] >= 9]              # 3이닝+ 등판 = 선발 근사(평균이닝용)
         # 등판별 실제 투구수: box의 'bf' 필드가 네이버 per-game 투구수(상대타자수는 pa).
-        apps = [{"date": str(row["date"]), "pit": int(row.get("bf", 0) or 0)}
+        apps = [{"date": str(row["date"]), "pit": int(row.get("bf", 0) or 0),
+                 "outs": int(row["outs"]),
+                 "started": (str(row["game_id"]), str(pcode)) in starter_pairs}
                 for _, row in g.iterrows()]
+        # 현재 역할: 최근 4등판 중 '실제 선발 등판'이 2회 이상이면 아직 선발로 봄.
+        #   시즌 초 몇 번 선발한 뒤 지금은 불펜인 투수(예: 두산 다카다)를
+        #   불펜 풀에 포함시키기 위해, 누적 선발수가 아니라 최근 역할로 판정.
+        recent = apps[-4:]
+        recent_starts = sum(1 for a in recent if a["started"])
+        is_starter_now = recent_starts >= 2
         out[str(pcode)] = {
             "team": g.iloc[-1]["team"], "name": g.iloc[-1]["name"],
             "outs": outs, "r": r,
             "ra9": (r * 27 / outs) if outs else None,
             "start_outs_avg": float(starts["outs"].mean()) if len(starts) >= 3 else None,
+            "is_starter_now": is_starter_now,
             "apps": apps,
             "dates": set(a["date"] for a in apps),
         }
@@ -101,18 +140,22 @@ def _rest_days(pit):
     return 4       # 75구 이상 → 4일
 
 
-def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None):
+def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None, exclude=None):
     """team의 가용 불펜 RA9(가중평균)와 결장 사유. asof=경기일(문자열).
+    '불펜'은 시즌 누적 선발수가 아니라 최근 역할(is_starter_now)로 판정 —
+    시즌 초 몇 번 선발한 뒤 지금은 불펜인 투수도 풀에 포함한다.
+    exclude=오늘 예고선발 등 명시적으로 뺄 pcode 집합.
     결장 규칙:
       · 3연투: 전날까지 3일 연속 등판 → 당일 결장
       · 투구수 휴식: 최근 등판 투구수 30~45=1일, 45~60=2일, 60~75=3일 결장
     (투구수는 네이버 박스스코어 실값 'bf' 사용)"""
-    starters = set(rotation["pcode"].astype(str)) if len(rotation) else set()
+    exclude = set(str(x) for x in (exclude or []) if x)
     ps = ps or _pitcher_stats(box)
     d0 = datetime.date.fromisoformat(asof)
     avail, out_info = [], []
     for pcode, s in ps.items():
-        if s["team"] != team or pcode in starters or s["outs"] < 12:
+        if (s["team"] != team or pcode in exclude
+                or s.get("is_starter_now") or s["outs"] < 12):
             continue
         dates = s["dates"]
         # 3연투: 전날까지 3일 연속 등판
@@ -166,13 +209,15 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     lg_ra9 = lg                                   # 리그 평균 실점/9 ≈ 득점/9
     ps = _pitcher_stats(box)
     rotation = identify_rotation(box)
+    pfs = park_factors(games)                     # 구장별 득점환경
 
     out = []
     for g in todays:
         h, a = g["homeTeamCode"], g["awayTeamCode"]
         sp = probable_starters(g["gameId"])
-        bpH, outH = available_bullpen(box, h, rotation, day, lg_ra9)
-        bpA, outA = available_bullpen(box, a, rotation, day, lg_ra9)
+        # 오늘 예고선발은 불펜 풀에서 명시적으로 제외(불펜 취급이던 스팟 선발도 커버)
+        bpH, outH = available_bullpen(box, h, rotation, day, lg_ra9, ps=ps, exclude=[sp["home"][1]])
+        bpA, outA = available_bullpen(box, a, rotation, day, lg_ra9, ps=ps, exclude=[sp["away"][1]])
         # 상대 이 경기 실점력(선발+가용불펜)
         pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9)
         pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9)
@@ -182,9 +227,10 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
             return 1 + (v / base - 1) * SHRINK
         oH_i, oA_i = idx(oH, lg), idx(oA, lg)
         pH_i, pA_i = idx(pitchH, lg_ra9), idx(pitchA, lg_ra9)   # 실점력(높을수록 잘 내줌)
-        # 기대득점: 자기 공격지수 × 상대 실점력지수 × 리그평균 × 홈보정 (log5식)
-        erH = lg * oH_i * pA_i * HOME_BOOST
-        erA = lg * oA_i * pH_i / HOME_BOOST
+        pf = pfs.get(g.get("stadium"), 1.0)                    # 구장 팩터(양팀 공통)
+        # 기대득점: 리그평균 × 구장팩터 × 자기 공격지수 × 상대 실점력지수 × 홈보정 (log5식)
+        erH = lg * pf * oH_i * pA_i * HOME_BOOST
+        erA = lg * pf * oA_i * pH_i / HOME_BOOST
         # 승률: 단일경기 분산 반영 로지스틱(극단 압축)
         pH = 1 / (1 + math.exp(-(erH - erA) / WIN_SCALE))
         r2 = lambda v: round(v, 2)
@@ -193,10 +239,11 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
             "homeName": config.TEAM_NAMES.get(h, h), "awayName": config.TEAM_NAMES.get(a, a),
             "spHome": sp["home"][0], "spAway": sp["away"][0],
             "erHome": round(erH, 1), "erAway": round(erA, 1),
+            "bandHome": _band(erH), "bandAway": _band(erA),
             "winHome": round(pH * 100), "winAway": round((1 - pH) * 100),
             "bpOutHome": outH, "bpOutAway": outA,
             "calc": {
-                "lg": r2(lg), "boost": HOME_BOOST,
+                "lg": r2(lg), "boost": HOME_BOOST, "park": pf, "stadium": g.get("stadium"),
                 "offHome": r2(oH), "offAway": r2(oA), "oIdxHome": r2(oH_i), "oIdxAway": r2(oA_i),
                 "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "spHomeInn": spH_inn,
                 "bpHome": r2(bpH), "bpHomeInn": r2(9 - spH_inn),
