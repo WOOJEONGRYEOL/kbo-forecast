@@ -439,7 +439,8 @@ _CALC_GUIDE_HTML = r"""
 <p style="margin:0 0 6px"><b style="color:var(--text)">⑧ 승리확률</b> — 두 기대득점 차를 로지스틱으로 압축(단일경기 운 반영).<br>
 <code>1/(1+e^−(5.9−3.6)/5.5) = 0.60</code> → 삼성 60%. (÷5.5로 압축 안 하면 87% 같은 과신이 남.)</p>
 
-<p style="margin:0 0 6px"><b style="color:var(--text)">⑨ 라인업 반영(발표 시)</b> — 오늘 9명의 <b>타순가중 wRC+ ÷ 팀 상위9 베이스</b> = 공격 배수(0.85~1.15)로 ③을 보정. 주전이 쉬면 배수&lt;1.</p>
+<p style="margin:0 0 6px"><b style="color:var(--text)">⑨ 라인업 반영(발표 시)</b> — 오늘 9명의 <b>타순가중 wRC+ ÷ 팀 상위9 베이스</b> = 공격 배수(0.85~1.15)로 ③을 보정. 주전이 쉬면 배수&lt;1.<br>
+· <b>플래툰(좌우)</b>: 각 타자를 <b>상대 선발손</b> 대비 리그평균만큼 가감(반대손 유리·같은손 불리, 스위치 중립). 단 <b>선발 이닝 비율만큼만</b> 적용(불펜은 좌우 섞여 상쇄). 예: 우타 다수 라인업이 좌완 선발 만나면 공격 소폭↑.</p>
 
 <p style="margin:8px 0 0;color:#ffb454"><b>⚠️ 정직한 한계</b> — 단일 경기 예측의 정직한 천장은 ~56%(experiments 검증). '맞히기'가 아니라 <b>왜 이런 스코어인지</b>를 숫자로 서술하는 도구입니다.</p>
 </div></details>"""
@@ -483,16 +484,19 @@ def _projection_card(proj, logos) -> str:
         else:
             badge = '<span style="color:#ffb454;font-size:10px;font-weight:700">⏳ 라인업 반영 전</span>'
             pre_line = ''
-        # 계산 근거 — 라인업 타순(wRC+) 포함
-        def lu_block(det, mult, name):
+        # 계산 근거 — 라인업 타순(플래툰 반영 wRC+) 포함
+        hand_kr = {"L": "좌완", "R": "우완"}
+        def lu_block(det, mult, name, opp_hand):
             if not det:
                 return ''
+            vs = f'(vs {hand_kr.get(opp_hand, "?")}) ' if opp_hand else ''
             order = " · ".join(f'{i+1}.{n}({w})' for i, (n, w) in enumerate(det))
-            return f'{name} 타순 ×{mult}: {order}<br>'
+            return f'{name} 타순 {vs}×{mult}: {order}<br>'
         lu_detail = ''
         if ready:
-            lu_detail = (lu_block(g.get("lineupAway"), g.get("multAway"), g["awayName"])
-                         + lu_block(g.get("lineupHome"), g.get("multHome"), g["homeName"]))
+            # 홈 타선은 원정 선발을, 원정 타선은 홈 선발을 상대
+            lu_detail = (lu_block(g.get("lineupAway"), g.get("multAway"), g["awayName"], g.get("spHandHome"))
+                         + lu_block(g.get("lineupHome"), g.get("multHome"), g["homeName"], g.get("spHandAway")))
         detail = ('' if not c else
                   '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
                   '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'

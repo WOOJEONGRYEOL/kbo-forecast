@@ -55,14 +55,58 @@ def probable_starters(game_id: str, pv: dict = None) -> dict:
 _BATORDER_PA = [4.65, 4.55, 4.45, 4.35, 4.25, 4.12, 4.00, 3.90, 3.80]
 
 
+def _bat_hand(s: str) -> str:
+    """네이버 batsThrows/hitType → 타격손 'L'/'R'/'S'(스위치). 모르면 'R'."""
+    s = s or ""
+    if "양" in s or "좌우타" in s or "스위치" in s:
+        return "S"
+    if "좌타" in s or s.endswith("좌"):
+        return "L"
+    return "R"
+
+
+def _throw_hand(s: str) -> str:
+    """네이버 hitType/batsThrows → 투구손 'L'/'R'. 모르면 'R'."""
+    s = s or ""
+    if "좌투" in s or s.startswith("좌"):
+        return "L"
+    return "R"
+
+
 def lineup_from_preview(pv: dict, side: str) -> list:
-    """발표된 타격 라인업 → [(pcode, name)] 타순 순서(선발투수 제외). 미발표면 []."""
+    """발표된 타격 라인업 → [(pcode, name, hand)] 타순 순서(선발투수 제외). 미발표면 [].
+    hand=타격손 'L'/'R'/'S'."""
     key = "homeTeamLineUp" if side == "home" else "awayTeamLineUp"
     fl = (pv.get(key) or {}).get("fullLineUp") or []
     batters = [x for x in fl if x.get("positionName") != "선발투수"]
     if len(batters) < 9:
         return []
-    return [(str(x.get("playerCode")), x.get("playerName")) for x in batters[:9]]
+    return [(str(x.get("playerCode")), x.get("playerName"),
+             _bat_hand(x.get("batsThrows") or x.get("hitType")))
+            for x in batters[:9]]
+
+
+def starter_hand(pv: dict, side: str) -> str:
+    """예고선발 투구손 'L'/'R'. side=선발이 속한 팀."""
+    key = "homeStarter" if side == "home" else "awayStarter"
+    pi = (pv.get(key) or {}).get("playerInfo") or {}
+    return _throw_hand(pi.get("hitType") or pi.get("batsThrows"))
+
+
+# 리그평균 플래툰 스플릿(같은손↔반대손 wRC+ 격차, 점)과 정상 상대손 비율.
+#   좌타가 우타보다 스플릿이 큼. 한 타자의 overall은 이미 '주로 우투 상대'라서,
+#   오늘 상대 선발손이 정상 비율과 다른 만큼만 가감(이중계상 방지).
+_PLATOON_GAP = {"L": 20.0, "R": 15.0}     # 반대손 − 같은손 (wRC+ 점)
+_P_SAME = {"L": 0.28, "R": 0.72}          # 그 타자가 '같은손' 투수를 상대하는 평시 비율
+
+
+def _platoon_adj(bat_hand: str, sp_hand: str) -> float:
+    """상대 선발손 대비 타자 overall wRC+ 가감치(점). 스위치는 0(항상 반대손=overall)."""
+    if bat_hand == "S" or not sp_hand:
+        return 0.0
+    gap, p_same = _PLATOON_GAP[bat_hand], _P_SAME[bat_hand]
+    same = (bat_hand == sp_hand)
+    return -(1 - p_same) * gap if same else +p_same * gap
 
 
 def load_lineup_wrc(season: int = None):
@@ -84,19 +128,26 @@ def load_lineup_wrc(season: int = None):
     return wrc_by_p, base
 
 
-def lineup_multiplier(batters: list, wrc_by_p: dict, team_base: float):
-    """타순 순서 [(pcode,name)] → (공격배수, [(name, wrc)…]). 미발표/데이터없으면 (1.0, []).
-    배수 = 오늘 라인업 타순가중 wRC+ ÷ 팀 상위9 베이스 wRC+ (0.85~1.15 제한)."""
+def lineup_multiplier(batters: list, wrc_by_p: dict, team_base: float,
+                      opp_sp_hand: str = None, opp_sp_inn: float = 9.0):
+    """타순 순서 [(pcode,name,hand)] → (공격배수, [(name, wrc)…]). 미발표/데이터없으면 (1.0, []).
+    배수 = 오늘 라인업 타순가중 wRC+ ÷ 팀 상위9 베이스 wRC+ (0.85~1.15 제한).
+    상대 선발손(opp_sp_hand)이 주어지면 리그평균 플래툰을 가감하되, 그 선발이 던지는
+    이닝 비율(opp_sp_inn/9)만큼만 적용한다(불펜 구간은 좌우 섞여 상쇄)."""
     if not batters or not team_base:
         return 1.0, []
+    share = max(0.0, min(1.0, opp_sp_inn / 9.0)) if opp_sp_hand else 0.0
     vals, detail, wsum = 0.0, [], 0.0
-    for i, (pc, name) in enumerate(batters):
+    for i, b in enumerate(batters):
+        pc, name = b[0], b[1]
+        hand = b[2] if len(b) > 2 else "R"
         w = _BATORDER_PA[i] if i < len(_BATORDER_PA) else 3.8
         wrc = wrc_by_p.get(pc)
         if wrc is None:            # 무기록(신인·콜업) → 팀 베이스로 대체
             wrc = team_base
-        vals += w * wrc; wsum += w
-        detail.append((name, round(wrc)))
+        wrc_eff = wrc + _platoon_adj(hand, opp_sp_hand) * share
+        vals += w * wrc_eff; wsum += w
+        detail.append((name, round(wrc_eff)))
     lu_wrc = vals / wsum if wsum else team_base
     mult = max(0.85, min(1.15, lu_wrc / team_base))
     return mult, detail
@@ -296,10 +347,14 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
         r2 = lambda v: round(v, 2)
 
         # ── 라인업(타순) 반영: 발표됐으면 팀 공격력을 오늘 9명 기준으로 보정 ──
+        #   + 리그평균 플래툰: 각 팀 타선을 '상대 선발손' 대비 가감(선발 이닝만큼).
+        spHand_home = starter_hand(pv, "home")   # 홈 선발 투구손
+        spHand_away = starter_hand(pv, "away")   # 원정 선발 투구손
         luH = lineup_from_preview(pv, "home")
         luA = lineup_from_preview(pv, "away")
-        multH, detH = lineup_multiplier(luH, wrc_by_p, team_base.get(h))
-        multA, detA = lineup_multiplier(luA, wrc_by_p, team_base.get(a))
+        # 홈 타선은 '원정 선발'을 상대 / 원정 타선은 '홈 선발'을 상대
+        multH, detH = lineup_multiplier(luH, wrc_by_p, team_base.get(h), spHand_away, spA_inn)
+        multA, detA = lineup_multiplier(luA, wrc_by_p, team_base.get(a), spHand_home, spH_inn)
         lineup_ready = bool(luH) and bool(luA)
         if lineup_ready:
             oHi2, oAi2 = idx(oH * multH, lg), idx(oA * multA, lg)
@@ -324,6 +379,7 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
             "winHomeLU": round(pH2 * 100), "winAwayLU": round((1 - pH2) * 100),
             "lineupHome": detH, "lineupAway": detA,
             "multHome": round(multH, 3), "multAway": round(multA, 3),
+            "spHandHome": spHand_home, "spHandAway": spHand_away,
             "bpOutHome": outH, "bpOutAway": outA,
             "calc": {
                 "lg": r2(lg), "boost": HOME_BOOST, "park": pf, "stadium": g.get("stadium"),
