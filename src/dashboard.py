@@ -451,8 +451,8 @@ def _projection_card(proj, logos) -> str:
         f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·선발이닝·가용 불펜 기반 <b style="color:#ffb454">(라인업 반영 전)</b></span></h2>'
         '<p class="hint">기대 스코어(왼=원정, 오=홈)와 승리확률. <b>확률·기대값이지 예언이 아닙니다</b> — '
         '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). <b>지금은 라인업 반영 전</b>(타순 미발표라 팀 공격력 근사) — '
-        '라인업 발표(경기 ~1시간 전) 후 갱신판에 반영 예정. 불펜 결장: 3연투 또는 전날 <b>추정 투구수</b>별 휴식'
-        '(30~45구=1일·45~60=2일·60~75=3일 · 투구수는 API에 없어 상대타자수×3.9 추정).</p>'
+        '라인업 발표(경기 ~1시간 전) 후 갱신판에 반영 예정. 불펜 결장: 3연투 또는 전날 <b>투구수</b>별 휴식'
+        '(30~45구=1일·45~60=2일·60~75=3일 · 네이버 실투구수 기준).</p>'
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
         + "".join(cards) + '</div></div>')
 

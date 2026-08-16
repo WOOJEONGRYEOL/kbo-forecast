@@ -74,10 +74,8 @@ def _pitcher_stats(box):
         g = g.sort_values("date")
         outs = int(g["outs"].sum()); r = int(g["r"].sum())
         starts = g[g["outs"] >= 9]              # 3이닝+ 등판 = 선발 근사
-        # 등판별 추정 투구수 = (아웃+피안타+볼넷사구) × 3.9  (API에 실투구수 없어 근사)
-        apps = [{"date": str(row["date"]),
-                 "pit": round((int(row["outs"]) + int(row.get("hit", 0))
-                               + int(row.get("bbhp", 0))) * 3.9)}
+        # 등판별 실제 투구수: box의 'bf' 필드가 네이버 per-game 투구수(상대타자수는 pa).
+        apps = [{"date": str(row["date"]), "pit": int(row.get("bf", 0) or 0)}
                 for _, row in g.iterrows()]
         out[str(pcode)] = {
             "team": g.iloc[-1]["team"], "name": g.iloc[-1]["name"],
@@ -107,8 +105,8 @@ def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None):
     """team의 가용 불펜 RA9(가중평균)와 결장 사유. asof=경기일(문자열).
     결장 규칙:
       · 3연투: 전날까지 3일 연속 등판 → 당일 결장
-      · 투구수 휴식: 최근 등판 추정투구수 30~45=1일, 45~60=2일, 60~75=3일 결장
-    (투구수는 API에 없어 상대타자수×3.9로 추정)"""
+      · 투구수 휴식: 최근 등판 투구수 30~45=1일, 45~60=2일, 60~75=3일 결장
+    (투구수는 네이버 박스스코어 실값 'bf' 사용)"""
     starters = set(rotation["pcode"].astype(str)) if len(rotation) else set()
     ps = ps or _pitcher_stats(box)
     d0 = datetime.date.fromisoformat(asof)
