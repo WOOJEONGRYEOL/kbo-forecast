@@ -307,30 +307,9 @@ def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
 _FINISHED = {"RESULT", "ENDED"}   # 종료 경기(스코어 확정) 상태
 
 
-def project_games(games: list, box, ref_date: str = None) -> dict:
-    """오늘(없으면 다음 예정일) 경기들의 기대 스코어·승률. 반환 {date, games:[...]}."""
-    today = ref_date or datetime.date.today().isoformat()
-    # 오늘 경기가 있으면 상태(BEFORE/READY/LIVE/RESULT)와 무관하게 '오늘'을 유지한다.
-    #   경기가 시작·종료돼도 기대 스코어는 그 날 내내(다음날 아침 빌드 전까지) 남아야 하므로.
-    # 오늘 경기가 아예 없으면(휴식일) 다음 예정일(BEFORE/READY) 중 가장 이른 날로.
-    if any(g["gameDate"] == today and not g.get("cancel") for g in games):
-        day = today
-    else:
-        PREGAME = {"BEFORE", "READY"}
-        future = [g["gameDate"] for g in games if g.get("statusCode") in PREGAME
-                  and not g.get("cancel") and g.get("gameDate", "") > today]
-        day = min(future, default=None)
-    if day is None:
-        return {"date": None, "games": []}
+def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base):
+    """하루치(day) 경기들을 기대 스코어 dict 리스트로. 공유 컨텍스트는 인자로 받는다."""
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
-
-    rsg, lg = team_offense(games)
-    lg_ra9 = lg                                   # 리그 평균 실점/9 ≈ 득점/9
-    ps = _pitcher_stats(box)
-    rotation = identify_rotation(box)
-    pfs = park_factors(games)                     # 구장별 득점환경
-    wrc_by_p, team_base = load_lineup_wrc()        # 타순 반영용(로컬 캐시)
-
     out = []
     for g in todays:
         h, a = g["homeTeamCode"], g["awayTeamCode"]
@@ -409,7 +388,54 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
                 "pitchAway": r2(pitchA), "pIdxAway": r2(pA_i),
             },
         })
-    return {"date": day, "games": out}
+    return out
+
+
+def project_games(games: list, box, ref_date: str = None) -> dict:
+    """오늘의 경기 기대 스코어. 반환 {date, games, sections}.
+    · 오늘 경기가 있으면 오늘 한 섹션(경기 시작·종료돼도 그날 내내 유지).
+    · 오늘 경기가 없으면(휴식일=월요일 등) '지난 경기 결과' + '다음 경기 예고' 두 섹션.
+    sections=[{date, kind, label, games:[...]}] 순서대로 렌더. date/games는 첫 섹션(하위호환)."""
+    today = ref_date or datetime.date.today().isoformat()
+    PREGAME = {"BEFORE", "READY"}
+
+    # 공유 컨텍스트(한 번만 계산)
+    rsg, lg = team_offense(games)
+    lg_ra9 = lg
+    ps = _pitcher_stats(box)
+    rotation = identify_rotation(box)
+    pfs = park_factors(games)
+    wrc_by_p, team_base = load_lineup_wrc()
+
+    def day_of(d):
+        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base)
+
+    def wd_label(d):
+        w = "월화수목금토일"[datetime.date.fromisoformat(d).weekday()]
+        return f"{d}({w})"
+
+    sections = []
+    if any(g["gameDate"] == today and not g.get("cancel") for g in games):
+        sections.append({"date": today, "kind": "today",
+                         "label": f"오늘의 경기 · {wd_label(today)}", "games": day_of(today)})
+    else:
+        # 휴식일: 마지막 경기일(결과) + 다음 경기일(예고)
+        past = [g["gameDate"] for g in games
+                if g.get("gameDate", "") < today and not g.get("cancel")
+                and g.get("statusCode") in _FINISHED]
+        last = max(past, default=None)
+        fut = [g["gameDate"] for g in games if g.get("statusCode") in PREGAME
+               and not g.get("cancel") and g.get("gameDate", "") > today]
+        nextd = min(fut, default=None)
+        if last:
+            sections.append({"date": last, "kind": "result",
+                             "label": f"지난 경기 결과 · {wd_label(last)}", "games": day_of(last)})
+        if nextd:
+            sections.append({"date": nextd, "kind": "preview",
+                             "label": f"다음 경기 예고 · {wd_label(nextd)}", "games": day_of(nextd)})
+
+    primary = sections[0] if sections else {"date": None, "games": []}
+    return {"date": primary["date"], "games": primary["games"], "sections": sections}
 
 
 _PREDLOG_PATH = f"{config.DATA_DIR}/predictions.json"
@@ -439,8 +465,10 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         pred_home_win = e.get("predHome", 0) >= e.get("predAway", 0)
         e["correct"] = bool(pred_home_win == (ah > aa))
 
-    # 1) 오늘 슬레이트: 예측 업서트(경기 전이면 갱신) + 상태·결과 반영
-    for g in projections.get("games", []):
+    # 1) 표시 슬레이트(오늘/결과/예고 전부): 예측 업서트(경기 전이면 갱신) + 상태·결과 반영
+    secs = projections.get("sections")
+    slate = [g for s in secs for g in s["games"]] if secs else projections.get("games", [])
+    for g in slate:
         gid = g.get("gameId")
         if not gid:
             continue

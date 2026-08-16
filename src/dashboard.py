@@ -446,12 +446,9 @@ _CALC_GUIDE_HTML = r"""
 </div></details>"""
 
 
-def _projection_card(proj, logos) -> str:
-    """오늘의 기대 스코어 카드(서버렌더). proj=game_projection.project_games() 결과."""
-    if not proj or not proj.get("games"):
-        return ""
-    cards = []
-    for g in proj["games"]:
+def _one_game_card(g, logos) -> str:
+    """경기 1개의 기대 스코어 카드 HTML."""
+    if True:
         hl, al = logos.get(g["home"], ""), logos.get(g["away"], "")
         hc, ac = TEAM_COLORS.get(g["home"], "#888"), TEAM_COLORS.get(g["away"], "#888")
         fo = lambda lst: "·".join(f'{o["name"]}({o["reason"]})' for o in lst)
@@ -528,7 +525,7 @@ def _projection_card(proj, logos) -> str:
                            'color:#ffb454;font-weight:700">● 경기 중</div>')
         else:
             result_line = ''
-        cards.append(
+        return (
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
             f'<div style="text-align:center;margin-bottom:3px">{badge}</div>'
@@ -548,18 +545,50 @@ def _projection_card(proj, logos) -> str:
             f'<div style="width:{wA}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{wA}%</div>'
             f'<div style="width:{wH}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{wH}%</div></div>'
             f'{result_line}{bp}{detail}</div>')
-    n_ready = sum(1 for g in proj["games"] if g.get("lineupReady"))
-    n_tot = len(proj["games"])
-    hdr = (f'<b style="color:#3ecf8e">라인업 반영 {n_ready}/{n_tot}</b>' if n_ready
-           else '<b style="color:#ffb454">라인업 발표 전</b>')
+
+
+def _section_block(sec, logos) -> str:
+    """한 섹션(오늘/결과/예고) = 소제목 + 경기 카드 그리드."""
+    games = sec.get("games") or []
+    if not games:
+        return ''
+    n_ready = sum(1 for g in games if g.get("lineupReady"))
+    # 판정된(종료·승부난) 경기가 있으면 적중 요약, 없으면 라인업 반영 현황
+    graded = [g for g in games if g.get("status") in ("RESULT", "ENDED")
+              and g.get("actualHome") is not None and g["actualHome"] != g["actualAway"]]
+    if graded:
+        hit = sum(1 for g in graded if (g.get("erHomeLU", g["erHome"]) >= g.get("erAwayLU", g["erAway"]))
+                  == (g["actualHome"] > g["actualAway"]))
+        tag = f'<b style="color:#3ecf8e">예측 적중 {hit}/{len(graded)}</b>'
+    elif n_ready:
+        tag = f'<b style="color:#3ecf8e">라인업 반영 {n_ready}/{len(games)}</b>'
+    else:
+        tag = '<b style="color:#ffb454">라인업 발표 전</b>'
+    cards = "".join(_one_game_card(g, logos) for g in games)
+    return (
+        f'<div style="margin:14px 0 6px;font-size:14px;font-weight:700">{sec.get("label","")} '
+        f'<span style="font-weight:400;font-size:12px">· {tag}</span></div>'
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
+        + cards + '</div>')
+
+
+def _projection_card(proj, logos) -> str:
+    """오늘의 기대 스코어 카드(서버렌더). proj=game_projection.project_games() 결과."""
+    if not proj:
+        return ""
+    sections = proj.get("sections") or ([{"kind": "today", "label": "오늘의 경기",
+                                          "games": proj.get("games") or []}]
+                                        if proj.get("games") else [])
+    if not any(s.get("games") for s in sections):
+        return ""
+    blocks = "".join(_section_block(s, logos) for s in sections)
     return (
         '<div class="card wide" id="projCard">'
-        f'<h2>오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · {hdr}</span></h2>'
+        '<h2>기대 스코어 <span style="color:var(--muted);font-weight:400;font-size:13px">'
+        '— 예고선발·선발이닝·가용 불펜·타순(wRC+)·좌우 반영</span></h2>'
         '<p class="hint">숫자 밑 괄호는 예상범위(왼=원정, 오=홈) · <b>확률·기대값이지 예언이 아닙니다</b>(단일경기 천장 ~56%) · '
         '배지 <b style="color:#3ecf8e">✅</b> 라인업 반영 / <b style="color:#ffb454">⏳</b> 발표 전. 자세한 산식은 아래 ▾</p>'
-        + _CALC_GUIDE_HTML +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
-        + "".join(cards) + '</div></div>')
+        + _CALC_GUIDE_HTML + blocks + '</div>')
 
 
 _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>

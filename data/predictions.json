@@ -14,7 +14,7 @@
   "winAway": 30,
   "winHome": 70,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "frozen": true,
   "actualHome": 6,
   "actualAway": 2,
