@@ -30,6 +30,7 @@ def main():
     games = naver_games.filter_official_teams(games)
     box = boxscore.collect_season_pitching(games)   # 캐시 히트 위주 → 빠름
     projections = game_projection.project_games(games, box)
+    game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
     path = dashboard.save_today_page(projections)
     ready = sum(1 for g in projections["games"] if g.get("lineupReady"))
     n = len(projections["games"])

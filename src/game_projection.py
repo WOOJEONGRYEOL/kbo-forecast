@@ -304,6 +304,9 @@ def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
     return blended, sp_ra9, known, round(sp_inn, 1)
 
 
+_FINISHED = {"RESULT", "ENDED"}   # 종료 경기(스코어 확정) 상태
+
+
 def project_games(games: list, box, ref_date: str = None) -> dict:
     """오늘(없으면 다음 예정일) 경기들의 기대 스코어·승률. 반환 {date, games:[...]}."""
     today = ref_date or datetime.date.today().isoformat()
@@ -371,8 +374,15 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
         else:
             erH2, erA2, pH2 = erH, erA, pH
 
+        # 실제 결과(종료 경기): 네이버 최종 스코어. 진행 전이면 None.
+        # RESULT=확정, ENDED=종료 직후(스코어는 이미 확정) 둘 다 종료로 취급.
+        status = g.get("statusCode")
+        finished = status in _FINISHED
+        actH = g.get("homeTeamScore") if finished else None
+        actA = g.get("awayTeamScore") if finished else None
         out.append({
-            "date": day, "home": h, "away": a,
+            "date": day, "home": h, "away": a, "gameId": g.get("gameId"),
+            "status": status, "actualHome": actH, "actualAway": actA,
             "homeName": config.TEAM_NAMES.get(h, h), "awayName": config.TEAM_NAMES.get(a, a),
             "spHome": sp["home"][0], "spAway": sp["away"][0],
             # 라인업 반영 전(팀 시즌 공격력 기준)
@@ -400,3 +410,70 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
             },
         })
     return {"date": day, "games": out}
+
+
+_PREDLOG_PATH = f"{config.DATA_DIR}/predictions.json"
+
+
+def save_prediction_log(projections: dict, games: list, path: str = None) -> str:
+    """경기별 예측(반영 전/후)+실제 결과를 data/predictions.json에 누적 저장.
+    · 예측은 경기가 '경기 전(BEFORE/READY)'인 동안 매 빌드 갱신(최신 정보 반영),
+      경기가 시작되면(LIVE/RESULT) 그 시점 예측을 고정(frozen).
+    · 실제 결과는 종료(RESULT) 시 채우고, 날짜가 지난 뒤에도 games 전체를 훑어
+      로그에 있는 미완료 경기의 결과를 뒤늦게 backfill한다.
+    반환: 저장 경로."""
+    import json
+    path = path or _PREDLOG_PATH
+    try:
+        log = json.loads(open(path, encoding="utf-8").read())
+    except Exception:
+        log = {}
+    PREGAME = {"BEFORE", "READY"}
+
+    def _grade(e):
+        ah, aa = e.get("actualHome"), e.get("actualAway")
+        if ah is None or aa is None or ah == aa:
+            e["correct"] = None                 # 무승부·미종료는 판정 보류
+            return
+        # 예측 승자(반영 후 기대득점) vs 실제 승자
+        pred_home_win = e.get("predHome", 0) >= e.get("predAway", 0)
+        e["correct"] = bool(pred_home_win == (ah > aa))
+
+    # 1) 오늘 슬레이트: 예측 업서트(경기 전이면 갱신) + 상태·결과 반영
+    for g in projections.get("games", []):
+        gid = g.get("gameId")
+        if not gid:
+            continue
+        e = log.get(gid, {})
+        if not e.get("frozen"):                 # 경기 시작 전엔 최신 예측으로 갱신
+            e.update({
+                "date": g["date"], "away": g["away"], "home": g["home"],
+                "awayName": g["awayName"], "homeName": g["homeName"],
+                "spAway": g["spAway"], "spHome": g["spHome"],
+                "predAwayPre": g["erAway"], "predHomePre": g["erHome"],
+                "predAway": g.get("erAwayLU", g["erAway"]),
+                "predHome": g.get("erHomeLU", g["erHome"]),
+                "winAway": g.get("winAwayLU", g["winAway"]),
+                "winHome": g.get("winHomeLU", g["winHome"]),
+                "lineupReady": g.get("lineupReady", False),
+            })
+        e["status"] = g.get("status")
+        if g.get("status") not in PREGAME:      # 경기 시작 → 예측 고정
+            e["frozen"] = True
+        if g.get("actualHome") is not None:
+            e["actualHome"], e["actualAway"] = g["actualHome"], g["actualAway"]
+            _grade(e)
+        log[gid] = e
+
+    # 2) 과거 경기 backfill: 로그에 있는데 결과가 빈 경기를 games에서 채움
+    by_id = {x.get("gameId"): x for x in games}
+    for gid, e in log.items():
+        if e.get("actualHome") is None:
+            gg = by_id.get(gid)
+            if gg and gg.get("statusCode") in _FINISHED:
+                e["actualHome"], e["actualAway"] = gg.get("homeTeamScore"), gg.get("awayTeamScore")
+                e["status"] = gg.get("statusCode"); e["frozen"] = True
+                _grade(e)
+
+    open(path, "w", encoding="utf-8").write(json.dumps(log, ensure_ascii=False, indent=1))
+    return path

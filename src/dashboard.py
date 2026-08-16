@@ -509,6 +509,25 @@ def _projection_card(proj, logos) -> str:
                   f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
                   f'<span style="opacity:.8">구장 {c["park"]}={c.get("stadium","")}(득점환경) · 라인업=타순가중 wRC+/팀상위9 · 지수=(팀값/리그−1)×0.85+1 · 예상범위=과분산 근사 · 승률=로지스틱((홈−원정)/5.5)</span>'
                   '</div></details>')
+        # 실제 결과(종료 경기) — 예측과 나란히, 적중 여부 표시
+        st = g.get("status")
+        ah, aa = g.get("actualHome"), g.get("actualAway")
+        if st in ("RESULT", "ENDED") and ah is not None and aa is not None:
+            if ah == aa:
+                mk, col = "무승부", "var(--muted)"
+            else:
+                correct = (eH >= eA) == (ah > aa)
+                mk = "예측 적중 ✓" if correct else "예측 빗나감 ✗"
+                col = "#3ecf8e" if correct else "#e5484d"
+            result_line = (f'<div style="text-align:center;margin-top:6px;font-size:12px">'
+                           f'<span style="color:var(--muted)">실제</span> '
+                           f'<b style="color:var(--text);font-size:14px">{aa} : {ah}</b> '
+                           f'<span style="color:{col};font-weight:700">· {mk}</span></div>')
+        elif st and st not in ("BEFORE", "READY", "RESULT", "ENDED"):
+            result_line = ('<div style="text-align:center;margin-top:6px;font-size:11px;'
+                           'color:#ffb454;font-weight:700">● 경기 중</div>')
+        else:
+            result_line = ''
         cards.append(
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
@@ -528,7 +547,7 @@ def _projection_card(proj, logos) -> str:
             f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
             f'<div style="width:{wA}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{wA}%</div>'
             f'<div style="width:{wH}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{wH}%</div></div>'
-            f'{bp}{detail}</div>')
+            f'{result_line}{bp}{detail}</div>')
     n_ready = sum(1 for g in proj["games"] if g.get("lineupReady"))
     n_tot = len(proj["games"])
     hdr = (f'<b style="color:#3ecf8e">라인업 반영 {n_ready}/{n_tot}</b>' if n_ready
