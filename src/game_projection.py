@@ -307,13 +307,16 @@ def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
 def project_games(games: list, box, ref_date: str = None) -> dict:
     """오늘(없으면 다음 예정일) 경기들의 기대 스코어·승률. 반환 {date, games:[...]}."""
     today = ref_date or datetime.date.today().isoformat()
-    # 경기 전 상태: BEFORE(예정) + READY(라인업 발표·임박 시 전환). 취소·과거일(서스펜디드
-    # 잔재) 제외. 오늘 경기가 임박해 READY로 바뀌면 BEFORE만 보던 과거엔 오늘을 놓쳤다.
-    PREGAME = {"BEFORE", "READY"}
-    sched = [g for g in games if g.get("statusCode") in PREGAME
-             and not g.get("cancel") and g.get("gameDate", "") >= today]
-    day = today if any(g["gameDate"] == today for g in sched) else (
-        min((g["gameDate"] for g in sched), default=None))
+    # 오늘 경기가 있으면 상태(BEFORE/READY/LIVE/RESULT)와 무관하게 '오늘'을 유지한다.
+    #   경기가 시작·종료돼도 기대 스코어는 그 날 내내(다음날 아침 빌드 전까지) 남아야 하므로.
+    # 오늘 경기가 아예 없으면(휴식일) 다음 예정일(BEFORE/READY) 중 가장 이른 날로.
+    if any(g["gameDate"] == today and not g.get("cancel") for g in games):
+        day = today
+    else:
+        PREGAME = {"BEFORE", "READY"}
+        future = [g["gameDate"] for g in games if g.get("statusCode") in PREGAME
+                  and not g.get("cancel") and g.get("gameDate", "") > today]
+        day = min(future, default=None)
     if day is None:
         return {"date": None, "games": []}
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
