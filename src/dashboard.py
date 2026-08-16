@@ -468,17 +468,21 @@ def _projection_card(proj, logos) -> str:
         eA, eH = g.get("erAwayLU", g["erAway"]), g.get("erHomeLU", g["erHome"])
         bA, bH = g.get("bandAwayLU", g["bandAway"]), g.get("bandHomeLU", g["bandHome"])
         wA, wH = g.get("winAwayLU", g["winAway"]), g.get("winHomeLU", g["winHome"])
-        # 배지 + 반영 전/후 델타
+        # 배지 + '반영 전 … → 반영 후'를 큰 점수 위에 병기
         if ready:
             changed = (eA != g["erAway"]) or (eH != g["erHome"])
             badge = '<span style="color:#3ecf8e;font-size:10px;font-weight:700">✅ 라인업 반영</span>'
-            delta = (f'<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">'
-                     f'반영 전 {g["erAway"]} : {g["erHome"]}'
-                     f'<span style="opacity:.7"> (타순 반영 ×{g.get("multAway","?")}·×{g.get("multHome","?")})</span></div>') if changed else \
-                    ('<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">반영 전과 동일(라인업이 평균 수준)</div>')
+            if changed:
+                pre_line = (f'<div style="text-align:center;color:var(--muted);font-size:10px;margin-bottom:1px">'
+                            f'반영 전 <b>{g["erAway"]} : {g["erHome"]}</b>'
+                            f'<span style="opacity:.7"> · 타순 ×{g.get("multAway","?")}·×{g.get("multHome","?")}</span>'
+                            f' → <b style="color:#3ecf8e">반영 후</b></div>')
+            else:
+                pre_line = ('<div style="text-align:center;color:var(--muted);font-size:10px;margin-bottom:1px">'
+                            '반영 후 · 라인업이 평균 수준이라 변동 없음</div>')
         else:
             badge = '<span style="color:#ffb454;font-size:10px;font-weight:700">⏳ 라인업 반영 전</span>'
-            delta = ''
+            pre_line = ''
         # 계산 근거 — 라인업 타순(wRC+) 포함
         def lu_block(det, mult, name):
             if not det:
@@ -505,6 +509,7 @@ def _projection_card(proj, logos) -> str:
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
             f'<div style="text-align:center;margin-bottom:3px">{badge}</div>'
+            f'{pre_line}'
             f'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
             f'<span style="font-size:13px"><img src="{al}" alt="" style="height:18px;vertical-align:-4px;margin-right:3px">{g["awayName"]}</span>'
             f'<div style="display:flex;align-items:flex-start;gap:5px;white-space:nowrap">'
@@ -514,7 +519,6 @@ def _projection_card(proj, logos) -> str:
             f'<div style="text-align:center"><b style="font-size:19px">{eH}</b>'
             f'<div style="font-size:9px;color:var(--muted);margin-top:-1px">({bH[0]}~{bH[1]})</div></div></div>'
             f'<span style="font-size:13px">{g["homeName"]}<img src="{hl}" alt="" style="height:18px;vertical-align:-4px;margin-left:3px"></span></div>'
-            f'{delta}'
             f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:3px 0 6px">'
             f'예고 {g["spAway"] or "미정"} vs {g["spHome"] or "미정"}</div>'
             f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
