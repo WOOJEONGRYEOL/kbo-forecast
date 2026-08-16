@@ -507,10 +507,13 @@ def _projection_card(proj, logos) -> str:
             f'<div style="text-align:center;margin-bottom:3px">{badge}</div>'
             f'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
             f'<span style="font-size:13px"><img src="{al}" alt="" style="height:18px;vertical-align:-4px;margin-right:3px">{g["awayName"]}</span>'
-            f'<b style="font-size:19px;white-space:nowrap">{eA} <span style="color:var(--muted)">:</span> {eH}</b>'
+            f'<div style="display:flex;align-items:flex-start;gap:5px;white-space:nowrap">'
+            f'<div style="text-align:center"><b style="font-size:19px">{eA}</b>'
+            f'<div style="font-size:9px;color:var(--muted);margin-top:-1px">({bA[0]}~{bA[1]})</div></div>'
+            f'<b style="font-size:19px;color:var(--muted)">:</b>'
+            f'<div style="text-align:center"><b style="font-size:19px">{eH}</b>'
+            f'<div style="font-size:9px;color:var(--muted);margin-top:-1px">({bH[0]}~{bH[1]})</div></div></div>'
             f'<span style="font-size:13px">{g["homeName"]}<img src="{hl}" alt="" style="height:18px;vertical-align:-4px;margin-left:3px"></span></div>'
-            f'<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">'
-            f'예상범위 {bA[0]}~{bA[1]} : {bH[0]}~{bH[1]}</div>'
             f'{delta}'
             f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:3px 0 6px">'
             f'예고 {g["spAway"] or "미정"} vs {g["spHome"] or "미정"}</div>'
@@ -524,11 +527,9 @@ def _projection_card(proj, logos) -> str:
            else '<b style="color:#ffb454">라인업 발표 전</b>')
     return (
         '<div class="card wide" id="projCard">'
-        f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·선발이닝·가용 불펜·타순(wRC+) 기반 · {hdr}</span></h2>'
-        '<p class="hint">기대 스코어(왼=원정, 오=홈)와 승리확률. <b>확률·기대값이지 예언이 아닙니다</b> — '
-        '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). 카드별 배지: <b style="color:#3ecf8e">✅ 라인업 반영</b>(타순 발표됨, 경기 ~30분 전) / '
-        '<b style="color:#ffb454">⏳ 라인업 반영 전</b>(팀 시즌 공격력 근사). 타순 발표 시 오늘 9명의 타순가중 wRC+로 공격력을 보정합니다. '
-        '불펜 결장: 3연투 또는 전날 <b>투구수</b>별 휴식(30~45구=1일·45~60=2일·60~75=3일 · 네이버 실투구수 기준).</p>'
+        f'<h2>오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · {hdr}</span></h2>'
+        '<p class="hint">숫자 밑 괄호는 예상범위(왼=원정, 오=홈) · <b>확률·기대값이지 예언이 아닙니다</b>(단일경기 천장 ~56%) · '
+        '배지 <b style="color:#3ecf8e">✅</b> 라인업 반영 / <b style="color:#ffb454">⏳</b> 발표 전. 자세한 산식은 아래 ▾</p>'
         + _CALC_GUIDE_HTML +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
         + "".join(cards) + '</div></div>')
@@ -558,7 +559,7 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="history.html">🏆 역대</a>
   <a class="active" href="today.html">🔮 오늘의 경기</a>
 </nav>
-<h1>🔮 오늘의 경기</h1>
+<h1>⚾ 오늘의 경기</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
 __CARD__
 </div></body></html>"""
