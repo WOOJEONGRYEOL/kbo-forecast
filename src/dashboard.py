@@ -404,6 +404,47 @@ def team_home_away(games) -> dict:
     return out
 
 
+# 기대득점 산정 방법을 카드 안에 접이식으로 설명(고정 예시: 2026-08-16 한화@삼성)
+_CALC_GUIDE_HTML = r"""
+<details style="margin:2px 0 12px">
+<summary style="cursor:pointer;color:var(--green);font-size:12.5px;font-weight:600">
+📐 기대득점은 어떻게 나오나요? — 단계별 계산 방법 (예시로 보기) ▾</summary>
+<div style="font-size:12px;color:var(--muted);line-height:1.7;margin-top:8px;
+  border-left:2px solid var(--line);padding-left:12px">
+<p style="margin:0 0 8px"><b style="color:var(--text)">뼈대는 한 줄입니다</b>(세이버매트릭스 log5 방식):<br>
+<code style="color:#ffb454">기대득점 = 리그평균 × 구장 × (내 공격력) × (상대 실점력) × 홈보정</code><br>
+리그 평균 팀을 기준(1.0)으로 두고, 평균 대비 몇 %인지를 곱해 나갑니다.<br>
+아래는 <b style="color:var(--text)">한화(원정) @ 삼성(홈)·대구</b> 실제 예시 → 결과 <b style="color:var(--text)">삼성 5.9 : 한화 3.6, 삼성 60%</b>.</p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">① 리그 평균(기준점)</b> — 올 시즌 경기당 평균 득점 <b>5.06</b>. 여기서 위아래로 조정.</p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">② 구장 팩터</b> — 대구 <b>1.007</b>(중립). 구장별 득점환경을 <b>절반만</b> 반영(표본 노이즈 방지) → 대전 1.10~잠실 0.94. 양 팀 공통.</p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">③ 공격력 지수</b> — 팀 경기당 득점(RS/G)을 리그 대비로. 삼성 5.66→비율 1.12, 한화 5.88→1.16.
+과장 방지로 평균 쪽 15% 수축: <code>지수 = 1 + (비율−1)×0.85</code> → 삼성 <b>1.10</b>, 한화 <b>1.14</b>.</p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">④ 상대 실점력</b>(핵심) — 예고선발 + 그 선발 평균이닝 + 남은 이닝은 가용 불펜으로 혼합.<br>
+· 삼성 페덱 RA9 <b>2.37</b>·평균 <b>6.3이닝</b>, 삼성 불펜 4.39·2.7이닝 → 혼합 <code>(6.3×2.37+2.7×4.39)/9 = 2.97</code> → 실점지수 <b>0.65</b>(평균보다 35%↓)<br>
+· 한화 왕옌청 RA9 4.65·5.5이닝, 한화 불펜 6.0·3.5이닝 → 혼합 <b>5.18</b> → 지수 <b>1.02</b>. <span style="opacity:.8">여기서 승부가 갈립니다.</span></p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">⑤ 홈 보정</b> — 홈 <b>×1.035</b>, 원정 <b>÷1.035</b>(리그 공통 상수).</p>
+
+<p style="margin:0 0 8px"><b style="color:var(--text)">⑥ 조립(곱셈)</b><br>
+삼성 = 5.06 × 1.007 × <b>1.10</b> × <b>1.02</b> × 1.035 = <b style="color:var(--text)">5.9</b><br>
+한화 = 5.06 × 1.007 × <b>1.14</b> × <b>0.65</b> ÷ 1.035 = <b style="color:var(--text)">3.6</b><br>
+<span style="opacity:.85">한화 공격이 더 세도(1.14) 삼성 페덱의 실점지수 0.65 벽에 눌립니다.</span></p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">⑦ 예상범위</b> — 야구는 분산이 커서 범위 병기. <code>표준편차≈√(μ+μ²/6)</code> → 삼성 5.9→<b>4~8</b>, 한화 3.6→<b>2~5</b>.</p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">⑧ 승리확률</b> — 두 기대득점 차를 로지스틱으로 압축(단일경기 운 반영).<br>
+<code>1/(1+e^−(5.9−3.6)/5.5) = 0.60</code> → 삼성 60%. (÷5.5로 압축 안 하면 87% 같은 과신이 남.)</p>
+
+<p style="margin:0 0 6px"><b style="color:var(--text)">⑨ 라인업 반영(발표 시)</b> — 오늘 9명의 <b>타순가중 wRC+ ÷ 팀 상위9 베이스</b> = 공격 배수(0.85~1.15)로 ③을 보정. 주전이 쉬면 배수&lt;1.</p>
+
+<p style="margin:8px 0 0;color:#ffb454"><b>⚠️ 정직한 한계</b> — 단일 경기 예측의 정직한 천장은 ~56%(experiments 검증). '맞히기'가 아니라 <b>왜 이런 스코어인지</b>를 숫자로 서술하는 도구입니다.</p>
+</div></details>"""
+
+
 def _projection_card(proj, logos) -> str:
     """오늘의 기대 스코어 카드(서버렌더). proj=game_projection.project_games() 결과."""
     if not proj or not proj.get("games"):
@@ -488,6 +529,7 @@ def _projection_card(proj, logos) -> str:
         '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). 카드별 배지: <b style="color:#3ecf8e">✅ 라인업 반영</b>(타순 발표됨, 경기 ~30분 전) / '
         '<b style="color:#ffb454">⏳ 라인업 반영 전</b>(팀 시즌 공격력 근사). 타순 발표 시 오늘 9명의 타순가중 wRC+로 공격력을 보정합니다. '
         '불펜 결장: 3연투 또는 전날 <b>투구수</b>별 휴식(30~45구=1일·45~60=2일·60~75=3일 · 네이버 실투구수 기준).</p>'
+        + _CALC_GUIDE_HTML +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
         + "".join(cards) + '</div></div>')
 
