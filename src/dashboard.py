@@ -422,39 +422,72 @@ def _projection_card(proj, logos) -> str:
               f'{" / ".join(outs)}</div>') if outs else ''
         c = g.get("calc") or {}
         sn = lambda k: "" if k else "(기록부족→리그평균)"
+        ready = g.get("lineupReady")
+        # 헤드라인은 '반영 후'(미발표면 반영 전과 동일). 값·밴드·승률 모두 LU 사용.
+        eA, eH = g.get("erAwayLU", g["erAway"]), g.get("erHomeLU", g["erHome"])
+        bA, bH = g.get("bandAwayLU", g["bandAway"]), g.get("bandHomeLU", g["bandHome"])
+        wA, wH = g.get("winAwayLU", g["winAway"]), g.get("winHomeLU", g["winHome"])
+        # 배지 + 반영 전/후 델타
+        if ready:
+            changed = (eA != g["erAway"]) or (eH != g["erHome"])
+            badge = '<span style="color:#3ecf8e;font-size:10px;font-weight:700">✅ 라인업 반영</span>'
+            delta = (f'<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">'
+                     f'반영 전 {g["erAway"]} : {g["erHome"]}'
+                     f'<span style="opacity:.7"> (타순 반영 ×{g.get("multAway","?")}·×{g.get("multHome","?")})</span></div>') if changed else \
+                    ('<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">반영 전과 동일(라인업이 평균 수준)</div>')
+        else:
+            badge = '<span style="color:#ffb454;font-size:10px;font-weight:700">⏳ 라인업 반영 전</span>'
+            delta = ''
+        # 계산 근거 — 라인업 타순(wRC+) 포함
+        def lu_block(det, mult, name):
+            if not det:
+                return ''
+            order = " · ".join(f'{i+1}.{n}({w})' for i, (n, w) in enumerate(det))
+            return f'{name} 타순 ×{mult}: {order}<br>'
+        lu_detail = ''
+        if ready:
+            lu_detail = (lu_block(g.get("lineupAway"), g.get("multAway"), g["awayName"])
+                         + lu_block(g.get("lineupHome"), g.get("multHome"), g["homeName"]))
         detail = ('' if not c else
                   '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
                   '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'
-                  f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
+                  + (f'<div style="color:var(--text);opacity:.9;margin-bottom:3px">{lu_detail}</div>' if lu_detail else '')
+                  + f'홈 <b style="color:var(--text)">{g["erHome"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {c["oIdxHome"]}(RS/G {c["offHome"]}) '
                   f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·평균 {c["spAwayInn"]}이닝 '
                   f'＋ 불펜 {c["bpAway"]}·{c["bpAwayInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
                   f'원정 <b style="color:var(--text)">{g["erAway"]}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 원정공격 {c["oIdxAway"]}(RS/G {c["offAway"]}) '
                   f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·평균 {c["spHomeInn"]}이닝 '
                   f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정<br>'
-                  f'<span style="opacity:.8">구장 {c["park"]}={c.get("stadium","")}(득점환경) · 지수=(팀값/리그−1)×0.85+1 수축 · 예상범위=과분산 근사 · 승률=로지스틱((홈−원정)/5.5)</span>'
+                  f'<span style="opacity:.8">구장 {c["park"]}={c.get("stadium","")}(득점환경) · 라인업=타순가중 wRC+/팀상위9 · 지수=(팀값/리그−1)×0.85+1 · 예상범위=과분산 근사 · 승률=로지스틱((홈−원정)/5.5)</span>'
                   '</div></details>')
         cards.append(
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
+            f'<div style="text-align:center;margin-bottom:3px">{badge}</div>'
             f'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
             f'<span style="font-size:13px"><img src="{al}" alt="" style="height:18px;vertical-align:-4px;margin-right:3px">{g["awayName"]}</span>'
-            f'<b style="font-size:19px;white-space:nowrap">{g["erAway"]} <span style="color:var(--muted)">:</span> {g["erHome"]}</b>'
+            f'<b style="font-size:19px;white-space:nowrap">{eA} <span style="color:var(--muted)">:</span> {eH}</b>'
             f'<span style="font-size:13px">{g["homeName"]}<img src="{hl}" alt="" style="height:18px;vertical-align:-4px;margin-left:3px"></span></div>'
             f'<div style="text-align:center;color:var(--muted);font-size:10px;margin-top:1px">'
-            f'예상범위 {g["bandAway"][0]}~{g["bandAway"][1]} : {g["bandHome"][0]}~{g["bandHome"][1]}</div>'
+            f'예상범위 {bA[0]}~{bA[1]} : {bH[0]}~{bH[1]}</div>'
+            f'{delta}'
             f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:3px 0 6px">'
             f'예고 {g["spAway"] or "미정"} vs {g["spHome"] or "미정"}</div>'
             f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
-            f'<div style="width:{g["winAway"]}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{g["winAway"]}%</div>'
-            f'<div style="width:{g["winHome"]}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{g["winHome"]}%</div></div>'
+            f'<div style="width:{wA}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{wA}%</div>'
+            f'<div style="width:{wH}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{wH}%</div></div>'
             f'{bp}{detail}</div>')
+    n_ready = sum(1 for g in proj["games"] if g.get("lineupReady"))
+    n_tot = len(proj["games"])
+    hdr = (f'<b style="color:#3ecf8e">라인업 반영 {n_ready}/{n_tot}</b>' if n_ready
+           else '<b style="color:#ffb454">라인업 발표 전</b>')
     return (
         '<div class="card wide" id="projCard">'
-        f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·선발이닝·가용 불펜 기반 <b style="color:#ffb454">(라인업 반영 전)</b></span></h2>'
+        f'<h2>🔮 오늘의 기대 스코어 <span style="color:var(--muted);font-weight:400">— {proj["date"]} · 예고선발·선발이닝·가용 불펜·타순(wRC+) 기반 · {hdr}</span></h2>'
         '<p class="hint">기대 스코어(왼=원정, 오=홈)와 승리확률. <b>확률·기대값이지 예언이 아닙니다</b> — '
-        '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). <b>지금은 라인업 반영 전</b>(타순 미발표라 팀 공격력 근사) — '
-        '라인업 발표(경기 ~1시간 전) 후 갱신판에 반영 예정. 불펜 결장: 3연투 또는 전날 <b>투구수</b>별 휴식'
-        '(30~45구=1일·45~60=2일·60~75=3일 · 네이버 실투구수 기준).</p>'
+        '단일 경기 정직한 예측 천장은 ~56%(experiments 검증). 카드별 배지: <b style="color:#3ecf8e">✅ 라인업 반영</b>(타순 발표됨, 경기 ~30분 전) / '
+        '<b style="color:#ffb454">⏳ 라인업 반영 전</b>(팀 시즌 공격력 근사). 타순 발표 시 오늘 9명의 타순가중 wRC+로 공격력을 보정합니다. '
+        '불펜 결장: 3연투 또는 전날 <b>투구수</b>별 휴식(30~45구=1일·45~60=2일·60~75=3일 · 네이버 실투구수 기준).</p>'
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
         + "".join(cards) + '</div></div>')
 

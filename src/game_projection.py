@@ -33,17 +33,73 @@ def _get(url):
     return r.json()
 
 
-def probable_starters(game_id: str) -> dict:
-    """preview → {'home': (name, pCode), 'away': (name, pCode)}. 없으면 (None, None)."""
+def preview_data(game_id: str) -> dict:
+    """게임 preview의 previewData(선발·라인업 포함). 실패 시 {}."""
     try:
-        pv = (_get(PREVIEW_URL.format(gid=game_id)).get("result") or {}).get("previewData") or {}
+        return (_get(PREVIEW_URL.format(gid=game_id)).get("result") or {}).get("previewData") or {}
     except Exception:
-        return {"home": (None, None), "away": (None, None)}
+        return {}
+
+
+def probable_starters(game_id: str, pv: dict = None) -> dict:
+    """preview → {'home': (name, pCode), 'away': (name, pCode)}. 없으면 (None, None)."""
+    pv = pv if pv is not None else preview_data(game_id)
     out = {}
     for side, key in (("home", "homeStarter"), ("away", "awayStarter")):
         pi = (pv.get(key) or {}).get("playerInfo") or {}
         out[side] = (pi.get("name"), str(pi.get("pCode")) if pi.get("pCode") else None)
     return out
+
+
+# 타순별 경기당 타석(PA) 근사 가중 — 1번타자가 가장 많이 친다.
+_BATORDER_PA = [4.65, 4.55, 4.45, 4.35, 4.25, 4.12, 4.00, 3.90, 3.80]
+
+
+def lineup_from_preview(pv: dict, side: str) -> list:
+    """발표된 타격 라인업 → [(pcode, name)] 타순 순서(선발투수 제외). 미발표면 []."""
+    key = "homeTeamLineUp" if side == "home" else "awayTeamLineUp"
+    fl = (pv.get(key) or {}).get("fullLineUp") or []
+    batters = [x for x in fl if x.get("positionName") != "선발투수"]
+    if len(batters) < 9:
+        return []
+    return [(str(x.get("playerCode")), x.get("playerName")) for x in batters[:9]]
+
+
+def load_lineup_wrc(season: int = None):
+    """최신 batters_*.csv → (wrc_by_pcode, team_base). team_base=팀 상위9(PA) PA가중 wRC+.
+    네트워크 없이 로컬 캐시만 사용(빈번한 today 빌드용). 없으면 ({}, {})."""
+    import glob
+    import pandas as pd
+    files = sorted(glob.glob(f"{config.DATA_DIR}/batters_*.csv"))
+    if not files:
+        return {}, {}
+    df = pd.read_csv(files[-1]).dropna(subset=["pcode", "wrc_plus_pure", "team_code"])
+    df["pcode"] = df["pcode"].astype(int).astype(str)
+    wrc_by_p = dict(zip(df["pcode"], df["wrc_plus_pure"].astype(float)))
+    base = {}
+    for tc, g in df.groupby("team_code"):
+        g = g.sort_values("n_pa", ascending=False).head(9)   # 주전 9명 근사
+        w = g["n_pa"].clip(lower=1)
+        base[str(tc)] = float((g["wrc_plus_pure"] * w).sum() / w.sum())
+    return wrc_by_p, base
+
+
+def lineup_multiplier(batters: list, wrc_by_p: dict, team_base: float):
+    """타순 순서 [(pcode,name)] → (공격배수, [(name, wrc)…]). 미발표/데이터없으면 (1.0, []).
+    배수 = 오늘 라인업 타순가중 wRC+ ÷ 팀 상위9 베이스 wRC+ (0.85~1.15 제한)."""
+    if not batters or not team_base:
+        return 1.0, []
+    vals, detail, wsum = 0.0, [], 0.0
+    for i, (pc, name) in enumerate(batters):
+        w = _BATORDER_PA[i] if i < len(_BATORDER_PA) else 3.8
+        wrc = wrc_by_p.get(pc)
+        if wrc is None:            # 무기록(신인·콜업) → 팀 베이스로 대체
+            wrc = team_base
+        vals += w * wrc; wsum += w
+        detail.append((name, round(wrc)))
+    lu_wrc = vals / wsum if wsum else team_base
+    mult = max(0.85, min(1.15, lu_wrc / team_base))
+    return mult, detail
 
 
 def team_offense(games: list) -> tuple:
@@ -212,11 +268,13 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     ps = _pitcher_stats(box)
     rotation = identify_rotation(box)
     pfs = park_factors(games)                     # 구장별 득점환경
+    wrc_by_p, team_base = load_lineup_wrc()        # 타순 반영용(로컬 캐시)
 
     out = []
     for g in todays:
         h, a = g["homeTeamCode"], g["awayTeamCode"]
-        sp = probable_starters(g["gameId"])
+        pv = preview_data(g["gameId"])            # 선발·라인업을 한 번에
+        sp = probable_starters(g["gameId"], pv)
         # 오늘 예고선발은 불펜 풀에서 명시적으로 제외(불펜 취급이던 스팟 선발도 커버)
         bpH, outH = available_bullpen(box, h, rotation, day, lg_ra9, ps=ps, exclude=[sp["home"][1]])
         bpA, outA = available_bullpen(box, a, rotation, day, lg_ra9, ps=ps, exclude=[sp["away"][1]])
@@ -236,13 +294,36 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
         # 승률: 단일경기 분산 반영 로지스틱(극단 압축)
         pH = 1 / (1 + math.exp(-(erH - erA) / WIN_SCALE))
         r2 = lambda v: round(v, 2)
+
+        # ── 라인업(타순) 반영: 발표됐으면 팀 공격력을 오늘 9명 기준으로 보정 ──
+        luH = lineup_from_preview(pv, "home")
+        luA = lineup_from_preview(pv, "away")
+        multH, detH = lineup_multiplier(luH, wrc_by_p, team_base.get(h))
+        multA, detA = lineup_multiplier(luA, wrc_by_p, team_base.get(a))
+        lineup_ready = bool(luH) and bool(luA)
+        if lineup_ready:
+            oHi2, oAi2 = idx(oH * multH, lg), idx(oA * multA, lg)
+            erH2 = lg * pf * oHi2 * pA_i * HOME_BOOST
+            erA2 = lg * pf * oAi2 * pH_i / HOME_BOOST
+            pH2 = 1 / (1 + math.exp(-(erH2 - erA2) / WIN_SCALE))
+        else:
+            erH2, erA2, pH2 = erH, erA, pH
+
         out.append({
             "date": day, "home": h, "away": a,
             "homeName": config.TEAM_NAMES.get(h, h), "awayName": config.TEAM_NAMES.get(a, a),
             "spHome": sp["home"][0], "spAway": sp["away"][0],
+            # 라인업 반영 전(팀 시즌 공격력 기준)
             "erHome": round(erH, 1), "erAway": round(erA, 1),
             "bandHome": _band(erH), "bandAway": _band(erA),
             "winHome": round(pH * 100), "winAway": round((1 - pH) * 100),
+            # 라인업 반영 후(발표 전이면 반영 전과 동일)
+            "lineupReady": lineup_ready,
+            "erHomeLU": round(erH2, 1), "erAwayLU": round(erA2, 1),
+            "bandHomeLU": _band(erH2), "bandAwayLU": _band(erA2),
+            "winHomeLU": round(pH2 * 100), "winAwayLU": round((1 - pH2) * 100),
+            "lineupHome": detH, "lineupAway": detA,
+            "multHome": round(multH, 3), "multAway": round(multA, 3),
             "bpOutHome": outH, "bpOutAway": outA,
             "calc": {
                 "lg": r2(lg), "boost": HOME_BOOST, "park": pf, "stadium": g.get("stadium"),

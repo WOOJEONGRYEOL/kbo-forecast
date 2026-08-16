@@ -1,0 +1,59 @@
+name: 오늘의 기대 스코어 (라인업 반영)
+
+# 저녁 라인업 발표(경기 ~30분 전)를 자주 반영하기 위한 경량 빌드.
+# KST = UTC+9. 아래 cron(UTC)은 13:00~19:30 KST를 30분 간격으로 커버한다.
+#   · 주말 14:00 경기 → 라인업 ~13:30 발표 → 13:00·13:30 런이 포착
+#   · 주중/야간 18:00·19:00 경기 → 라인업 ~17:30·18:30 발표
+# GitHub cron은 최대 10여 분 지연될 수 있으나, 라인업은 한 번 뜨면 유지되므로 견고하다.
+on:
+  schedule:
+    - cron: "0,30 4-10 * * *"   # 04:00~10:30 UTC = 13:00~19:30 KST, 매 30분
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# 겹치는 실행 방지(앞 런이 밀려도 충돌 없이 순차 처리)
+concurrency:
+  group: today-score
+  cancel-in-progress: false
+
+jobs:
+  today:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 무거운 데이터(박스스코어 캐시·타자 wRC+ CSV)를 매일 빌드가 남긴 캐시에서
+      # 복원만 한다(저장 안 함 → 캐시 난립 방지). 없으면 타순 배수는 1.0으로 degrade.
+      - name: 데이터 캐시 복원
+        uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: kbo-data-restore
+          restore-keys: kbo-data-
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: today.html 재생성 (예고선발·발표 라인업 반영)
+        run: python today.py
+
+      - name: 변경 시에만 커밋 & 푸시
+        run: |
+          git config user.name "kbo-forecast-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f data/today.html data/last_updated.json
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: 오늘의 기대 스코어 갱신 ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git pull --rebase --autostash -X theirs || true
+            git push
+          fi
