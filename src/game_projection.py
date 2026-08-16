@@ -109,12 +109,14 @@ def _pitcher_stats(box):
                  "outs": int(row["outs"]),
                  "started": (str(row["game_id"]), str(pcode)) in starter_pairs}
                 for _, row in g.iterrows()]
-        # 현재 역할: 최근 4등판 중 '실제 선발 등판'이 2회 이상이면 아직 선발로 봄.
-        #   시즌 초 몇 번 선발한 뒤 지금은 불펜인 투수(예: 두산 다카다)를
-        #   불펜 풀에 포함시키기 위해, 누적 선발수가 아니라 최근 역할로 판정.
-        recent = apps[-4:]
+        # 현재 역할 판정(누적 선발수가 아니라 '최근 역할'):
+        #   · 가장 최근 등판이 선발이면 → 로테이션 중(복귀·스팟 선발 1번도 포함)
+        #   · 또는 최근 5등판 중 선발이 2회 이상이면 → 아직 선발
+        #   둘 다 아니면(최근이 전부 계투) 불펜으로 보고 풀에 포함(예: 두산 다카다).
+        recent = apps[-5:]
         recent_starts = sum(1 for a in recent if a["started"])
-        is_starter_now = recent_starts >= 2
+        last_started = bool(apps) and apps[-1]["started"]
+        is_starter_now = last_started or recent_starts >= 2
         out[str(pcode)] = {
             "team": g.iloc[-1]["team"], "name": g.iloc[-1]["name"],
             "outs": outs, "r": r,
