@@ -72,12 +72,12 @@
   "spHome": "왕옌청",
   "predAwayPre": 5.6,
   "predHomePre": 5.6,
-  "predAway": 5.6,
-  "predHome": 5.6,
-  "winAway": 50,
-  "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.1,
+  "predHome": 5.5,
+  "winAway": 49,
+  "winHome": 51,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260818KTLG02026": {
   "date": "2026-08-18",
@@ -89,12 +89,12 @@
   "spHome": "임찬규",
   "predAwayPre": 4.8,
   "predHomePre": 4.0,
-  "predAway": 4.8,
-  "predHome": 4.0,
-  "winAway": 53,
-  "winHome": 47,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.1,
+  "predHome": 4.2,
+  "winAway": 54,
+  "winHome": 46,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260818OBNC02026": {
   "date": "2026-08-18",
@@ -106,12 +106,12 @@
   "spHome": "라일리",
   "predAwayPre": 4.0,
   "predHomePre": 4.3,
-  "predAway": 4.0,
-  "predHome": 4.3,
-  "winAway": 49,
-  "winHome": 51,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 3.9,
+  "predHome": 4.5,
+  "winAway": 47,
+  "winHome": 53,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260818SKSS02026": {
   "date": "2026-08-18",
@@ -123,12 +123,12 @@
   "spHome": "페덱",
   "predAwayPre": 4.2,
   "predHomePre": 5.4,
-  "predAway": 4.2,
-  "predHome": 5.4,
-  "winAway": 44,
-  "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 3.8,
+  "predHome": 5.6,
+  "winAway": 42,
+  "winHome": 58,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260818WOLT02026": {
   "date": "2026-08-18",
@@ -140,11 +140,11 @@
   "spHome": "비슬리",
   "predAwayPre": 4.0,
   "predHomePre": 5.3,
-  "predAway": 4.0,
-  "predHome": 5.3,
+  "predAway": 4.1,
+  "predHome": 5.4,
   "winAway": 44,
   "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  }
 }
