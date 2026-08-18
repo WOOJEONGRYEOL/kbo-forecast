@@ -81,6 +81,160 @@ def logo_map() -> dict:
     return {code: logo_data_uri(code) for code in config.TEAM_NAMES}
 
 
+_RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KBO 타이틀 레이스</title>
+<style>
+  :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 18px 60px;}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  nav a{text-decoration:none;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;}
+  nav a.active{color:#0e1117;background:var(--green);border-color:var(--green);font-weight:700;}
+  h1{font-size:23px;margin:6px 0 2px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px;}
+  h2{font-size:17px;margin:0 0 4px;}
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin:2px 0 12px;}
+  #tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .tab{cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);
+       border-radius:18px;padding:6px 12px;font-size:13px;font-weight:600;}
+  .tab.on{background:var(--green);color:#0e1117;border-color:var(--green);}
+  #race{width:100%;height:auto;background:rgba(255,255,255,.02);border-radius:10px;}
+  #ctrl{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  #play{cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);
+        border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;}
+  #slider{flex:1;}
+  #dlab{color:var(--muted);font-size:12px;min-width:130px;text-align:right;font-variant-numeric:tabular-nums;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
+  th{color:var(--muted);font-weight:600;font-size:11px;}
+  td.l{text-align:left;}
+  td.rk{color:var(--muted);font-weight:700;}
+  .pace{color:var(--green);font-weight:700;}
+  img.lg{height:16px;vertical-align:-3px;margin-right:2px;}
+  .scroll{overflow-x:auto;}
+</style></head><body><div class="wrap">
+<nav>
+  <a class="home" href="../index.html">🏠</a>
+  <a href="dashboard.html">📊 팀 전력</a>
+  <a href="players.html">🧢 선수 평가</a>
+  <a href="history.html">🏆 역대</a>
+  <a href="today.html">🔮 오늘의 경기</a>
+  <a href="predictions.html">📈 예측 성적표</a>
+  <a class="active" href="title_race.html">🏁 타이틀 레이스</a>
+</nav>
+<h1>🏁 시즌 타이틀 레이스</h1>
+<div class="sub">🕗 최종 갱신 <span id="gen">불러오는 중…</span> · 부문별 top10 · 시즌 페이스 · 시즌 진행 레이싱 차트</div>
+<div class="card">
+  <h2 id="rtitle">타이틀 레이스</h2>
+  <p class="hint">부문을 고르고 <b>▶ 재생</b>을 누르면 시즌 진행에 따라 순위가 엎치락뒤치락하는 모습이 보입니다.
+  선 끝의 엠블럼=현재 선수·기록. <b>페이스</b>=현재 기록 × 144 ÷ 팀 소화경기(시즌 최종 예상치).</p>
+  <div id="tabs"></div>
+  <div class="scroll"><svg id="race" viewBox="0 0 900 430" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <div id="ctrl">
+    <button id="play">▶ 재생</button>
+    <input id="slider" type="range" min="0" value="0" step="1">
+    <span id="dlab"></span>
+  </div>
+  <div class="scroll"><table id="tbl"></table></div>
+</div>
+<script>
+const LOGOS=__LOGOS__, COLORS=__COLORS__;
+const VB={w:900,h:430}, pad={l:40,r:150,t:20,b:24};
+let DATA=null, dates=[], N=0, cur=null, t=0, playing=false, raf=null;
+const svg=document.getElementById('race'), slider=document.getElementById('slider');
+
+function lines(){ return DATA.races[cur].leaders.filter(x=>x.series); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+function draw(ti){
+  const ls=lines(); let ymax=1;
+  ls.forEach(p=>{ const v=p.series[ti]; if(v!=null&&v>ymax) ymax=v; });
+  ymax=Math.max(1,Math.ceil(ymax*1.08));
+  const xr=i=> pad.l + (ti<=0?0:(i/ti)*(VB.w-pad.l-pad.r));
+  const y=v=> VB.h-pad.b - (v/ymax)*(VB.h-pad.t-pad.b);
+  let s='';
+  s+='<line x1="'+pad.l+'" y1="'+(VB.h-pad.b)+'" x2="'+(VB.w-pad.r)+'" y2="'+(VB.h-pad.b)+'" stroke="var(--line)"/>';
+  // 겹침 완화: head y를 정렬해 최소 간격 확보
+  const heads=[];
+  ls.forEach(p=>{
+    const col=COLORS[p.team]||'#888';
+    let d='',started=false;
+    for(let i=0;i<=ti;i++){ const v=p.series[i]; if(v==null) continue; const X=xr(i),Y=y(v);
+      d+=(started?'L':'M')+X.toFixed(1)+' '+Y.toFixed(1)+' '; started=true; }
+    if(d) s+='<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.4" opacity="0.9"/>';
+    const hv=p.series[ti];
+    if(hv!=null) heads.push({p,col,X:xr(ti),Y:y(hv),v:hv});
+  });
+  heads.sort((a,b)=>a.Y-b.Y);
+  for(let i=1;i<heads.length;i++){ if(heads[i].Y-heads[i-1].Y<15) heads[i].Y=heads[i-1].Y+15; }
+  heads.forEach(h=>{
+    s+='<image href="'+(LOGOS[h.p.team]||'')+'" x="'+(h.X+3).toFixed(1)+'" y="'+(h.Y-9).toFixed(1)+'" width="17" height="17"/>';
+    s+='<text x="'+(h.X+23).toFixed(1)+'" y="'+(h.Y+4).toFixed(1)+'" fill="'+h.col+'" font-size="12" font-weight="700">'+esc(h.p.name)+' '+h.v+'</text>';
+  });
+  s+='<text x="4" y="'+(y(0)).toFixed(1)+'" fill="#8a94a8" font-size="10">0</text>';
+  s+='<text x="4" y="'+(y(ymax)+9).toFixed(1)+'" fill="#8a94a8" font-size="10">'+ymax+'</text>';
+  svg.innerHTML=s;
+  document.getElementById('dlab').textContent=dates[ti]+' ('+(ti+1)+'/'+N+'경기일)';
+  slider.value=ti;
+}
+
+function table(){
+  const r=DATA.races[cur]; let h='<tr><th>#</th><th>선수</th><th>팀</th><th>현재</th><th>페이스</th></tr>';
+  r.leaders.forEach(p=>{
+    h+='<tr><td class="rk">'+p.rank+'</td>'
+     +'<td class="l"><img class="lg" src="'+(LOGOS[p.team]||'')+'">'+esc(p.name)+'</td>'
+     +'<td style="color:var(--muted)">'+esc(p.team)+'</td>'
+     +'<td><b>'+p.total+'</b></td><td class="pace">'+p.pace+'</td></tr>';
+  });
+  document.getElementById('tbl').innerHTML=h;
+}
+
+function tabs(){
+  let h='';
+  DATA.order.forEach(c=>{ const r=DATA.races[c];
+    h+='<span class="tab'+(c===cur?' on':'')+'" data-c="'+c+'">'+r.emoji+' '+r.label+'왕</span>'; });
+  document.getElementById('tabs').innerHTML=h;
+  document.querySelectorAll('.tab').forEach(el=>el.onclick=()=>{ stop(); cur=el.dataset.c; t=N-1;
+    document.getElementById('rtitle').textContent=DATA.races[cur].emoji+' '+DATA.races[cur].label+'왕 레이스';
+    tabs(); table(); draw(t); });
+}
+function stop(){ playing=false; if(raf) cancelAnimationFrame(raf); }
+function play(){ stop(); playing=true; const st=performance.now(), dur=6500;
+  (function step(now){ const q=Math.min(1,(now-st)/dur); t=Math.round(q*(N-1)); draw(t);
+     if(q<1&&playing) raf=requestAnimationFrame(step); else playing=false; })(st); }
+document.getElementById('play').onclick=()=>{ if(playing) stop(); else play(); };
+slider.oninput=()=>{ stop(); t=+slider.value; draw(t); };
+
+function init(){
+  dates=DATA.dates; N=dates.length; cur=DATA.order[0]; t=N-1;
+  slider.max=N-1; slider.value=N-1;
+  document.getElementById('gen').textContent=DATA.generated||'';
+  document.getElementById('rtitle').textContent=DATA.races[cur].emoji+' '+DATA.races[cur].label+'왕 레이스';
+  tabs(); table(); draw(N-1);
+}
+fetch('title_race.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{DATA=d; init();})
+  .catch(()=>{document.getElementById('gen').textContent='데이터 없음';});
+</script>
+</div></body></html>"""
+
+
+def save_title_race_page(logos=None, path: str = None):
+    """정적 레이싱 페이지(data/title_race.html). 데이터는 런타임에 title_race.json을 fetch.
+    로고·JS만 담아 내용이 안정적이라(매일 커밋 안 됨), 매일 바뀌는 건 title_race.json뿐."""
+    import json
+    from pathlib import Path
+    logos = logos or logo_map()
+    path = path or f"{config.DATA_DIR}/title_race.html"
+    html = (_RACE_TEMPLATE
+            .replace("__LOGOS__", json.dumps(logos, ensure_ascii=False))
+            .replace("__COLORS__", json.dumps(TEAM_COLORS, ensure_ascii=False)))
+    Path(path).write_text(html, encoding="utf-8")
+    return path
+
+
 # ── 지표 산정 공식 (헤더 호버 툴팁) ──
 FORMULAS = {
     "순위": "분석 시점의 시즌 승률 순위 (무승부 제외: 승÷(승+패)).",
@@ -630,6 +784,7 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="history.html">🏆 역대</a>
   <a class="active" href="today.html">🔮 오늘의 경기</a>
   <a href="predictions.html">📈 예측 성적표</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
 </nav>
 <h1>⚾ 오늘의 경기</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
@@ -673,6 +828,7 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
   <a class="active" href="predictions.html">📈 예측 성적표</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
 </nav>
 <h1>📈 예측 성적표</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 라인업 반영 후 기대 스코어의 승부 예측을 실제 결과와 누적 대조</div>
@@ -1101,6 +1257,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
   <a href="predictions.html">📈 예측 성적표</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>

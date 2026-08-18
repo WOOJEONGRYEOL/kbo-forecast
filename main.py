@@ -169,6 +169,9 @@ def main() -> None:
     projections = game_projection.project_games(games, box)
     game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
     dashboard.save_predictions_page()                          # 예측 성적표(누적)
+    import title_race                                          # 시즌 타이틀 레이스
+    title_race.save_title_race_json(games)                     # 부문별 누적·페이스·시계열
+    dashboard.save_title_race_page()                           # 레이싱 페이지(정적)
     today_path = dashboard.save_today_page(projections)
     print(f"  → 오늘의 경기 페이지: {len(projections['games'])}경기 "
           f"({projections['date']}) → {today_path}")
