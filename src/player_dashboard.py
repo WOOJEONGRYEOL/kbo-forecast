@@ -466,6 +466,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a class="active" href="players.html">🧢 선수 평가</a>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
+  <a href="predictions.html">📈 예측 성적표</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>

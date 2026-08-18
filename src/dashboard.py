@@ -629,11 +629,154 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="players.html">🧢 선수 평가</a>
   <a href="history.html">🏆 역대</a>
   <a class="active" href="today.html">🔮 오늘의 경기</a>
+  <a href="predictions.html">📈 예측 성적표</a>
 </nav>
 <h1>⚾ 오늘의 경기</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
 __CARD__
 </div></body></html>"""
+
+
+_PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KBO 예측 성적표</title>
+<style>
+  :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;--red:#e5484d;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 18px 60px;}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  nav a{text-decoration:none;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;}
+  nav a.active{color:#0e1117;background:var(--green);border-color:var(--green);font-weight:700;}
+  h1{font-size:23px;margin:6px 0 2px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px;}
+  h2{font-size:16px;margin:0 0 8px;}
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin:2px 0 10px;}
+  .kpis{display:flex;flex-wrap:wrap;gap:12px;}
+  .kpi{flex:1;min-width:120px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:center;}
+  .kpi .v{font-size:24px;font-weight:800;}
+  .kpi .l{color:var(--muted);font-size:11px;margin-top:2px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
+  th{color:var(--muted);font-weight:600;font-size:11px;}
+  td.l{text-align:left;}
+  .ok{color:var(--green);font-weight:700;}
+  .no{color:var(--red);font-weight:700;}
+  .scroll{overflow-x:auto;}
+  img.logo{height:16px;vertical-align:-3px;}
+</style></head><body><div class="wrap">
+<nav>
+  <a class="home" href="../index.html">🏠</a>
+  <a href="dashboard.html">📊 팀 전력</a>
+  <a href="players.html">🧢 선수 평가</a>
+  <a href="history.html">🏆 역대</a>
+  <a href="today.html">🔮 오늘의 경기</a>
+  <a class="active" href="predictions.html">📈 예측 성적표</a>
+</nav>
+<h1>📈 예측 성적표</h1>
+<div class="sub">🕗 최종 갱신 __STAMP__ · 라인업 반영 후 기대 스코어의 승부 예측을 실제 결과와 누적 대조</div>
+__BODY__
+</div></body></html>"""
+
+
+def save_predictions_page(logos=None, path: str = None, log_path: str = None):
+    """누적 predictions.json → 예측 성적표(data/predictions.html)."""
+    import json
+    from pathlib import Path
+    logos = logos or logo_map()
+    path = path or f"{config.DATA_DIR}/predictions.html"
+    log_path = log_path or f"{config.DATA_DIR}/predictions.json"
+    try:
+        log = json.loads(Path(log_path).read_text(encoding="utf-8"))
+    except Exception:
+        log = {}
+    done = [e for e in log.values() if e.get("actualHome") is not None]
+    graded = [e for e in done if e["actualHome"] != e["actualAway"]]   # 무승부 제외
+    n = len(graded)
+    hits = sum(1 for e in graded if e.get("correct"))
+    rate = round(100 * hits / n) if n else 0
+    # 브라이어 스코어(승률 캘리브레이션): (홈승확률 − 실제홈승) 제곱 평균. 0.25=동전
+    briers = [((e.get("winHome", 50) / 100) - (1 if e["actualHome"] > e["actualAway"] else 0)) ** 2
+              for e in graded]
+    brier = round(sum(briers) / len(briers), 3) if briers else None
+    # 기대득점 총합 평균절대오차
+    tot_err = [abs((e.get("predHome", 0) + e.get("predAway", 0)) - (e["actualHome"] + e["actualAway"]))
+               for e in done]
+    mae_tot = round(sum(tot_err) / len(tot_err), 2) if tot_err else None
+
+    kpis = (
+        '<div class="kpis">'
+        f'<div class="kpi"><div class="v">{n}</div><div class="l">판정 경기(승부)</div></div>'
+        f'<div class="kpi"><div class="v" style="color:var(--green)">{rate}%</div><div class="l">승부 적중률 ({hits}/{n})</div></div>'
+        f'<div class="kpi"><div class="v">{brier if brier is not None else "–"}</div><div class="l">브라이어(↓좋음·0.25=동전)</div></div>'
+        f'<div class="kpi"><div class="v">{mae_tot if mae_tot is not None else "–"}</div><div class="l">총득점 평균오차</div></div>'
+        '</div>')
+
+    # 캘리브레이션: 예측 우세팀 확신도 구간별 실제 적중률
+    def bucket(conf):
+        return ("70%+" if conf >= 70 else "65–70%" if conf >= 65 else "60–65%" if conf >= 60
+                else "55–60%" if conf >= 55 else "50–55%")
+    order = ["50–55%", "55–60%", "60–65%", "65–70%", "70%+"]
+    cal = {k: [] for k in order}
+    for e in graded:
+        conf = max(e.get("winHome", 50), e.get("winAway", 50))
+        fav_home = e.get("winHome", 50) >= e.get("winAway", 50)
+        won = (e["actualHome"] > e["actualAway"]) if fav_home else (e["actualAway"] > e["actualHome"])
+        cal[bucket(conf)].append(1 if won else 0)
+    cal_rows = "".join(
+        f'<tr><td>{k}</td><td>{len(v)}</td>'
+        f'<td>{round(100*sum(v)/len(v))}%</td></tr>' if v else
+        f'<tr><td>{k}</td><td>0</td><td>–</td></tr>'
+        for k, v in [(k, cal[k]) for k in order])
+    cal_tbl = (
+        '<div class="card"><h2>확신도별 적중률 (캘리브레이션)</h2>'
+        '<p class="hint">예측이 더 세게 밀어준 팀(확신도=우세팀 승률)이 실제로 이긴 비율. '
+        '확신도가 높을수록 적중률도 높아야 잘 보정된 것.</p>'
+        '<div class="scroll"><table><tr><th>우세팀 승률</th><th>경기</th><th>실제 적중</th></tr>'
+        + cal_rows + '</table></div></div>')
+
+    # 경기 로그(최근순)
+    def logo(code):
+        u = logos.get(code, "")
+        return f'<img class="logo" src="{u}" alt="">' if u else ""
+    rows = []
+    for e in sorted(done, key=lambda x: (x.get("date", ""), x.get("gameId", "")), reverse=True):
+        aa, ah = e["actualAway"], e["actualHome"]
+        pa, ph = e.get("predAway", "–"), e.get("predHome", "–")
+        favw = max(e.get("winHome", 50), e.get("winAway", 50))
+        favn = e["homeName"] if e.get("winHome", 50) >= e.get("winAway", 50) else e["awayName"]
+        if aa == ah:
+            verd = '<span style="color:var(--muted)">무</span>'
+        elif e.get("correct"):
+            verd = '<span class="ok">✓</span>'
+        else:
+            verd = '<span class="no">✗</span>'
+        lu = "✅" if e.get("lineupReady") else "⏳"
+        rows.append(
+            f'<tr><td>{e.get("date","")[5:]}</td>'
+            f'<td class="l">{logo(e["away"])} {e["awayName"]} <span style="color:var(--muted)">@</span> {e["homeName"]} {logo(e["home"])}</td>'
+            f'<td>{pa} : {ph}</td>'
+            f'<td style="color:var(--muted)">{favn} {favw}%</td>'
+            f'<td><b>{aa} : {ah}</b></td>'
+            f'<td>{verd}</td><td>{lu}</td></tr>')
+    log_tbl = (
+        '<div class="card"><h2>경기별 예측 vs 실제</h2>'
+        '<p class="hint">예측=라인업 반영 후 기대 스코어(원정:홈)와 우세팀 승률 · 실제=최종 스코어 · '
+        '판정 ✓적중/✗빗나감/무승부 · 라인업 ✅반영/⏳미반영</p>'
+        '<div class="scroll"><table>'
+        '<tr><th>날짜</th><th>경기</th><th>예측</th><th>우세</th><th>실제</th><th>판정</th><th>LU</th></tr>'
+        + ("".join(rows) if rows else '<tr><td colspan="7" style="color:var(--muted)">아직 결과가 쌓이지 않았습니다</td></tr>')
+        + '</table></div></div>')
+
+    intro = ('<div class="card"><h2>누적 성적</h2>'
+             '<p class="hint">라인업 반영 후 기대 스코어로 매긴 승부 예측을 실제 결과와 대조한 누적 기록입니다. '
+             '<b>단일 경기 정직한 천장은 ~56%</b>라, 55~57%면 모델이 제 역할을 하는 것입니다.</p>'
+             + kpis + '</div>')
+    html = (_PRED_TEMPLATE.replace("__BODY__", intro + cal_tbl + log_tbl)
+            .replace("__STAMP__", _gen_stamp()))
+    Path(path).write_text(html, encoding="utf-8")
+    return path
 
 
 def save_today_page(projections, logos=None) -> Path:
@@ -957,6 +1100,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a href="players.html">🧢 선수 평가</a>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
+  <a href="predictions.html">📈 예측 성적표</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>

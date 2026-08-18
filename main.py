@@ -168,6 +168,7 @@ def main() -> None:
     import game_projection                       # 오늘의 경기(별도 페이지)
     projections = game_projection.project_games(games, box)
     game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
+    dashboard.save_predictions_page()                          # 예측 성적표(누적)
     today_path = dashboard.save_today_page(projections)
     print(f"  → 오늘의 경기 페이지: {len(projections['games'])}경기 "
           f"({projections['date']}) → {today_path}")

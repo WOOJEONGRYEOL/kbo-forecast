@@ -261,6 +261,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="players.html">🧢 선수 평가</a>
   <a class="active" href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
+  <a href="predictions.html">📈 예측 성적표</a>
 </div>
 <h1>🏆 KBO 역대 기록</h1>
 <div class="sub">1982~현재 전 시즌. 시즌·포지션별 순위와 통산 리더보드. 데이터: Statiz (WAR·wRC+ 등)</div>

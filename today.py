@@ -31,6 +31,7 @@ def main():
     box = boxscore.collect_season_pitching(games)   # 캐시 히트 위주 → 빠름
     projections = game_projection.project_games(games, box)
     game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
+    dashboard.save_predictions_page()                          # 예측 성적표(누적)
     path = dashboard.save_today_page(projections)
     ready = sum(1 for g in projections["games"] if g.get("lineupReady"))
     n = len(projections["games"])
