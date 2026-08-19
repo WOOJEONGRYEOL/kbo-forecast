@@ -87,7 +87,8 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;word-break:keep-all;}
+  @media (max-width:480px){ h1{font-size:19px;} }
   .wrap{max-width:1080px;margin:0 auto;padding:20px 18px 60px;}
   nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
   nav a{text-decoration:none;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;}
@@ -737,7 +738,7 @@ def _section_block(sec, logos) -> str:
     return (
         f'<div style="margin:14px 0 6px;font-size:14px;font-weight:700">{sec.get("label","")} '
         f'<span style="font-weight:400;font-size:12px">· {tag}</span></div>'
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">'
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">'
         + cards + '</div>')
 
 
@@ -766,7 +767,8 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;word-break:keep-all;}
+  @media (max-width:480px){ h1{font-size:19px;} }
   .wrap{max-width:1180px;margin:0 auto;padding:20px 18px 60px;}
   nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
   nav a{text-decoration:none;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;}
@@ -798,7 +800,8 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;--red:#e5484d;}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif;word-break:keep-all;}
+  @media (max-width:480px){ h1{font-size:19px;} }
   .wrap{max-width:1000px;margin:0 auto;padding:20px 18px 60px;}
   nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
   nav a{text-decoration:none;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;}
@@ -1583,6 +1586,7 @@ function render() {
 
   order.forEach(c => {
     const s = calc[c], tr = rowEl[c];
+    if (!tr || !s) return;   // 데이터 일시 누락 팀은 건너뜀(전체 렌더·차트가 죽지 않도록)
     let rec = `${s.w}승 ${s.l}패`; if (s.d) rec += ` ${s.d}무`;
     tr.querySelector(".c-rec").textContent = rec;
     tr.querySelector(".c-act").textContent = s.actual.toFixed(3);

@@ -175,7 +175,8 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
     --muted:#8a94a8; --green:#3ecf8e; --blue:#4a90d9; }
   * { box-sizing:border-box; }
   body { margin:0; padding:24px; background:var(--bg); color:var(--text);
-    font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
+    font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif; word-break:keep-all; }
+  @media (max-width:480px){ body{padding:14px;} h1{font-size:19px;} }
   .wrap { max-width:100%; margin:0; }
   .nav { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
   .nav a { text-decoration:none; padding:7px 14px; border-radius:999px; font-size:13px;

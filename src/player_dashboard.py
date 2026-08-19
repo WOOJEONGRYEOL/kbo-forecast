@@ -337,8 +337,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 24px; background: var(--bg); color: var(--text);
-    font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; word-break: keep-all; }
   h1 { font-size: 22px; margin: 0 0 4px; }
+  @media (max-width:480px){ body{padding:14px;} h1{font-size:19px;} }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
   .sub .stamp { color: var(--text); }
   .sub .stamp b { color: var(--green); }
