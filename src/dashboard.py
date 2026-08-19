@@ -108,23 +108,27 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
         border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;}
   #slider{flex:1;}
   #dlab{color:var(--muted);font-size:12px;min-width:130px;text-align:right;font-variant-numeric:tabular-nums;}
-  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
-  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
-  th{color:var(--muted);font-weight:600;font-size:11px;}
-  td.l{text-align:left;}
-  td.rk{color:var(--muted);font-weight:700;}
-  .pace{color:var(--green);font-weight:700;}
-  img.lg{height:16px;vertical-align:-3px;margin-right:2px;}
+  #board{position:relative;margin-top:10px;}
+  .brow{position:absolute;left:0;right:0;height:30px;display:flex;align-items:center;gap:8px;
+        padding:0 6px;border-bottom:1px solid var(--line);
+        transition:transform .55s cubic-bezier(.4,0,.2,1);}
+  .brk{width:22px;text-align:center;color:var(--muted);font-weight:800;font-size:13px;
+       font-variant-numeric:tabular-nums;}
+  .blg{height:17px;}
+  .bnm{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bteam{color:var(--muted);font-size:11px;}
+  .bval{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;min-width:34px;text-align:right;}
+  .bpace{color:var(--green);font-size:11px;font-weight:700;width:44px;text-align:right;}
   .scroll{overflow-x:auto;}
 </style></head><body><div class="wrap">
 <nav>
   <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
+  <a class="active" href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
   <a href="predictions.html">📈 예측 성적표</a>
-  <a class="active" href="title_race.html">🏁 타이틀 레이스</a>
 </nav>
 <h1>🏁 시즌 타이틀 레이스</h1>
 <div class="sub">🕗 최종 갱신 <span id="gen">불러오는 중…</span> · 부문별 top10 · 시즌 페이스 · 시즌 진행 레이싱 차트</div>
@@ -139,12 +143,13 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
     <input id="slider" type="range" min="0" value="0" step="1">
     <span id="dlab"></span>
   </div>
-  <div class="scroll"><table id="tbl"></table></div>
+  <div id="board"></div>
 </div>
 <script>
 const LOGOS=__LOGOS__, COLORS=__COLORS__;
 const VB={w:900,h:430}, pad={l:40,r:150,t:20,b:24};
-let DATA=null, dates=[], N=0, cur=null, t=0, playing=false, raf=null;
+let DATA=null, dates=[], N=0, cur=null, t=0, playing=false, raf=null, boardRows={};
+const ROWH=31;
 const svg=document.getElementById('race'), slider=document.getElementById('slider');
 
 function lines(){ return DATA.races[cur].leaders.filter(x=>x.series); }
@@ -173,24 +178,42 @@ function draw(ti){
   for(let i=1;i<heads.length;i++){ if(heads[i].Y-heads[i-1].Y<15) heads[i].Y=heads[i-1].Y+15; }
   heads.forEach(h=>{
     s+='<image href="'+(LOGOS[h.p.team]||'')+'" x="'+(h.X+3).toFixed(1)+'" y="'+(h.Y-9).toFixed(1)+'" width="17" height="17"/>';
-    s+='<text x="'+(h.X+23).toFixed(1)+'" y="'+(h.Y+4).toFixed(1)+'" fill="'+h.col+'" font-size="12" font-weight="700">'+esc(h.p.name)+' '+h.v+'</text>';
+    s+='<text x="'+(h.X+23).toFixed(1)+'" y="'+(h.Y+4).toFixed(1)+'" fill="#e8ecf3" font-size="12" font-weight="700">'+esc(h.p.name)+' '+h.v+'</text>';
   });
   s+='<text x="4" y="'+(y(0)).toFixed(1)+'" fill="#8a94a8" font-size="10">0</text>';
   s+='<text x="4" y="'+(y(ymax)+9).toFixed(1)+'" fill="#8a94a8" font-size="10">'+ymax+'</text>';
   svg.innerHTML=s;
   document.getElementById('dlab').textContent=dates[ti]+' ('+(ti+1)+'/'+N+'경기일)';
   slider.value=ti;
+  boardUpdate(ti);
 }
 
-function table(){
-  const r=DATA.races[cur]; let h='<tr><th>#</th><th>선수</th><th>팀</th><th>현재</th><th>페이스</th></tr>';
-  r.leaders.forEach(p=>{
-    h+='<tr><td class="rk">'+p.rank+'</td>'
-     +'<td class="l"><img class="lg" src="'+(LOGOS[p.team]||'')+'">'+esc(p.name)+'</td>'
-     +'<td style="color:var(--muted)">'+esc(p.team)+'</td>'
-     +'<td><b>'+p.total+'</b></td><td class="pace">'+p.pace+'</td></tr>';
+// ── 동적 순위표(재생 중 순위가 슬라이드하며 바뀜) ──
+function buildBoard(){
+  const ls=DATA.races[cur].leaders; boardRows={};
+  let h='';
+  ls.forEach(p=>{
+    h+='<div class="brow" data-pc="'+p.pcode+'" style="transform:translateY(0)">'
+      +'<span class="brk"></span>'
+      +'<img class="blg" src="'+(LOGOS[p.team]||'')+'">'
+      +'<span class="bnm">'+esc(p.name)+' <span class="bteam">'+esc(p.team)+'</span></span>'
+      +'<span class="bval"></span><span class="bpace">'+p.pace+'</span></div>';
   });
-  document.getElementById('tbl').innerHTML=h;
+  const b=document.getElementById('board');
+  b.innerHTML=h; b.style.height=(ls.length*ROWH)+'px';
+  ls.forEach(p=> boardRows[p.pcode]=b.querySelector('[data-pc="'+p.pcode+'"]'));
+  boardUpdate(t);
+}
+function boardUpdate(ti){
+  const ls=DATA.races[cur].leaders; if(!ls||!Object.keys(boardRows).length) return;
+  const vals=ls.map(p=>({p, v:(p.series&&p.series[ti]!=null)?p.series[ti]:0}));
+  vals.sort((a,b)=> b.v-a.v);
+  vals.forEach((o,rank)=>{
+    const row=boardRows[o.p.pcode]; if(!row) return;
+    row.style.transform='translateY('+(rank*ROWH)+'px)';
+    row.querySelector('.brk').textContent=rank+1;
+    row.querySelector('.bval').textContent=o.v;
+  });
 }
 
 function tabs(){
@@ -200,7 +223,7 @@ function tabs(){
   document.getElementById('tabs').innerHTML=h;
   document.querySelectorAll('.tab').forEach(el=>el.onclick=()=>{ stop(); cur=el.dataset.c; t=N-1;
     document.getElementById('rtitle').textContent=DATA.races[cur].emoji+' '+DATA.races[cur].label+'왕 레이스';
-    tabs(); table(); draw(t); });
+    tabs(); buildBoard(); draw(t); });
 }
 function stop(){ playing=false; if(raf) cancelAnimationFrame(raf); }
 function play(){ stop(); playing=true; const st=performance.now(), dur=6500;
@@ -214,7 +237,7 @@ function init(){
   slider.max=N-1; slider.value=N-1;
   document.getElementById('gen').textContent=DATA.generated||'';
   document.getElementById('rtitle').textContent=DATA.races[cur].emoji+' '+DATA.races[cur].label+'왕 레이스';
-  tabs(); table(); draw(N-1);
+  tabs(); buildBoard(); draw(N-1);
 }
 fetch('title_race.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{DATA=d; init();})
   .catch(()=>{document.getElementById('gen').textContent='데이터 없음';});
@@ -783,10 +806,10 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
   <a class="active" href="today.html">🔮 오늘의 경기</a>
   <a href="predictions.html">📈 예측 성적표</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
 </nav>
 <h1>⚾ 오늘의 경기</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
@@ -828,10 +851,10 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
   <a class="active" href="predictions.html">📈 예측 성적표</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
 </nav>
 <h1>📈 예측 성적표</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 라인업 반영 후 기대 스코어의 승부 예측을 실제 결과와 누적 대조</div>
@@ -1257,10 +1280,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a class="home" href="../index.html">🏠</a>
   <a class="active" href="dashboard.html">📊 팀 전력</a>
   <a href="players.html">🧢 선수 평가</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
   <a href="predictions.html">📈 예측 성적표</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>

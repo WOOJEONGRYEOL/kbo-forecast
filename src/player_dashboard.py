@@ -465,10 +465,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a class="home" href="../index.html">🏠</a>
   <a href="dashboard.html">📊 팀 전력</a>
   <a class="active" href="players.html">🧢 선수 평가</a>
+  <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 경기</a>
   <a href="predictions.html">📈 예측 성적표</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>

@@ -23,19 +23,25 @@ RACES = [
     ("hr", "홈런", "💣", "bat"),
     ("hit", "안타", "🅗", "bat"),
     ("sb", "도루", "🏃", "bat"),
+    ("bk", "삼진", "🙈", "bat"),      # 타자 삼진(많이 당한 순 · 불명예 부문)
     ("win", "다승", "🏆", "pit"),
     ("save", "세이브", "🔒", "pit"),
     ("hold", "홀드", "🤝", "pit"),
+    ("pk", "탈삼진", "🔥", "pit"),    # 투수 탈삼진
     ("lose", "패배", "💀", "pit"),
 ]
 _WLS = {"승": "win", "세": "save", "홀": "hold", "패": "lose"}
 TOP_N = 10                 # 표에 노출할 순위 수
-SERIES_N = 8              # 레이싱 차트에 그릴 라인 수
+SERIES_N = 10             # 레이싱 차트에 그릴 라인 수(톱10 전부)
 TEAM_GAMES = 144         # KBO 정규시즌 팀당 경기 수
 
 
 def _bat_path(gid):
     return Path(config.DATA_DIR) / "box_bat" / f"{gid}.json"
+
+
+def _pit_path(gid):
+    return Path(config.DATA_DIR) / "box" / f"{gid}.json"
 
 
 def _dec_path(gid):
@@ -96,14 +102,21 @@ def build_title_race(games: list) -> dict:
     sess = requests.Session()
     for g in done:
         gid = g["gameId"]; di = didx[g["gameDate"]]
-        # 타자 누적(홈런·안타·도루)
+        # 타자 누적(홈런·안타·도루 + 삼진 bk)
         bp = _bat_path(gid)
         if bp.exists():
             for r in json.loads(bp.read_text(encoding="utf-8")):
-                for code in ("hr", "hit", "sb"):
-                    v = int(r.get(code, 0) or 0)
+                for src, code in (("hr", "hr"), ("hit", "hit"), ("sb", "sb"), ("kk", "bk")):
+                    v = int(r.get(src, 0) or 0)
                     if v:
                         bump(code, str(r["pcode"]), r.get("name", ""), r.get("team", ""), v, di)
+        # 투수 탈삼진 누적(pk) — 박스스코어 캐시
+        pp = _pit_path(gid)
+        if pp.exists():
+            for r in json.loads(pp.read_text(encoding="utf-8")):
+                v = int(r.get("kk", 0) or 0)
+                if v:
+                    bump("pk", str(r["pcode"]), r.get("name", ""), r.get("team", ""), v, di)
         # 투수 결정 누적(다승·세이브·홀드·패배)
         for d in _fetch_decisions(gid, sess):
             bump(d["dec"], d["pcode"], d["name"], d["team"], 1, di)

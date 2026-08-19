@@ -200,8 +200,11 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED",
-  "frozen": true
+  "status": "RESULT",
+  "frozen": true,
+  "actualHome": 1,
+  "actualAway": 0,
+  "correct": true
  },
  "20260819OBNC02026": {
   "date": "2026-08-19",
@@ -218,8 +221,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "STARTED",
-  "frozen": true
+  "status": "ENDED",
+  "frozen": true,
+  "actualHome": 2,
+  "actualAway": 8,
+  "correct": true
  },
  "20260819SKSS02026": {
   "date": "2026-08-19",
