@@ -445,18 +445,19 @@ _PREDLOG_PATH = f"{config.DATA_DIR}/predictions.json"
 
 def save_prediction_log(projections: dict, games: list, path: str = None) -> str:
     """경기별 예측(반영 전/후)+실제 결과를 data/predictions.json에 누적 저장.
-    · 예측은 경기가 '경기 전(BEFORE/READY)'인 동안 매 빌드 갱신(최신 정보 반영),
-      경기가 시작되면(LIVE/RESULT) 그 시점 예측을 고정(frozen).
-    · 실제 결과는 종료(RESULT) 시 채우고, 날짜가 지난 뒤에도 games 전체를 훑어
+    · 당일(및 예정) 경기는 매 빌드 최신 재계산으로 갱신 → '오늘의 경기' 카드와 항상 일치.
+    · 날짜가 지난 경기는 마지막 당일 값으로 고정(경기 후 데이터 변화로 인한 사후 오염 방지).
+    · 실제 결과는 종료(RESULT/ENDED) 시 채우고, 날짜가 지난 뒤에도 games 전체를 훑어
       로그에 있는 미완료 경기의 결과를 뒤늦게 backfill한다.
     반환: 저장 경로."""
     import json
+    import datetime
     path = path or _PREDLOG_PATH
     try:
         log = json.loads(open(path, encoding="utf-8").read())
     except Exception:
         log = {}
-    PREGAME = {"BEFORE", "READY"}
+    today = datetime.date.today().isoformat()
 
     def _grade(e):
         ah, aa = e.get("actualHome"), e.get("actualAway")
@@ -467,7 +468,8 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         pred_home_win = e.get("predHome", 0) >= e.get("predAway", 0)
         e["correct"] = bool(pred_home_win == (ah > aa))
 
-    # 1) 표시 슬레이트(오늘/결과/예고 전부): 예측 업서트(경기 전이면 갱신) + 상태·결과 반영
+    # 1) 표시 슬레이트(오늘/결과/예고 전부): 예측 업서트 + 상태·결과 반영.
+    #    당일·예정 경기만 예측을 갱신하므로 카드(=최신 재계산)와 로그가 항상 같은 값.
     secs = projections.get("sections")
     slate = [g for s in secs for g in s["games"]] if secs else projections.get("games", [])
     for g in slate:
@@ -475,7 +477,8 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         if not gid:
             continue
         e = log.get(gid, {})
-        if not e.get("frozen"):                 # 경기 시작 전엔 최신 예측으로 갱신
+        if g.get("date", "") >= today:          # 당일·예정 경기만 예측 갱신(과거는 고정)
+            e.pop("frozen", None)               # 구버전 잔재 정리
             e.update({
                 "date": g["date"], "away": g["away"], "home": g["home"],
                 "awayName": g["awayName"], "homeName": g["homeName"],
@@ -488,8 +491,6 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
                 "lineupReady": g.get("lineupReady", False),
             })
         e["status"] = g.get("status")
-        if g.get("status") not in PREGAME:      # 경기 시작 → 예측 고정
-            e["frozen"] = True
         if g.get("actualHome") is not None:
             e["actualHome"], e["actualAway"] = g["actualHome"], g["actualAway"]
             _grade(e)
