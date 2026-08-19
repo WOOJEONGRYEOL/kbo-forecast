@@ -177,12 +177,12 @@
   "spHome": "화이트",
   "predAwayPre": 4.8,
   "predHomePre": 6.5,
-  "predAway": 4.8,
-  "predHome": 6.5,
-  "winAway": 42,
-  "winHome": 58,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.3,
+  "predHome": 6.3,
+  "winAway": 45,
+  "winHome": 55,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260819KTLG02026": {
   "date": "2026-08-19",
@@ -195,11 +195,11 @@
   "predAwayPre": 4.9,
   "predHomePre": 5.0,
   "predAway": 4.9,
-  "predHome": 5.0,
-  "winAway": 50,
-  "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 5.3,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260819OBNC02026": {
   "date": "2026-08-19",
@@ -211,12 +211,12 @@
   "spHome": "테일러",
   "predAwayPre": 5.0,
   "predHomePre": 4.6,
-  "predAway": 5.0,
-  "predHome": 4.6,
+  "predAway": 5.1,
+  "predHome": 4.5,
   "winAway": 52,
   "winHome": 48,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260819SKSS02026": {
   "date": "2026-08-19",
@@ -228,12 +228,12 @@
   "spHome": "보스",
   "predAwayPre": 6.4,
   "predHomePre": 7.6,
-  "predAway": 6.4,
-  "predHome": 7.6,
-  "winAway": 44,
-  "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.8,
+  "predHome": 7.7,
+  "winAway": 41,
+  "winHome": 59,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260819WOLT02026": {
   "date": "2026-08-19",
@@ -245,11 +245,11 @@
   "spHome": "로드리게스",
   "predAwayPre": 3.8,
   "predHomePre": 4.7,
-  "predAway": 3.8,
+  "predAway": 4.0,
   "predHome": 4.7,
-  "winAway": 46,
-  "winHome": 54,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "winAway": 47,
+  "winHome": 53,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
