@@ -275,14 +275,17 @@
   "homeName": "한화 이글스",
   "spAway": "황동하",
   "spHome": "류현진",
-  "predAwayPre": 5.6,
-  "predHomePre": 6.7,
-  "predAway": 5.4,
+  "predAwayPre": 5.7,
+  "predHomePre": 6.6,
+  "predAway": 5.5,
   "predHome": 5.9,
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 10,
+  "correct": false
  },
  "20260820KTLG02026": {
   "date": "2026-08-20",
@@ -292,14 +295,17 @@
   "homeName": "LG 트윈스",
   "spAway": "고영표",
   "spHome": "박시원",
-  "predAwayPre": 5.0,
+  "predAwayPre": 5.2,
   "predHomePre": 4.2,
-  "predAway": 5.2,
+  "predAway": 5.3,
   "predHome": 4.6,
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 16,
+  "correct": true
  },
  "20260820OBNC02026": {
   "date": "2026-08-20",
@@ -311,12 +317,15 @@
   "spHome": "구창모",
   "predAwayPre": 4.7,
   "predHomePre": 5.1,
-  "predAway": 4.9,
-  "predHome": 5.0,
+  "predAway": 4.8,
+  "predHome": 5.1,
   "winAway": 49,
   "winHome": 51,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 5,
+  "actualAway": 4,
+  "correct": true
  },
  "20260820SKSS02026": {
   "date": "2026-08-20",
@@ -326,14 +335,17 @@
   "homeName": "삼성 라이온즈",
   "spAway": "최민준",
   "spHome": "최원태",
-  "predAwayPre": 4.9,
+  "predAwayPre": 4.8,
   "predHomePre": 6.7,
-  "predAway": 4.5,
+  "predAway": 4.4,
   "predHome": 6.8,
-  "winAway": 40,
-  "winHome": 60,
+  "winAway": 39,
+  "winHome": 61,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 6,
+  "correct": false
  },
  "20260820WOLT02026": {
   "date": "2026-08-20",
@@ -343,13 +355,16 @@
   "homeName": "롯데 자이언츠",
   "spAway": "박준현",
   "spHome": "나균안",
-  "predAwayPre": 4.1,
+  "predAwayPre": 3.9,
   "predHomePre": 5.6,
-  "predAway": 4.3,
+  "predAway": 4.2,
   "predHome": 5.5,
-  "winAway": 45,
-  "winHome": 55,
+  "winAway": 44,
+  "winHome": 56,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 7,
+  "actualAway": 1,
+  "correct": true
  }
 }
