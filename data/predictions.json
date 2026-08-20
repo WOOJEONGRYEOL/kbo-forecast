@@ -277,12 +277,12 @@
   "spHome": "류현진",
   "predAwayPre": 5.6,
   "predHomePre": 6.7,
-  "predAway": 5.6,
-  "predHome": 6.7,
-  "winAway": 45,
-  "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.4,
+  "predHome": 5.9,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260820KTLG02026": {
   "date": "2026-08-20",
@@ -294,12 +294,12 @@
   "spHome": "박시원",
   "predAwayPre": 5.0,
   "predHomePre": 4.2,
-  "predAway": 5.0,
-  "predHome": 4.2,
-  "winAway": 54,
-  "winHome": 46,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.2,
+  "predHome": 4.6,
+  "winAway": 53,
+  "winHome": 47,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260820OBNC02026": {
   "date": "2026-08-20",
@@ -311,12 +311,12 @@
   "spHome": "구창모",
   "predAwayPre": 4.7,
   "predHomePre": 5.1,
-  "predAway": 4.7,
-  "predHome": 5.1,
+  "predAway": 4.9,
+  "predHome": 5.0,
   "winAway": 49,
   "winHome": 51,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260820SKSS02026": {
   "date": "2026-08-20",
@@ -328,12 +328,12 @@
   "spHome": "최원태",
   "predAwayPre": 4.9,
   "predHomePre": 6.7,
-  "predAway": 4.9,
-  "predHome": 6.7,
-  "winAway": 42,
-  "winHome": 58,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.5,
+  "predHome": 6.8,
+  "winAway": 40,
+  "winHome": 60,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260820WOLT02026": {
   "date": "2026-08-20",
@@ -345,11 +345,11 @@
   "spHome": "나균안",
   "predAwayPre": 4.1,
   "predHomePre": 5.6,
-  "predAway": 4.1,
-  "predHome": 5.6,
-  "winAway": 43,
-  "winHome": 57,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.3,
+  "predHome": 5.5,
+  "winAway": 45,
+  "winHome": 55,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
