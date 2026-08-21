@@ -1327,7 +1327,8 @@ if (!sbats.length) {
   document.getElementById("tb_awayStrong").innerHTML = S.awayStrong.map(row).join("");
 })();
 
-// ── ⑥ 불펜 리더보드 (Statiz) ──
+// ── ⑥ 불펜 리더보드 (Statiz) — 팀 토글·검색이 여기에도 적용됨 ──
+let bullpenFilter = null;   // setupFilters()가 호출(팀/검색 필터 반영)
 (function bullpenBoard() {
   const rel = (DATA.relievers || []).slice().sort((a, b) => b.war - a.war);
   const card = document.getElementById("bullpenCard");
@@ -1336,26 +1337,39 @@ if (!sbats.length) {
     : r.hd >= 5 ? "🅢 셋업" : "불펜";
   const COLLAPSE = 12;
   const tb = document.getElementById("tb_bullpen");
-  tb.innerHTML = rel.map((r, i) => {
-    const hide = i >= COLLAPSE ? ' class="row-hidden"' : "";
+  const more = document.getElementById("bullpenMore");
+  tb.innerHTML = rel.map(r => {
     const gap = r.era - r.fip;
     const flag = gap <= -0.5 ? ' <span class="neg" title="ERA≪FIP 회귀 경계">🔴</span>'
       : gap >= 0.5 ? ' <span class="pos" title="ERA≫FIP 반등 여지">🔵</span>' : "";
-    return `<tr${hide}><td>${r.name}${flag}</td><td>${r.teamName}</td><td>${role(r)}</td>`
+    return `<tr data-team="${r.team}" data-name="${r.name}"><td>${r.name}${flag}</td>`
+      + `<td>${r.teamName}</td><td>${role(r)}</td>`
       + `<td>${r.war.toFixed(2)}</td><td>${r.era.toFixed(2)}</td><td>${r.fip.toFixed(2)}</td>`
       + `<td>${r.kbb != null ? r.kbb.toFixed(1) + "%" : "-"}</td>`
       + `<td>${r.ip.toFixed(1)}</td><td>${r.sv || "-"}</td><td>${r.hd || "-"}</td></tr>`;
   }).join("");
-  const more = document.getElementById("bullpenMore");
-  if (rel.length > COLLAPSE) {
-    more.textContent = `＋ 더 보기 (${rel.length - COLLAPSE}명 더)`;
-    const hidden = tb.querySelectorAll("tr.row-hidden");
-    more.onclick = () => {
-      const opening = hidden[0].style.display !== "table-row";
-      hidden.forEach(tr => { tr.style.display = opening ? "table-row" : "none"; });
-      more.textContent = opening ? "− 접기" : `＋ 더 보기 (${hidden.length}명 더)`;
-    };
-  } else { more.style.display = "none"; }
+  const rows = [...tb.querySelectorAll("tr")];
+  let expanded = false;
+  function draw(enabled, q, filtering) {
+    if (filtering) {                    // 팀/검색 활성 → 매치하는 불펜 전부 표시
+      rows.forEach(tr => {
+        const ok = (!enabled || enabled.has(tr.dataset.team))
+          && (!q || tr.dataset.name.includes(q));
+        tr.style.display = ok ? "table-row" : "none";
+      });
+      more.style.display = "none";
+    } else {                            // 기본 → 상위 12명 + 더보기
+      rows.forEach((tr, i) => { tr.style.display = (i < COLLAPSE || expanded) ? "table-row" : "none"; });
+      if (rows.length > COLLAPSE) {
+        more.style.display = "";
+        more.textContent = expanded ? "− 접기" : `＋ 더 보기 (${rows.length - COLLAPSE}명 더)`;
+      } else more.style.display = "none";
+    }
+  }
+  let last = { enabled: null, q: "", filtering: false };
+  more.onclick = () => { expanded = !expanded; draw(last.enabled, last.q, last.filtering); };
+  bullpenFilter = (enabled, q, filtering) => { last = { enabled, q, filtering }; draw(enabled, q, filtering); };
+  draw(null, "", false);
 })();
 
 // ── 팀 토글 + 선수 검색 + 링크 포커스 ──────────────────────
@@ -1387,6 +1401,23 @@ if (!sbats.length) {
   se.addEventListener("input", () => { q = se.value.trim(); apply(); });
 
   const ok = p => enabled.has(p.team) && (q === "" || p.name.includes(q));
+  // 모든 표 카드(수호신·방화범·불방망이·클러치·파크·연속 등)에 검색어 반영.
+  // 각 행 텍스트에 검색어가 있으면 표시. 검색이 없으면 원래 접힘 규칙 복원.
+  function filterTables(query) {
+    document.querySelectorAll('tbody[id^="tb_"]').forEach(tb => {
+      if (tb.id === "tb_bullpen") return;   // 불펜 표는 bullpenFilter가 팀+검색 담당
+      const rows = [...tb.children].filter(n => n.tagName === "TR");
+      const card = tb.closest(".card");
+      const more = card ? card.querySelector(".more") : null;
+      if (query) {
+        rows.forEach(tr => { tr.style.display = tr.textContent.includes(query) ? "table-row" : "none"; });
+        if (more) more.style.display = "none";
+      } else {
+        rows.forEach(tr => { tr.style.display = ""; });   // CSS(.row-hidden)로 기본 접힘 복원
+        if (more) more.style.display = "";
+      }
+    });
+  }
   function apply() {
     const qv = DATA.pitchers.filter(ok);
     const bv = bats.filter(ok);
@@ -1396,6 +1427,9 @@ if (!sbats.length) {
     batLuckCtl.setView(bv);
     powerCtl.setView(pv);
     if (warQuadCtl) warQuadCtl.setView(wv);
+    // 불펜 리더보드에도 같은 필터 반영(팀 토글·검색)
+    if (bullpenFilter) bullpenFilter(enabled, q, q !== "" || enabled.size < ALL.length);
+    filterTables(q);   // 나머지 표 카드에도 검색어 반영
     // 검색 중이면 첫 매치를 포커스(자동순환 정지)해 바로 보이게
     if (q) {
       if (qv.length) quadCtl.focus(p => p.name.includes(q));

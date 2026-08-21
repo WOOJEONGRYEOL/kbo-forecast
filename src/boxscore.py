@@ -410,9 +410,13 @@ def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
     out = {"window": window, "minApp": min_app, "players": []}
     if box is None or box.empty:
         return out
-    rot = (set(rotation["pcode"]) if rotation is not None and len(rotation) else set())
     df = box.copy()
     df["outs"] = df["inn"].map(_innings_to_outs)
+    # 현재 역할 판정: 시즌 누적 선발수(identify_rotation)가 아니라 '최근 역할'로.
+    #   그 경기 첫 투수 = 실제 선발. 최근 등판이 선발이거나 최근 5등판 중 선발 2회+면 선발,
+    #   아니면 불펜. (시즌 초 선발 뒤 지금은 불펜인 투수를 relief 카드에 포함시키기 위함)
+    firsts = df.drop_duplicates(["game_id", "team"], keep="first")
+    starter_pairs = set(zip(firsts["game_id"].astype(str), firsts["pcode"].astype(str)))
 
     def sums(sub):
         return {"outs": int(sub["outs"].sum()), "er": int(sub["er"].sum()),
@@ -422,10 +426,11 @@ def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
     for pcode, g in df.groupby("pcode"):
         if not pcode:
             continue
-        is_starter = pcode in rot
+        g = g.sort_values("date")
+        started = [(str(gid), str(pcode)) in starter_pairs for gid in g["game_id"]]
+        is_starter = (started[-1] if started else False) or sum(started[-5:]) >= 2
         if (role == "start") != is_starter:   # 역할 불일치 제외
             continue
-        g = g.sort_values("date")
         s = sums(g)
         if len(g) < min_app or s["outs"] < min_season_outs:
             continue
