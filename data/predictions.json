@@ -382,7 +382,7 @@
   "winAway": 56,
   "winHome": 44,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260821KTSK02026": {
   "date": "2026-08-21",
@@ -399,7 +399,7 @@
   "winAway": 59,
   "winHome": 41,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260821LGHH02026": {
   "date": "2026-08-21",
@@ -416,7 +416,7 @@
   "winAway": 54,
   "winHome": 46,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260821LTOB02026": {
   "date": "2026-08-21",
@@ -433,7 +433,7 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260821SSNC02026": {
   "date": "2026-08-21",
@@ -450,6 +450,6 @@
   "winAway": 57,
   "winHome": 43,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  }
 }
