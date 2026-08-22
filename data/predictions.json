@@ -484,23 +484,6 @@
   "lineupReady": false,
   "status": "BEFORE"
  },
- "20260822KTSK02026": {
-  "date": "2026-08-22",
-  "away": "KT",
-  "home": "SK",
-  "awayName": "KT 위즈",
-  "homeName": "SSG 랜더스",
-  "spAway": "로건",
-  "spHome": "아빌라",
-  "predAwayPre": 4.0,
-  "predHomePre": 4.2,
-  "predAway": 4.0,
-  "predHome": 4.2,
-  "winAway": 49,
-  "winHome": 51,
-  "lineupReady": false,
-  "status": "BEFORE"
- },
  "20260822LGHH02026": {
   "date": "2026-08-22",
   "away": "LG",
