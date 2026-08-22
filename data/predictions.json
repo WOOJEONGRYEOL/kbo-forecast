@@ -477,12 +477,12 @@
   "spHome": "안우진",
   "predAwayPre": 4.8,
   "predHomePre": 3.4,
-  "predAway": 4.8,
-  "predHome": 3.4,
-  "winAway": 57,
-  "winHome": 43,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.0,
+  "predHome": 3.2,
+  "winAway": 58,
+  "winHome": 42,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260822SSNC02026": {
   "date": "2026-08-22",
