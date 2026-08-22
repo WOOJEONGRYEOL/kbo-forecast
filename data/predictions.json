@@ -475,14 +475,17 @@
   "homeName": "키움 히어로즈",
   "spAway": "올러",
   "spHome": "안우진",
-  "predAwayPre": 4.8,
-  "predHomePre": 3.4,
-  "predAway": 5.0,
-  "predHome": 3.2,
-  "winAway": 58,
-  "winHome": 42,
+  "predAwayPre": 4.6,
+  "predHomePre": 3.3,
+  "predAway": 4.8,
+  "predHome": 3.1,
+  "winAway": 57,
+  "winHome": 43,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 1,
+  "correct": false
  },
  "20260822SSNC02026": {
   "date": "2026-08-22",
@@ -492,13 +495,16 @@
   "homeName": "NC 다이노스",
   "spAway": "이승현",
   "spHome": "원종해",
-  "predAwayPre": 6.4,
-  "predHomePre": 6.2,
-  "predAway": 6.5,
-  "predHome": 6.0,
-  "winAway": 52,
-  "winHome": 48,
+  "predAwayPre": 6.9,
+  "predHomePre": 6.3,
+  "predAway": 6.9,
+  "predHome": 6.2,
+  "winAway": 54,
+  "winHome": 46,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 8,
+  "correct": true
  }
 }
