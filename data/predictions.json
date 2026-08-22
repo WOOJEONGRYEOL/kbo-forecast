@@ -494,11 +494,11 @@
   "spHome": "원종해",
   "predAwayPre": 6.4,
   "predHomePre": 6.2,
-  "predAway": 6.4,
-  "predHome": 6.2,
-  "winAway": 51,
-  "winHome": 49,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 6.5,
+  "predHome": 6.0,
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
