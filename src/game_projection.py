@@ -565,6 +565,10 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
             sections.append({"date": nextd, "kind": "preview",
                              "label": f"다음 경기 예고 · {wd_label(nextd)}", "games": day_of(nextd)})
 
+    # 이미 시작·종료된 경기는 '경기 전 마지막 예측'으로 고정 표시(자기 결과 오염 방지).
+    #   매 빌드 재계산하면 그 경기 결과가 시즌 입력(RS/G·불펜·선발·파크)에 되먹임돼
+    #   예측이 미세하게 흔들리므로, 저장된 사전 예측값으로 덮어써 카드·성적표를 일치시킨다.
+    _apply_frozen(sections)
     primary = sections[0] if sections else {"date": None, "games": []}
     return {"date": primary["date"], "games": primary["games"], "sections": sections}
 
@@ -572,10 +576,41 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
 _PREDLOG_PATH = f"{config.DATA_DIR}/predictions.json"
 
 
+def _apply_frozen(sections):
+    """시작·종료된 경기의 표시 예측을 predictions.json의 '경기 전 마지막 값'으로 덮어쓴다.
+    경기 후 자기 결과가 시즌 입력에 되먹임돼 재계산값이 흔들리는 것을 막고,
+    오늘의 경기 카드와 예측 성적표가 동일한 사전 예측을 보이게 한다."""
+    import json
+    try:
+        log = json.loads(open(_PREDLOG_PATH, encoding="utf-8").read())
+    except Exception:
+        return
+    PRE = {"BEFORE", "READY"}
+    for sec in sections:
+        for g in sec.get("games", []):
+            if g.get("status") in PRE:
+                continue                       # 경기 전이면 라이브 재계산 그대로
+            e = log.get(g.get("gameId"))
+            if not e or e.get("predHome") is None:
+                continue                       # 저장된 사전 예측 없으면 재계산 유지
+            g["erAway"] = e.get("predAwayPre", g["erAway"])
+            g["erHome"] = e.get("predHomePre", g["erHome"])
+            g["erAwayLU"] = e.get("predAway", g.get("erAwayLU"))
+            g["erHomeLU"] = e.get("predHome", g.get("erHomeLU"))
+            g["bandAway"], g["bandHome"] = _band(g["erAway"]), _band(g["erHome"])
+            g["bandAwayLU"], g["bandHomeLU"] = _band(g["erAwayLU"]), _band(g["erHomeLU"])
+            g["winAwayLU"] = e.get("winAway", g.get("winAwayLU"))
+            g["winHomeLU"] = e.get("winHome", g.get("winHomeLU"))
+            g["winAway"], g["winHome"] = g["winAwayLU"], g["winHomeLU"]
+            if "lineupReady" in e:
+                g["lineupReady"] = e["lineupReady"]
+
+
 def save_prediction_log(projections: dict, games: list, path: str = None) -> str:
     """경기별 예측(반영 전/후)+실제 결과를 data/predictions.json에 누적 저장.
-    · 당일(및 예정) 경기는 매 빌드 최신 재계산으로 갱신 → '오늘의 경기' 카드와 항상 일치.
-    · 날짜가 지난 경기는 마지막 당일 값으로 고정(경기 후 데이터 변화로 인한 사후 오염 방지).
+    · 예측은 '경기 전(BEFORE/READY)'일 때만 갱신 → 첫 구 시점의 마지막 값으로 고정.
+      경기가 시작되면 갱신하지 않아, 그 경기 결과가 시즌 입력에 되먹임돼 예측이
+      흔들리는 자기오염을 막는다. (표시는 _apply_frozen이 같은 고정값을 보여줌)
     · 실제 결과는 종료(RESULT/ENDED) 시 채우고, 날짜가 지난 뒤에도 games 전체를 훑어
       로그에 있는 미완료 경기의 결과를 뒤늦게 backfill한다.
     반환: 저장 경로."""
@@ -606,7 +641,11 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         if not gid:
             continue
         e = log.get(gid, {})
-        if g.get("date", "") >= today:          # 당일·예정 경기만 예측 갱신(과거는 고정)
+        pregame = g.get("status") in ("BEFORE", "READY")
+        have = "predHome" in e
+        # 경기 전(pregame)일 때만 예측 갱신 → 첫 구 시점의 마지막 값으로 자연 고정.
+        #   시작 후엔 갱신 안 함(자기 결과 오염 방지). 미기록 경기는 1회 폴백 캡처.
+        if g.get("date", "") >= today and (pregame or not have):
             e.pop("frozen", None)               # 구버전 잔재 정리
             e.update({
                 "date": g["date"], "away": g["away"], "home": g["home"],
