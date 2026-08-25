@@ -198,6 +198,54 @@ def _band(mu: float):
     return [max(0, round(mu - 0.7 * sd)), round(mu + 0.7 * sd)]
 
 
+def team_schedule(games: list) -> dict:
+    """팀별 (경기일, 홈여부) 리스트(종료 경기, 날짜순). 일정 피로 계산용."""
+    sch = defaultdict(list)
+    for g in games:
+        if g.get("statusCode") not in ("RESULT", "ENDED") or g.get("cancel"):
+            continue
+        d, h, a = g.get("gameDate"), g.get("homeTeamCode"), g.get("awayTeamCode")
+        if d and h:
+            sch[h].append((d, True))
+        if d and a:
+            sch[a].append((d, False))
+    for t in sch:
+        sch[t].sort()
+    return sch
+
+
+def _schedule_energy(sched_t: list, day: str, is_home_today: bool):
+    """일정 에너지 배수(1.0=보통). 휴식일 많으면 생생(+), 무휴식·긴 원정연전은 −.
+    반환 (배수, 사유문자열). KBO는 월요일 리그 공통 휴식이라 대개 상쇄되고,
+    비대칭 휴식(우천 순연 등)·장기 원정에서만 갈린다."""
+    past = [x for x in sched_t if x[0] < day]
+    if not past:
+        return 1.0, ""
+    rest = (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(past[-1][0])).days
+    road = 0
+    for _, ih in reversed(past):
+        if ih is False:
+            road += 1
+        else:
+            break
+    if not is_home_today:
+        road += 1
+    else:
+        road = 0
+    e, why = 1.0, []
+    if rest >= 3:
+        e += 0.03; why.append(f"{rest}일 휴식")
+    elif rest == 2:
+        e += 0.015; why.append("하루 더 휴식")
+    elif rest == 0:
+        e -= 0.03; why.append("무휴식(더블헤더)")
+    if road >= 6:
+        e -= 0.025; why.append(f"원정 {road}연전")
+    elif road >= 4:
+        e -= 0.012; why.append(f"원정 {road}연전")
+    return round(max(0.95, min(1.05, e)), 3), " · ".join(why)
+
+
 def _pitcher_stats(box):
     """pcode → {outs, r, ra9, last_dates:set}. box는 collect_season_pitching 결과."""
     df = box.copy()
@@ -249,7 +297,7 @@ def _rest_days(pit):
     return 4       # 75구 이상 → 4일
 
 
-def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None, exclude=None):
+def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None, exclude=None, fatigue=True):
     """team의 가용 불펜 RA9(가중평균)와 결장 사유. asof=경기일(문자열).
     '불펜'은 시즌 누적 선발수가 아니라 최근 역할(is_starter_now)로 판정 —
     시즌 초 몇 번 선발한 뒤 지금은 불펜인 투수도 풀에 포함한다.
@@ -282,10 +330,21 @@ def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None, exclude=None):
             out_info.append({"name": s["name"], "reason": f"{tag} {a['pit']}구·{rest}일휴식"}); continue
         avail.append(s)
     if not avail:
-        return lg_ra9, out_info
+        return lg_ra9, out_info, 1.0
     tot = sum(s["outs"] for s in avail)
-    ra9 = sum((s["ra9"] or lg_ra9) * s["outs"] for s in avail) / tot
-    return ra9, out_info
+
+    # 누적 피로: 결장까진 아니어도 최근 2일 투구가 쌓인 불펜은 오늘 실점력이 소폭 상승.
+    #   지친 필승조에 기대는 팀에 업셋 창을 열어준다(팔팔한 불펜은 1.0).
+    def _fatigue(s):
+        if not fatigue:
+            return 1.0
+        recent = sum(a["pit"] for a in s["apps"]
+                     if 1 <= (d0 - datetime.date.fromisoformat(a["date"])).days <= 2)
+        return 1.0 + min(0.20, recent / 200.0)      # 최근2일 40구≈+20%(상한)
+
+    ra9 = sum((s["ra9"] or lg_ra9) * _fatigue(s) * s["outs"] for s in avail) / tot
+    fat_idx = sum(_fatigue(s) * s["outs"] for s in avail) / tot   # 1.0=팔팔, >1=지침
+    return ra9, out_info, round(fat_idx, 3)
 
 
 def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
@@ -305,9 +364,12 @@ def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
 
 
 _FINISHED = {"RESULT", "ENDED"}   # 종료 경기(스코어 확정) 상태
+# 업셋 다이내미즘(불펜 누적 피로·일정 에너지·업셋 지수) 적용 시작일.
+# 그 전 경기는 기존 모델과 동일하게 계산 — 오늘 이전 예측·성적을 소급 변경하지 않음.
+_DYN_FROM = "2026-08-26"
 
 
-def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base):
+def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base, sched):
     """하루치(day) 경기들을 기대 스코어 dict 리스트로. 공유 컨텍스트는 인자로 받는다."""
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
     out = []
@@ -316,8 +378,9 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         pv = preview_data(g["gameId"])            # 선발·라인업을 한 번에
         sp = probable_starters(g["gameId"], pv)
         # 오늘 예고선발은 불펜 풀에서 명시적으로 제외(불펜 취급이던 스팟 선발도 커버)
-        bpH, outH = available_bullpen(box, h, rotation, day, lg_ra9, ps=ps, exclude=[sp["home"][1]])
-        bpA, outA = available_bullpen(box, a, rotation, day, lg_ra9, ps=ps, exclude=[sp["away"][1]])
+        dyn = day >= _DYN_FROM                     # 업셋 다이내미즘 적용 여부(날짜 컷오프)
+        bpH, outH, fatH = available_bullpen(box, h, rotation, day, lg_ra9, ps=ps, exclude=[sp["home"][1]], fatigue=dyn)
+        bpA, outA, fatA = available_bullpen(box, a, rotation, day, lg_ra9, ps=ps, exclude=[sp["away"][1]], fatigue=dyn)
         # 상대 이 경기 실점력(선발+가용불펜)
         pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9)
         pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9)
@@ -328,9 +391,12 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         oH_i, oA_i = idx(oH, lg), idx(oA, lg)
         pH_i, pA_i = idx(pitchH, lg_ra9), idx(pitchA, lg_ra9)   # 실점력(높을수록 잘 내줌)
         pf = pfs.get(g.get("stadium"), 1.0)                    # 구장 팩터(양팀 공통)
-        # 기대득점: 리그평균 × 구장팩터 × 자기 공격지수 × 상대 실점력지수 × 홈보정 (log5식)
-        erH = lg * pf * oH_i * pA_i * HOME_BOOST
-        erA = lg * pf * oA_i * pH_i / HOME_BOOST
+        # 일정 에너지(휴식·원정 연전) — 지친 팀은 자기 공격이 소폭 하락(업셋 다이내미즘)
+        enH, enWhyH = _schedule_energy(sched.get(h, []), day, True) if dyn else (1.0, "")
+        enA, enWhyA = _schedule_energy(sched.get(a, []), day, False) if dyn else (1.0, "")
+        # 기대득점: 리그평균 × 구장팩터 × 자기 공격지수 × 상대 실점력지수 × 홈보정 × 에너지
+        erH = lg * pf * oH_i * pA_i * HOME_BOOST * enH
+        erA = lg * pf * oA_i * pH_i / HOME_BOOST * enA
         # 승률: 단일경기 분산 반영 로지스틱(극단 압축)
         pH = 1 / (1 + math.exp(-(erH - erA) / WIN_SCALE))
         r2 = lambda v: round(v, 2)
@@ -348,11 +414,36 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         # 라인업 반영 공격지수(미발표면 multH=multA=1.0이라 반영 전과 동일)
         oHi2, oAi2 = idx(oH * multH, lg), idx(oA * multA, lg)
         if lineup_ready:
-            erH2 = lg * pf * oHi2 * pA_i * HOME_BOOST
-            erA2 = lg * pf * oAi2 * pH_i / HOME_BOOST
+            erH2 = lg * pf * oHi2 * pA_i * HOME_BOOST * enH
+            erA2 = lg * pf * oAi2 * pH_i / HOME_BOOST * enA
             pH2 = 1 / (1 + math.exp(-(erH2 - erA2) / WIN_SCALE))
         else:
             erH2, erA2, pH2 = erH, erA, pH
+
+        # ── 업셋 지수: 매치업 요소(선발·불펜피로·구장·일정)가 '공격 약팀'에게
+        #    순위 기반 나이브 예측 대비 얼마나 승산을 더 주나 ──
+        naiveH = 1 / (1 + math.exp(-((lg * oH_i * HOME_BOOST) - (lg * oA_i / HOME_BOOST)) / WIN_SCALE))
+        ud_home = oH_i < oA_i                       # 홈이 공격 약팀?
+        ud_win = round((pH2 if ud_home else 1 - pH2) * 100)
+        ud_naive = round((naiveH if ud_home else 1 - naiveH) * 100)
+        upset_lift = ud_win - ud_naive              # 매치업이 약팀에게 더 준 승산(%p)
+        underdog = h if ud_home else a
+        is_upset = dyn and ud_win >= 45 and upset_lift >= 3
+        # 업셋 사유(약팀 관점): 어떤 요소가 도왔나
+        ur = []
+        favp = pA_i if ud_home else pH_i            # 약팀이 상대할 실점력(상대 투수진)
+        udp = pA_i if not ud_home else pH_i
+        if favp > udp + 0.03:
+            ur.append("상대 투수진 열세")            # 약팀 상대 투수진이 더 잘 내줌
+        fav_fat = fatA if ud_home else fatH          # 상대(강팀) 불펜 피로
+        if fav_fat >= 1.05:
+            ur.append("상대 불펜 피로")
+        ud_energy_why = enWhyH if ud_home else enWhyA
+        fav_energy = enA if ud_home else enH
+        if fav_energy < 0.99:
+            ur.append("상대 일정 피로")
+        if "휴식" in ud_energy_why:
+            ur.append("우리 충분한 휴식")
 
         # 실제 결과(종료 경기): 네이버 최종 스코어. 진행 전이면 None.
         # RESULT=확정, ENDED=종료 직후(스코어는 이미 확정) 둘 다 종료로 취급.
@@ -378,16 +469,22 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
             "multHome": round(multH, 3), "multAway": round(multA, 3),
             "spHandHome": spHand_home, "spHandAway": spHand_away,
             "bpOutHome": outH, "bpOutAway": outA,
+            # 업셋(공격 약팀이 매치업 덕에 순위 예상보다 승산 큼)
+            "upset": is_upset, "underdog": underdog,
+            "underdogName": config.TEAM_NAMES.get(underdog, underdog),
+            "underdogWin": ud_win, "upsetLift": upset_lift,
+            "upsetWhy": " · ".join(ur),
             "calc": {
                 "lg": r2(lg), "boost": HOME_BOOST, "park": pf, "stadium": g.get("stadium"),
                 "offHome": r2(oH), "offAway": r2(oA), "oIdxHome": r2(oH_i), "oIdxAway": r2(oA_i),
                 "oIdxHomeLU": r2(oHi2), "oIdxAwayLU": r2(oAi2),  # 라인업 반영 공격지수
                 "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "spHomeInn": spH_inn,
-                "bpHome": r2(bpH), "bpHomeInn": r2(9 - spH_inn),
+                "bpHome": r2(bpH), "bpHomeInn": r2(9 - spH_inn), "fatHome": fatH,
                 "pitchHome": r2(pitchH), "pIdxHome": r2(pH_i),
                 "spAwayRa9": r2(spA_ra9), "spAwayKnown": spA_known, "spAwayInn": spA_inn,
-                "bpAway": r2(bpA), "bpAwayInn": r2(9 - spA_inn),
+                "bpAway": r2(bpA), "bpAwayInn": r2(9 - spA_inn), "fatAway": fatA,
                 "pitchAway": r2(pitchA), "pIdxAway": r2(pA_i),
+                "enHome": enH, "enAway": enA, "enWhyHome": enWhyH, "enWhyAway": enWhyA,
             },
         })
     return out
@@ -408,9 +505,10 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     rotation = identify_rotation(box)
     pfs = park_factors(games)
     wrc_by_p, team_base = load_lineup_wrc()
+    sched = team_schedule(games)                  # 팀별 일정(일정 피로용)
 
     def day_of(d):
-        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base)
+        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base, sched)
 
     def wd_label(d):
         w = "월화수목금토일"[datetime.date.fromisoformat(d).weekday()]

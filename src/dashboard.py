@@ -620,6 +620,11 @@ _CALC_GUIDE_HTML = r"""
 <p style="margin:0 0 6px"><b style="color:var(--text)">⑨ 라인업 반영(발표 시)</b> — 오늘 9명의 <b>타순가중 wRC+ ÷ 팀 상위9 베이스</b> = 공격 배수(0.85~1.15)로 ③을 보정. 주전이 쉬면 배수&lt;1.<br>
 · <b>플래툰(좌우)</b>: 각 타자를 <b>상대 선발손</b> 대비 리그평균만큼 가감(반대손 유리·같은손 불리, 스위치 중립). 단 <b>선발 이닝 비율만큼만</b> 적용(불펜은 좌우 섞여 상쇄). 예: 우타 다수 라인업이 좌완 선발 만나면 공격 소폭↑.</p>
 
+<p style="margin:0 0 6px"><b style="color:var(--text)">⑩ 업셋 다이내미즘</b>(2026-08-26~) — 강팀이 늘 이긴다는 뻔함을 줄이려 두 신호를 얹음:<br>
+· <b>불펜 누적 피로</b>: 결장까진 아니어도 최근 2일 투구가 쌓인 불펜은 오늘 실점력 소폭↑(지친 필승조에 기대는 팀에 불리).<br>
+· <b>일정 에너지</b>: 휴식일 많으면 생생(+), 무휴식·장기 원정 연전은 −(자기 공격에 소폭 반영).<br>
+· <b>🔥 업셋 배지</b>: 공격 약팀의 승률이 <b>순위 기반 나이브 예측(공격+홈만)</b>보다 +3%p 이상 높고 45%+면 표시 — "오늘 이 약팀 해볼 만"을 사유와 함께. <b>적중률은 거의 안 오르지만</b>(천장 56%) 서사·다양성을 살림.</p>
+
 <p style="margin:8px 0 0;color:#ffb454"><b>⚠️ 정직한 한계</b> — 단일 경기 예측의 정직한 천장은 ~56%(experiments 검증). '맞히기'가 아니라 <b>왜 이런 스코어인지</b>를 숫자로 서술하는 도구입니다.</p>
 </div></details>"""
 
@@ -691,6 +696,14 @@ def _one_game_card(g, logos) -> str:
                   f'홈 <b style="color:var(--text)">{eH}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {oiH}({offH}) '
                   f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·평균 {c["spAwayInn"]}이닝 '
                   f'＋ 불펜 {c["bpAway"]}·{c["bpAwayInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
+                  # 업셋 다이내미즘(불펜 누적 피로·일정 에너지) — 값이 있을 때만
+                  + (f'<span style="opacity:.85">업셋 요소 — 불펜 피로 홈×{c.get("fatHome",1)}·원정×{c.get("fatAway",1)}'
+                     + (f' · 일정 에너지 홈×{c.get("enHome",1)}{"("+c["enWhyHome"]+")" if c.get("enWhyHome") else ""}'
+                        f'·원정×{c.get("enAway",1)}{"("+c["enWhyAway"]+")" if c.get("enWhyAway") else ""}'
+                        if (c.get("enHome",1) != 1 or c.get("enAway",1) != 1) else "")
+                     + '</span><br>'
+                     if (c.get("fatHome",1) != 1 or c.get("fatAway",1) != 1
+                         or c.get("enHome",1) != 1 or c.get("enAway",1) != 1) else "")
                   # 승률 환산 설명
                   + f'<b style="color:var(--text)">승률</b> = 로지스틱( (홈 {eH} − 원정 {eA}) ÷ 5.5 ) → 홈 {wH}% · 원정 {wA}%<br>'
                   f'<span style="opacity:.8">└ 두 기대득점의 <b>차</b>를 0~100%로 환산(S자 곡선). ÷5.5는 단일경기 운이 커서 '
@@ -718,10 +731,20 @@ def _one_game_card(g, logos) -> str:
                            'color:#ffb454;font-weight:700">● 경기 중</div>')
         else:
             result_line = ''
+        # 업셋 배지 — 공격 약팀이 매치업(선발·불펜피로·구장·일정) 덕에 순위 예상보다 승산 큼
+        upset_badge = ''
+        if g.get("upset"):
+            why = g.get("upsetWhy", "")
+            upset_badge = (
+                '<div style="text-align:center;margin:1px 0 3px;font-size:11px;font-weight:700;color:#ffb454">'
+                f'🔥 업셋 주목 — {g["underdogName"]} {g["underdogWin"]}%'
+                f'<span style="font-weight:400;opacity:.85"> (순위 예상 +{g["upsetLift"]}%p'
+                f'{" · " + why if why else ""})</span></div>')
         return (
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
             f'<div style="text-align:center;margin-bottom:3px">{badge}</div>'
+            f'{upset_badge}'
             f'{pre_line}'
             f'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
             f'<span style="font-size:13px"><img src="{al}" alt="" style="height:18px;vertical-align:-4px;margin-right:3px">{g["awayName"]}</span>'
