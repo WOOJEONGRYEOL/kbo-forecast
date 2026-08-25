@@ -617,12 +617,12 @@
   "spHome": "김민준",
   "predAwayPre": 5.0,
   "predHomePre": 4.5,
-  "predAway": 5.0,
-  "predHome": 4.5,
+  "predAway": 4.8,
+  "predHome": 4.4,
   "winAway": 52,
   "winHome": 48,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260825LTHT02026": {
   "date": "2026-08-25",
@@ -635,11 +635,11 @@
   "predAwayPre": 4.5,
   "predHomePre": 5.5,
   "predAway": 4.5,
-  "predHome": 5.5,
-  "winAway": 46,
-  "winHome": 54,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 5.9,
+  "winAway": 44,
+  "winHome": 56,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260825NCLG02026": {
   "date": "2026-08-25",
@@ -652,11 +652,11 @@
   "predAwayPre": 4.5,
   "predHomePre": 5.5,
   "predAway": 4.5,
-  "predHome": 5.5,
-  "winAway": 45,
-  "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 5.8,
+  "winAway": 44,
+  "winHome": 56,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260825OBKT02026": {
   "date": "2026-08-25",
@@ -669,11 +669,11 @@
   "predAwayPre": 4.0,
   "predHomePre": 4.9,
   "predAway": 4.0,
-  "predHome": 4.9,
-  "winAway": 46,
-  "winHome": 54,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 5.3,
+  "winAway": 44,
+  "winHome": 56,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260825SSWO02026": {
   "date": "2026-08-25",
@@ -685,11 +685,11 @@
   "spHome": "알칸타라",
   "predAwayPre": 4.8,
   "predHomePre": 4.7,
-  "predAway": 4.8,
-  "predHome": 4.7,
+  "predAway": 4.6,
+  "predHome": 4.6,
   "winAway": 50,
   "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  }
 }
