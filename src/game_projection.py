@@ -23,6 +23,10 @@ SP_INN, BP_INN = 5.1, 3.9   # 경기당 선발/불펜 담당 이닝 근사
 HOME_BOOST = 1.035       # 홈 어드밴티지(팀별 스플릿은 과적합 → 상수 사용)
 SHRINK = 0.85            # 팀 지표를 리그평균으로 당기는 수축(시즌 표본 추정오차·회귀 반영)
 WIN_SCALE = 5.5          # 승률 로지스틱 스케일(단일경기는 분산이 커 극단 압축; 큰 격차도 ~70%)
+# 캘리브레이션(experiments/calibration.py): 5.5는 약간 과확신 → 6.5로 소폭 상향.
+# 아래 날짜부터 적용(그 전 경기는 5.5 유지 — 과거 예측·성적 소급 변경 없음).
+WIN_SCALE_NEW = 6.5
+_WINSCALE_FROM = "2026-08-27"
 PREVIEW_URL = config.NAVER_API_BASE + "/{gid}/preview"
 
 
@@ -345,6 +349,7 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         gl.sort(key=lambda x: x.get("gameDateTime", ""))
         for gg in gl[1:]:
             dh_second.add((gg.get("gameId"), tc))
+    ws = WIN_SCALE_NEW if day >= _WINSCALE_FROM else WIN_SCALE   # 승률 스케일(날짜 컷오프)
     out = []
     for g in todays:
         h, a = g["homeTeamCode"], g["awayTeamCode"]
@@ -371,7 +376,7 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         erH = lg * pf * oH_i * pA_i * HOME_BOOST * enH
         erA = lg * pf * oA_i * pH_i / HOME_BOOST * enA
         # 승률: 단일경기 분산 반영 로지스틱(극단 압축)
-        pH = 1 / (1 + math.exp(-(erH - erA) / WIN_SCALE))
+        pH = 1 / (1 + math.exp(-(erH - erA) / ws))
         r2 = lambda v: round(v, 2)
 
         # ── 라인업(타순) 반영: 발표됐으면 팀 공격력을 오늘 9명 기준으로 보정 ──
@@ -389,13 +394,13 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         if lineup_ready:
             erH2 = lg * pf * oHi2 * pA_i * HOME_BOOST * enH
             erA2 = lg * pf * oAi2 * pH_i / HOME_BOOST * enA
-            pH2 = 1 / (1 + math.exp(-(erH2 - erA2) / WIN_SCALE))
+            pH2 = 1 / (1 + math.exp(-(erH2 - erA2) / ws))
         else:
             erH2, erA2, pH2 = erH, erA, pH
 
         # ── 업셋 지수: 매치업 요소(선발·불펜피로·구장·일정)가 '공격 약팀'에게
         #    순위 기반 나이브 예측 대비 얼마나 승산을 더 주나 ──
-        naiveH = 1 / (1 + math.exp(-((lg * oH_i * HOME_BOOST) - (lg * oA_i / HOME_BOOST)) / WIN_SCALE))
+        naiveH = 1 / (1 + math.exp(-((lg * oH_i * HOME_BOOST) - (lg * oA_i / HOME_BOOST)) / ws))
         ud_home = oH_i < oA_i                       # 홈이 공격 약팀?
         ud_win = round((pH2 if ud_home else 1 - pH2) * 100)
         ud_naive = round((naiveH if ud_home else 1 - naiveH) * 100)
