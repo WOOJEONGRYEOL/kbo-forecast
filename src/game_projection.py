@@ -198,32 +198,53 @@ def _band(mu: float):
     return [max(0, round(mu - 0.7 * sd)), round(mu + 0.7 * sd)]
 
 
+# 구장 좌표(위도, 경도) — 어제 구장→오늘 구장 이동 거리 계산용
+_STAD_COORD = {
+    "잠실": (37.512, 127.072), "고척": (37.498, 126.867), "문학": (37.437, 126.693),
+    "수원": (37.300, 127.010), "대전": (36.317, 127.429), "대구": (35.841, 128.681),
+    "사직": (35.194, 129.061), "창원": (35.222, 128.582), "광주": (35.168, 126.889),
+    "포항": (36.008, 129.359),
+}
+
+
+def _haversine(a, b):
+    """두 (위도,경도) 사이 거리(km)."""
+    import math as _m
+    lat1, lon1 = a; lat2, lon2 = b
+    r = 6371.0
+    dlat = _m.radians(lat2 - lat1); dlon = _m.radians(lon2 - lon1)
+    h = (_m.sin(dlat / 2) ** 2
+         + _m.cos(_m.radians(lat1)) * _m.cos(_m.radians(lat2)) * _m.sin(dlon / 2) ** 2)
+    return 2 * r * _m.asin(_m.sqrt(h))
+
+
 def team_schedule(games: list) -> dict:
-    """팀별 (경기일, 홈여부) 리스트(종료 경기, 날짜순). 일정 피로 계산용."""
+    """팀별 (경기일, 홈여부, 구장) 리스트(종료 경기, 날짜순). 일정 피로·이동 계산용."""
     sch = defaultdict(list)
     for g in games:
         if g.get("statusCode") not in ("RESULT", "ENDED") or g.get("cancel"):
             continue
-        d, h, a = g.get("gameDate"), g.get("homeTeamCode"), g.get("awayTeamCode")
+        d, h, a, st = g.get("gameDate"), g.get("homeTeamCode"), g.get("awayTeamCode"), g.get("stadium")
         if d and h:
-            sch[h].append((d, True))
+            sch[h].append((d, True, st))
         if d and a:
-            sch[a].append((d, False))
+            sch[a].append((d, False, st))
     for t in sch:
-        sch[t].sort()
+        sch[t].sort(key=lambda x: x[0])
     return sch
 
 
-def _schedule_energy(sched_t: list, day: str, is_home_today: bool):
-    """일정 에너지 배수(1.0=보통). 휴식일 많으면 생생(+), 무휴식·긴 원정연전은 −.
+def _schedule_energy(sched_t: list, day: str, is_home_today: bool, today_stadium: str = None):
+    """일정 에너지 배수(1.0=보통). 휴식일 많으면 생생(+), 무휴식·긴 원정연전·장거리 이동은 −.
     반환 (배수, 사유문자열). KBO는 월요일 리그 공통 휴식이라 대개 상쇄되고,
-    비대칭 휴식(우천 순연 등)·장기 원정에서만 갈린다."""
+    비대칭 휴식·장기 원정·먼 이동(어제 구장→오늘 구장)에서만 갈린다.
+    이동 효과는 한국이 좁아(최장 서울–부산 ~325km) 작게 반영한다."""
     past = [x for x in sched_t if x[0] < day]
     if not past:
         return 1.0, ""
     rest = (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(past[-1][0])).days
     road = 0
-    for _, ih in reversed(past):
+    for _, ih, _st in reversed(past):
         if ih is False:
             road += 1
         else:
@@ -243,7 +264,16 @@ def _schedule_energy(sched_t: list, day: str, is_home_today: bool):
         e -= 0.025; why.append(f"원정 {road}연전")
     elif road >= 4:
         e -= 0.012; why.append(f"원정 {road}연전")
-    return round(max(0.95, min(1.05, e)), 3), " · ".join(why)
+    # 이동 거리: 어제(=직전 경기) 구장 → 오늘 구장. 하루 이상 휴식이면 회복돼 미미하므로
+    # 전날 경기(rest<=1)일 때만 반영. 최장 ~325km에서 −0.018 정도로 완만하게.
+    prev_st = past[-1][2]
+    if rest <= 1 and today_stadium and prev_st and prev_st != today_stadium \
+            and prev_st in _STAD_COORD and today_stadium in _STAD_COORD:
+        km = _haversine(_STAD_COORD[prev_st], _STAD_COORD[today_stadium])
+        e -= min(0.018, km / 18000.0)
+        if km >= 120:
+            why.append(f"이동 {round(km)}km")
+    return round(max(0.94, min(1.05, e)), 3), " · ".join(why)
 
 
 def _pitcher_stats(box):
@@ -392,8 +422,9 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         pH_i, pA_i = idx(pitchH, lg_ra9), idx(pitchA, lg_ra9)   # 실점력(높을수록 잘 내줌)
         pf = pfs.get(g.get("stadium"), 1.0)                    # 구장 팩터(양팀 공통)
         # 일정 에너지(휴식·원정 연전) — 지친 팀은 자기 공격이 소폭 하락(업셋 다이내미즘)
-        enH, enWhyH = _schedule_energy(sched.get(h, []), day, True) if dyn else (1.0, "")
-        enA, enWhyA = _schedule_energy(sched.get(a, []), day, False) if dyn else (1.0, "")
+        _stad = g.get("stadium")
+        enH, enWhyH = _schedule_energy(sched.get(h, []), day, True, _stad) if dyn else (1.0, "")
+        enA, enWhyA = _schedule_energy(sched.get(a, []), day, False, _stad) if dyn else (1.0, "")
         # 기대득점: 리그평균 × 구장팩터 × 자기 공격지수 × 상대 실점력지수 × 홈보정 × 에너지
         erH = lg * pf * oH_i * pA_i * HOME_BOOST * enH
         erA = lg * pf * oA_i * pH_i / HOME_BOOST * enA
