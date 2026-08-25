@@ -198,82 +198,14 @@ def _band(mu: float):
     return [max(0, round(mu - 0.7 * sd)), round(mu + 0.7 * sd)]
 
 
-# 구장 좌표(위도, 경도) — 어제 구장→오늘 구장 이동 거리 계산용
-_STAD_COORD = {
-    "잠실": (37.512, 127.072), "고척": (37.498, 126.867), "문학": (37.437, 126.693),
-    "수원": (37.300, 127.010), "대전": (36.317, 127.429), "대구": (35.841, 128.681),
-    "사직": (35.194, 129.061), "창원": (35.222, 128.582), "광주": (35.168, 126.889),
-    "포항": (36.008, 129.359),
-}
-
-
-def _haversine(a, b):
-    """두 (위도,경도) 사이 거리(km)."""
-    import math as _m
-    lat1, lon1 = a; lat2, lon2 = b
-    r = 6371.0
-    dlat = _m.radians(lat2 - lat1); dlon = _m.radians(lon2 - lon1)
-    h = (_m.sin(dlat / 2) ** 2
-         + _m.cos(_m.radians(lat1)) * _m.cos(_m.radians(lat2)) * _m.sin(dlon / 2) ** 2)
-    return 2 * r * _m.asin(_m.sqrt(h))
-
-
-def team_schedule(games: list) -> dict:
-    """팀별 (경기일, 홈여부, 구장) 리스트(종료 경기, 날짜순). 일정 피로·이동 계산용."""
-    sch = defaultdict(list)
-    for g in games:
-        if g.get("statusCode") not in ("RESULT", "ENDED") or g.get("cancel"):
-            continue
-        d, h, a, st = g.get("gameDate"), g.get("homeTeamCode"), g.get("awayTeamCode"), g.get("stadium")
-        if d and h:
-            sch[h].append((d, True, st))
-        if d and a:
-            sch[a].append((d, False, st))
-    for t in sch:
-        sch[t].sort(key=lambda x: x[0])
-    return sch
-
-
-def _schedule_energy(sched_t: list, day: str, is_home_today: bool, today_stadium: str = None):
-    """일정 에너지 배수(1.0=보통). 휴식일 많으면 생생(+), 무휴식·긴 원정연전·장거리 이동은 −.
-    반환 (배수, 사유문자열). KBO는 월요일 리그 공통 휴식이라 대개 상쇄되고,
-    비대칭 휴식·장기 원정·먼 이동(어제 구장→오늘 구장)에서만 갈린다.
-    이동 효과는 한국이 좁아(최장 서울–부산 ~325km) 작게 반영한다."""
-    past = [x for x in sched_t if x[0] < day]
-    if not past:
-        return 1.0, ""
-    rest = (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(past[-1][0])).days
-    road = 0
-    for _, ih, _st in reversed(past):
-        if ih is False:
-            road += 1
-        else:
-            break
-    if not is_home_today:
-        road += 1
-    else:
-        road = 0
-    e, why = 1.0, []
-    if rest >= 3:
-        e += 0.03; why.append(f"{rest}일 휴식")
-    elif rest == 2:
-        e += 0.015; why.append("하루 더 휴식")
-    elif rest == 0:
-        e -= 0.03; why.append("무휴식(더블헤더)")
-    if road >= 6:
-        e -= 0.025; why.append(f"원정 {road}연전")
-    elif road >= 4:
-        e -= 0.012; why.append(f"원정 {road}연전")
-    # 이동 거리: 어제(=직전 경기) 구장 → 오늘 구장. 하루 이상 휴식이면 회복돼 미미하므로
-    # 전날 경기(rest<=1)일 때만 반영. 최장 ~325km에서 −0.018 정도로 완만하게.
-    prev_st = past[-1][2]
-    if rest <= 1 and today_stadium and prev_st and prev_st != today_stadium \
-            and prev_st in _STAD_COORD and today_stadium in _STAD_COORD:
-        km = _haversine(_STAD_COORD[prev_st], _STAD_COORD[today_stadium])
-        e -= min(0.018, km / 18000.0)
-        if km >= 120:
-            why.append(f"이동 {round(km)}km")
-    return round(max(0.94, min(1.05, e)), 3), " · ".join(why)
+def _schedule_energy(is_dh_second: bool):
+    """일정 에너지 배수(1.0=보통). 실증(experiments/schedule_fatigue.py) 결과
+    휴식일·연속 원정·이동 거리는 유의한 효과가 없어 제거하고,
+    유일하게 실재하는 '더블헤더 2차전'(같은 날 2경기째)만 반영한다.
+      · 실측 −0.85점/경기(≈ −15%). 자기 공격에 적용."""
+    if is_dh_second:
+        return 0.85, "더블헤더 2차전"
+    return 1.0, ""
 
 
 def _pitcher_stats(box):
@@ -364,13 +296,14 @@ def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None, exclude=None, 
     tot = sum(s["outs"] for s in avail)
 
     # 누적 피로: 결장까진 아니어도 최근 2일 투구가 쌓인 불펜은 오늘 실점력이 소폭 상승.
-    #   지친 필승조에 기대는 팀에 업셋 창을 열어준다(팔팔한 불펜은 1.0).
+    #   실증(experiments/bullpen_fatigue.py): 완전휴식 RA9 4.69 vs 최근 등판 5.00
+    #   → 약 +6~8%(+0.3~0.4 RA9). 그 관측에 맞춰 완만하게(상한 +10%) 반영.
     def _fatigue(s):
         if not fatigue:
             return 1.0
         recent = sum(a["pit"] for a in s["apps"]
                      if 1 <= (d0 - datetime.date.fromisoformat(a["date"])).days <= 2)
-        return 1.0 + min(0.20, recent / 200.0)      # 최근2일 40구≈+20%(상한)
+        return 1.0 + min(0.10, recent / 300.0)      # 최근2일 30구≈+10%(상한)
 
     ra9 = sum((s["ra9"] or lg_ra9) * _fatigue(s) * s["outs"] for s in avail) / tot
     fat_idx = sum(_fatigue(s) * s["outs"] for s in avail) / tot   # 1.0=팔팔, >1=지침
@@ -399,9 +332,19 @@ _FINISHED = {"RESULT", "ENDED"}   # 종료 경기(스코어 확정) 상태
 _DYN_FROM = "2026-08-26"
 
 
-def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base, sched):
+def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base):
     """하루치(day) 경기들을 기대 스코어 dict 리스트로. 공유 컨텍스트는 인자로 받는다."""
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
+    # 더블헤더: 같은 팀이 오늘 2경기 이상이면 나중 경기(들)가 2차전(피로) — (gameId, 팀) 집합
+    _byteam = defaultdict(list)
+    for gg in todays:
+        _byteam[gg.get("homeTeamCode")].append(gg)
+        _byteam[gg.get("awayTeamCode")].append(gg)
+    dh_second = set()
+    for tc, gl in _byteam.items():
+        gl.sort(key=lambda x: x.get("gameDateTime", ""))
+        for gg in gl[1:]:
+            dh_second.add((gg.get("gameId"), tc))
     out = []
     for g in todays:
         h, a = g["homeTeamCode"], g["awayTeamCode"]
@@ -422,9 +365,8 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         pH_i, pA_i = idx(pitchH, lg_ra9), idx(pitchA, lg_ra9)   # 실점력(높을수록 잘 내줌)
         pf = pfs.get(g.get("stadium"), 1.0)                    # 구장 팩터(양팀 공통)
         # 일정 에너지(휴식·원정 연전) — 지친 팀은 자기 공격이 소폭 하락(업셋 다이내미즘)
-        _stad = g.get("stadium")
-        enH, enWhyH = _schedule_energy(sched.get(h, []), day, True, _stad) if dyn else (1.0, "")
-        enA, enWhyA = _schedule_energy(sched.get(a, []), day, False, _stad) if dyn else (1.0, "")
+        enH, enWhyH = _schedule_energy((g.get("gameId"), h) in dh_second) if dyn else (1.0, "")
+        enA, enWhyA = _schedule_energy((g.get("gameId"), a) in dh_second) if dyn else (1.0, "")
         # 기대득점: 리그평균 × 구장팩터 × 자기 공격지수 × 상대 실점력지수 × 홈보정 × 에너지
         erH = lg * pf * oH_i * pA_i * HOME_BOOST * enH
         erA = lg * pf * oA_i * pH_i / HOME_BOOST * enA
@@ -467,14 +409,11 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         if favp > udp + 0.03:
             ur.append("상대 투수진 열세")            # 약팀 상대 투수진이 더 잘 내줌
         fav_fat = fatA if ud_home else fatH          # 상대(강팀) 불펜 피로
-        if fav_fat >= 1.05:
+        if fav_fat >= 1.04:
             ur.append("상대 불펜 피로")
-        ud_energy_why = enWhyH if ud_home else enWhyA
         fav_energy = enA if ud_home else enH
-        if fav_energy < 0.99:
-            ur.append("상대 일정 피로")
-        if "휴식" in ud_energy_why:
-            ur.append("우리 충분한 휴식")
+        if fav_energy < 1.0:                          # 상대가 더블헤더 2차전 등
+            ur.append("상대 더블헤더 피로")
 
         # 실제 결과(종료 경기): 네이버 최종 스코어. 진행 전이면 None.
         # RESULT=확정, ENDED=종료 직후(스코어는 이미 확정) 둘 다 종료로 취급.
@@ -536,10 +475,9 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     rotation = identify_rotation(box)
     pfs = park_factors(games)
     wrc_by_p, team_base = load_lineup_wrc()
-    sched = team_schedule(games)                  # 팀별 일정(일정 피로용)
 
     def day_of(d):
-        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base, sched)
+        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base)
 
     def wd_label(d):
         w = "월화수목금토일"[datetime.date.fromisoformat(d).weekday()]
