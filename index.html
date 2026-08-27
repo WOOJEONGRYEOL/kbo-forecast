@@ -16,7 +16,8 @@
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
     clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   .tag { color:var(--green); font-size:17px; letter-spacing:.3px; text-align:center; margin-top:4px;
-    font-weight:600; word-break:keep-all; }
+    font-weight:600; word-break:keep-all; line-height:1.5; }
+  .tag .cl { display:inline-block; white-space:nowrap; }
   .sub { color:var(--muted); font-size:13px; text-align:center; margin-top:-2px; word-break:keep-all; }
   @media (max-width:480px){ h1{ font-size:20px; } body{ padding:28px 16px; } }
   .cards { display:flex; flex-wrap:wrap; gap:16px; justify-content:center; }
@@ -60,7 +61,7 @@
       <text x="180" y="176" text-anchor="middle" font-family="'Apple SD Gothic Neo','Noto Sans KR',sans-serif" font-weight="700" font-size="44" fill="#e8ecf3" letter-spacing="1">KBO 관측소</text>
     </svg>
   </h1>
-  <div class="tag">숫자로 재고, 예보로 앞서고, 기록으로 남긴다</div>
+  <div class="tag"><span class="cl">숫자로 재고,</span> <span class="cl">예보로 앞서고,</span> <span class="cl">기록으로 남긴다</span></div>
   <div class="sub"><span id="lastUpdated"></span>네이버 스포츠(경기결과) + KBO Talent(kbostuff.app) 데이터</div>
   <div class="cards">
     <a class="card" href="data/dashboard.html">
