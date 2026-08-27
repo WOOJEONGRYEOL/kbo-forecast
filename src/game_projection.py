@@ -536,6 +536,8 @@ def _apply_frozen(sections):
             e = log.get(g.get("gameId"))
             if not e or e.get("predHome") is None:
                 continue                       # 저장된 사전 예측 없으면 재계산 유지
+            if (not e.get("lineupReady")) and g.get("lineupReady"):
+                continue                       # 저장본 라인업 미반영·지금 반영 가능 → 라이브 유지(늦캡처)
             g["erAway"] = e.get("predAwayPre", g["erAway"])
             g["erHome"] = e.get("predHomePre", g["erHome"])
             g["erAwayLU"] = e.get("predAway", g.get("erAwayLU"))
@@ -586,9 +588,13 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         e = log.get(gid, {})
         pregame = g.get("status") in ("BEFORE", "READY")
         have = "predHome" in e
-        # 경기 전(pregame)일 때만 예측 갱신 → 첫 구 시점의 마지막 값으로 자연 고정.
-        #   시작 후엔 갱신 안 함(자기 결과 오염 방지). 미기록 경기는 1회 폴백 캡처.
-        if g.get("date", "") >= today and (pregame or not have):
+        # 라인업 늦캡처: 시작 후라도 '저장본은 라인업 미반영인데 지금 확정 라인업이 있으면'
+        #   1회 보정. 라인업은 사전 입력(경기 결과와 무관)이라 예측 성격이 유지되고,
+        #   CI가 라인업 발표~첫 구 창을 놓쳐도(크론 지연) 반영을 살린다.
+        lineup_late = (not e.get("lineupReady")) and g.get("lineupReady")
+        # 경기 전(pregame)이면 갱신 → 첫 구 시점 값으로 자연 고정. 시작 후엔 갱신 안 함
+        #   (자기 결과 오염 방지). 단 미기록·라인업 늦캡처는 1회 예외.
+        if g.get("date", "") >= today and (pregame or not have or lineup_late):
             e.pop("frozen", None)               # 구버전 잔재 정리
             e.update({
                 "date": g["date"], "away": g["away"], "home": g["home"],
