@@ -512,11 +512,37 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     #   매 빌드 재계산하면 그 경기 결과가 시즌 입력(RS/G·불펜·선발·파크)에 되먹임돼
     #   예측이 미세하게 흔들리므로, 저장된 사전 예측값으로 덮어써 카드·성적표를 일치시킨다.
     _apply_frozen(sections)
+    # catch-up: 최근 종료 경기가 CI 드롭으로 라인업 미반영(⏳)으로 남았으면 재계산해 복구
+    catchup = _lineup_catchup(today, day_of)
     primary = sections[0] if sections else {"date": None, "games": []}
-    return {"date": primary["date"], "games": primary["games"], "sections": sections}
+    return {"date": primary["date"], "games": primary["games"],
+            "sections": sections, "catchup": catchup}
 
 
 _PREDLOG_PATH = f"{config.DATA_DIR}/predictions.json"
+
+
+def _lineup_catchup(today, day_of):
+    """최근 1~2일 종료 경기 중 라인업 미반영(⏳)으로 굳은 것을 찾아, 그 경기일을 재계산해
+    라인업이 붙은 game dict만 반환. CI가 라인업 발표~밤 빌드를 통째로 놓쳐(스로틀링)
+    어제 경기가 ⏳로 남은 경우를, 다음 아무 빌드나 자동 복구한다(늦캡처 대상).
+    보통은 대상이 0개라 비용 없음."""
+    import json
+    try:
+        log = json.loads(open(_PREDLOG_PATH, encoding="utf-8").read())
+    except Exception:
+        return []
+    lo = (datetime.date.fromisoformat(today) - datetime.timedelta(days=2)).isoformat()
+    need = {e["date"] for e in log.values()
+            if e.get("predHome") is not None and not e.get("lineupReady")
+            and e.get("status") in _FINISHED and e.get("date") and lo <= e["date"] < today}
+    out = []
+    for d in sorted(need):
+        for g in day_of(d):
+            e = log.get(g.get("gameId"))
+            if e and not e.get("lineupReady") and g.get("lineupReady"):
+                out.append(g)
+    return out
 
 
 def _apply_frozen(sections):
@@ -577,10 +603,12 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         pred_home_win = e.get("predHome", 0) >= e.get("predAway", 0)
         e["correct"] = bool(pred_home_win == (ah > aa))
 
-    # 1) 표시 슬레이트(오늘/결과/예고 전부): 예측 업서트 + 상태·결과 반영.
-    #    당일·예정 경기만 예측을 갱신하므로 카드(=최신 재계산)와 로그가 항상 같은 값.
+    # 1) 표시 슬레이트(오늘/결과/예고) + catch-up(최근 종료·라인업 미반영): 예측 업서트.
+    #    당일·예정 경기만 예측 갱신 → 카드(=최신 재계산)와 로그가 항상 같은 값.
     secs = projections.get("sections")
     slate = [g for s in secs for g in s["games"]] if secs else projections.get("games", [])
+    slate = slate + list(projections.get("catchup", []))
+    lo = (datetime.date.fromisoformat(today) - datetime.timedelta(days=2)).isoformat()
     for g in slate:
         gid = g.get("gameId")
         if not gid:
@@ -588,13 +616,14 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         e = log.get(gid, {})
         pregame = g.get("status") in ("BEFORE", "READY")
         have = "predHome" in e
-        # 라인업 늦캡처: 시작 후라도 '저장본은 라인업 미반영인데 지금 확정 라인업이 있으면'
-        #   1회 보정. 라인업은 사전 입력(경기 결과와 무관)이라 예측 성격이 유지되고,
-        #   CI가 라인업 발표~첫 구 창을 놓쳐도(크론 지연) 반영을 살린다.
+        # 라인업 늦캡처: 시작 후(어제 경기 포함)라도 '저장본은 라인업 미반영인데 지금 확정
+        #   라인업이 있으면' 1회 보정. 라인업은 사전 입력(경기 결과와 무관)이라 예측 성격
+        #   유지, CI가 라인업 발표~첫 구·밤 빌드를 놓쳐도 반영을 살린다.
         lineup_late = (not e.get("lineupReady")) and g.get("lineupReady")
-        # 경기 전(pregame)이면 갱신 → 첫 구 시점 값으로 자연 고정. 시작 후엔 갱신 안 함
-        #   (자기 결과 오염 방지). 단 미기록·라인업 늦캡처는 1회 예외.
-        if g.get("date", "") >= today and (pregame or not have or lineup_late):
+        # 당일·예정은 pregame일 때(또는 미기록 1회) 갱신 → 첫 구 시점 고정.
+        #   최근 2일 종료 경기는 '라인업 늦캡처'만 1회 예외로 갱신(그 외 자기결과 오염 방지).
+        if (g.get("date", "") >= today and (pregame or not have)) \
+                or (g.get("date", "") >= lo and lineup_late):
             e.pop("frozen", None)               # 구버전 잔재 정리
             e.update({
                 "date": g["date"], "away": g["away"], "home": g["home"],
