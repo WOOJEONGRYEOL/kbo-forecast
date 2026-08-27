@@ -169,7 +169,7 @@ def save_history() -> Path:
 
 _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO 역대 기록</title>
+<title>역대 기록 · 야구우~부장의 KBO 관측소</title>
 <style>
   :root { --bg:#0e1117; --card:#161b25; --line:#232a38; --text:#e8ecf3;
     --muted:#8a94a8; --green:#3ecf8e; --blue:#4a90d9; }

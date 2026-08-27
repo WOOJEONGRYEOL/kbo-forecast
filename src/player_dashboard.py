@@ -327,7 +327,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO __SEASON__ 선수 평가 대시보드</title>
+<title>__SEASON__ 선수 평가 · 야구우~부장의 KBO 관측소</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
   :root {

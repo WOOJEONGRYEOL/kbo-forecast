@@ -83,7 +83,7 @@ def logo_map() -> dict:
 
 _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO 타이틀 레이스</title>
+<title>타이틀 레이스 · 야구우~부장의 KBO 관측소</title>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
   *{box-sizing:border-box}
@@ -809,7 +809,7 @@ def _projection_card(proj, logos) -> str:
 
 _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO 오늘의 경기 — 기대 스코어</title>
+<title>오늘의 경기 · 야구우~부장의 KBO 관측소</title>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
   *{box-sizing:border-box}
@@ -842,7 +842,7 @@ __CARD__
 
 _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO 예측 성적표</title>
+<title>예측 성적표 · 야구우~부장의 KBO 관측소</title>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;--red:#e5484d;}
   *{box-sizing:border-box}
@@ -1131,7 +1131,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO __SEASON__ 단기 전력 대시보드</title>
+<title>__SEASON__ 팀 단기 전력 · 야구우~부장의 KBO 관측소</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
   :root { --bg: #10141c; --card: #1a212e; --line: #2a3345;

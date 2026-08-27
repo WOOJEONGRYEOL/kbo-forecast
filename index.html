@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBO 세이버매트릭스 대시보드</title>
+<title>야구우~부장의 KBO 관측소</title>
 <style>
   :root { --bg:#10141c; --card:#1a212e; --line:#2a3345; --text:#e8ecf3; --muted:#8a94a8; --green:#3ecf8e; }
   * { box-sizing:border-box; }
@@ -11,7 +11,9 @@
     justify-content:center; gap:22px; padding:40px 20px; background:var(--bg); color:var(--text);
     font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif; word-break:keep-all; }
   h1 { font-size:26px; margin:0; text-align:center; word-break:keep-all; line-height:1.25; }
-  .sub { color:var(--muted); font-size:13px; text-align:center; margin-top:-10px; word-break:keep-all; }
+  .tag { color:var(--green); font-size:14px; letter-spacing:.2px; text-align:center; margin-top:-8px;
+    font-weight:600; word-break:keep-all; }
+  .sub { color:var(--muted); font-size:13px; text-align:center; margin-top:-2px; word-break:keep-all; }
   @media (max-width:480px){ h1{ font-size:20px; } body{ padding:28px 16px; } }
   .cards { display:flex; flex-wrap:wrap; gap:16px; justify-content:center; }
   a.card { text-decoration:none; color:var(--text); background:var(--card); border:1px solid var(--line);
@@ -25,7 +27,8 @@
 </style>
 </head>
 <body>
-  <h1>⚾ KBO 세이버매트릭스 대시보드</h1>
+  <h1>⚾ 야구우~부장의 KBO 관측소</h1>
+  <div class="tag">숫자는 재고, 예보로 앞서고, 기록은 남긴다</div>
   <div class="sub"><span id="lastUpdated"></span>네이버 스포츠(경기결과) + KBO Talent(kbostuff.app) 데이터</div>
   <div class="cards">
     <a class="card" href="data/dashboard.html">
