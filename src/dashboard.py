@@ -103,12 +103,18 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
        border-radius:18px;padding:6px 12px;font-size:13px;font-weight:600;}
   .tab.on{background:var(--green);color:#0e1117;border-color:var(--green);}
   #race{width:100%;height:auto;background:rgba(255,255,255,.02);border-radius:10px;}
-  #ctrl{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  #ctrl{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;}
   #play{cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);
         border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;}
-  #slider{flex:1;}
-  #dlab{color:var(--muted);font-size:12px;min-width:130px;text-align:right;font-variant-numeric:tabular-nums;}
-  #board{position:relative;margin-top:10px;}
+  #slider{flex:1;min-width:120px;}
+  #dlab{color:var(--muted);font-size:12px;text-align:right;white-space:nowrap;margin-left:auto;
+        font-variant-numeric:tabular-nums;}
+  #bhead{display:flex;align-items:center;gap:8px;padding:2px 6px;margin-top:10px;
+         color:var(--muted);font-size:10px;font-weight:600;}
+  #bhead .sp{flex:1;}
+  #bhead .hval{min-width:34px;text-align:right;}
+  #bhead .hpace{width:66px;text-align:right;color:var(--green);}
+  #board{position:relative;margin-top:2px;}
   .brow{position:absolute;left:0;right:0;height:30px;display:flex;align-items:center;gap:8px;
         padding:0 6px;border-bottom:1px solid var(--line);
         transition:transform .55s cubic-bezier(.4,0,.2,1);}
@@ -119,7 +125,6 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .bteam{color:var(--muted);font-size:11px;}
   .bval{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;min-width:34px;text-align:right;}
   .bpace{color:var(--green);font-size:11px;font-weight:700;width:66px;text-align:right;white-space:nowrap;}
-  .pcl{color:var(--muted);font-size:9px;font-weight:600;margin-right:2px;}
   .scroll{overflow-x:auto;}
 </style></head><body><div class="wrap">
 <nav>
@@ -144,6 +149,7 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
     <input id="slider" type="range" min="0" value="0" step="1">
     <span id="dlab"></span>
   </div>
+  <div id="bhead"><span class="sp"></span><span class="hval">기록</span><span class="hpace">페이스</span></div>
   <div id="board"></div>
 </div>
 <script>
@@ -184,7 +190,7 @@ function draw(ti){
   s+='<text x="4" y="'+(y(0)).toFixed(1)+'" fill="#8a94a8" font-size="10">0</text>';
   s+='<text x="4" y="'+(y(ymax)+9).toFixed(1)+'" fill="#8a94a8" font-size="10">'+ymax+'</text>';
   svg.innerHTML=s;
-  document.getElementById('dlab').textContent=dates[ti]+' ('+(ti+1)+'/'+N+'경기일)';
+  document.getElementById('dlab').textContent=dates[ti]+' · '+(ti+1)+'/'+N+'일';
   slider.value=ti;
   boardUpdate(ti);
 }
@@ -197,8 +203,8 @@ function buildBoard(){
     h+='<div class="brow" data-pc="'+p.pcode+'" style="transform:translateY(0)">'
       +'<span class="brk"></span>'
       +'<img class="blg" src="'+(LOGOS[p.team]||'')+'">'
-      +'<span class="bnm">'+esc(p.name)+' <span class="bteam">'+esc(p.team)+'</span></span>'
-      +'<span class="bval"></span><span class="bpace"><span class="pcl">페이스</span>'+p.pace+'</span></div>';
+      +'<span class="bnm">'+esc(p.name)+'</span>'
+      +'<span class="bval"></span><span class="bpace">'+p.pace+'</span></div>';
   });
   const b=document.getElementById('board');
   b.innerHTML=h; b.style.height=(ls.length*ROWH)+'px';
