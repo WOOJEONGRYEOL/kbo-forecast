@@ -83,11 +83,24 @@ def build_title_race(games: list) -> dict:
     dates = sorted({g["gameDate"] for g in done})
     didx = {d: i for i, d in enumerate(dates)}
 
-    # 팀별 소화 경기 수(페이스 계산용)
+    # 팀별 소화 경기 수(최종 페이스 계산용)
     team_gp = {}
     for g in done:
         for tc in (g.get("homeTeamCode"), g.get("awayTeamCode")):
             team_gp[tc] = team_gp.get(tc, 0) + 1
+
+    # 날짜별 팀 소화경기 누적(재생 중 동적 페이스용)
+    team_day = {}
+    for g in done:
+        di = didx[g["gameDate"]]
+        for tc in (g.get("homeTeamCode"), g.get("awayTeamCode")):
+            team_day.setdefault(tc, [0] * len(dates))[di] += 1
+    team_cum = {}
+    for tc, arr in team_day.items():
+        acc = 0; run = [0] * len(dates)
+        for i, c in enumerate(arr):
+            acc += c; run[i] = acc
+        team_cum[tc] = run
 
     codes = [c for c, *_ in RACES]
     cum = {c: {} for c in codes}          # code -> pcode -> 누적값
@@ -131,6 +144,19 @@ def build_title_race(games: list) -> dict:
             arr[i] = last
         return arr
 
+    def pace_carry(pc_series, tc):
+        """그 시점 누적기록 × 144 ÷ 그때까지 팀 소화경기 → 날짜별 페이스 배열."""
+        val = carry(pc_series)
+        tcum = team_cum.get(tc)
+        out = [None] * len(dates)
+        for i in range(len(dates)):
+            v = val[i]
+            if v is None:
+                continue
+            gp = tcum[i] if tcum else 0
+            out[i] = round(v * TEAM_GAMES / gp) if gp else v
+        return out
+
     races = {}
     for code, label, emoji, kind in RACES:
         ranked = sorted(cum[code].items(), key=lambda kv: kv[1], reverse=True)[:TOP_N]
@@ -144,6 +170,7 @@ def build_title_race(games: list) -> dict:
                    "total": total, "pace": pace}
             if rank <= SERIES_N:
                 row["series"] = carry(series[code].get(pc, {}))
+                row["paceSeries"] = pace_carry(series[code].get(pc, {}), tc)
             leaders.append(row)
         races[code] = {"label": label, "emoji": emoji, "kind": kind, "leaders": leaders}
 

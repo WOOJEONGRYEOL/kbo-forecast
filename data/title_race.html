@@ -137,6 +137,8 @@ function boardUpdate(ti){
     row.style.transform='translateY('+(rank*ROWH)+'px)';
     row.querySelector('.brk').textContent=rank+1;
     row.querySelector('.bval').textContent=o.v;
+    const pc=(o.p.paceSeries&&o.p.paceSeries[ti]!=null)?o.p.paceSeries[ti]:(o.p.pace!=null?o.p.pace:'');
+    row.querySelector('.bpace').textContent=pc;
   });
 }
 
