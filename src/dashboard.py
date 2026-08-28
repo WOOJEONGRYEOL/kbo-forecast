@@ -118,7 +118,8 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .bnm{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .bteam{color:var(--muted);font-size:11px;}
   .bval{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;min-width:34px;text-align:right;}
-  .bpace{color:var(--green);font-size:11px;font-weight:700;width:44px;text-align:right;}
+  .bpace{color:var(--green);font-size:11px;font-weight:700;width:66px;text-align:right;white-space:nowrap;}
+  .pcl{color:var(--muted);font-size:9px;font-weight:600;margin-right:2px;}
   .scroll{overflow-x:auto;}
 </style></head><body><div class="wrap">
 <nav>
@@ -197,7 +198,7 @@ function buildBoard(){
       +'<span class="brk"></span>'
       +'<img class="blg" src="'+(LOGOS[p.team]||'')+'">'
       +'<span class="bnm">'+esc(p.name)+' <span class="bteam">'+esc(p.team)+'</span></span>'
-      +'<span class="bval"></span><span class="bpace">'+p.pace+'</span></div>';
+      +'<span class="bval"></span><span class="bpace"><span class="pcl">페이스</span>'+p.pace+'</span></div>';
   });
   const b=document.getElementById('board');
   b.innerHTML=h; b.style.height=(ls.length*ROWH)+'px';
