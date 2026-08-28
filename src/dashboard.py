@@ -161,6 +161,8 @@ const svg=document.getElementById('race'), slider=document.getElementById('slide
 
 function lines(){ return DATA.races[cur].leaders.filter(x=>x.series); }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+// 이닝 부문은 내부값이 아웃카운트 → 표시만 이닝(3아웃=1이닝, .1=⅓ .2=⅔)
+function fmtV(v){ if(v==null||v==='') return ''; if(cur==='inn'){ const o=Math.round(+v), r=o%3; return r? ((o/3|0)+'.'+r) : ''+(o/3|0); } return v; }
 
 function draw(ti){
   const ls=lines(); let ymax=1;
@@ -185,10 +187,10 @@ function draw(ti){
   for(let i=1;i<heads.length;i++){ if(heads[i].Y-heads[i-1].Y<15) heads[i].Y=heads[i-1].Y+15; }
   heads.forEach(h=>{
     s+='<image href="'+(LOGOS[h.p.team]||'')+'" x="'+(h.X+3).toFixed(1)+'" y="'+(h.Y-9).toFixed(1)+'" width="17" height="17"/>';
-    s+='<text x="'+(h.X+23).toFixed(1)+'" y="'+(h.Y+4).toFixed(1)+'" fill="#e8ecf3" font-size="12" font-weight="700">'+esc(h.p.name)+' '+h.v+'</text>';
+    s+='<text x="'+(h.X+23).toFixed(1)+'" y="'+(h.Y+4).toFixed(1)+'" fill="#e8ecf3" font-size="12" font-weight="700">'+esc(h.p.name)+' '+fmtV(h.v)+'</text>';
   });
   s+='<text x="4" y="'+(y(0)).toFixed(1)+'" fill="#8a94a8" font-size="10">0</text>';
-  s+='<text x="4" y="'+(y(ymax)+9).toFixed(1)+'" fill="#8a94a8" font-size="10">'+ymax+'</text>';
+  s+='<text x="4" y="'+(y(ymax)+9).toFixed(1)+'" fill="#8a94a8" font-size="10">'+fmtV(ymax)+'</text>';
   svg.innerHTML=s;
   document.getElementById('dlab').textContent=dates[ti]+' · '+(ti+1)+'/'+N+'일';
   slider.value=ti;
@@ -219,9 +221,9 @@ function boardUpdate(ti){
     const row=boardRows[o.p.pcode]; if(!row) return;
     row.style.transform='translateY('+(rank*ROWH)+'px)';
     row.querySelector('.brk').textContent=rank+1;
-    row.querySelector('.bval').textContent=o.v;
+    row.querySelector('.bval').textContent=fmtV(o.v);
     const pc=(o.p.paceSeries&&o.p.paceSeries[ti]!=null)?o.p.paceSeries[ti]:(o.p.pace!=null?o.p.pace:'');
-    row.querySelector('.bpace').textContent=pc;
+    row.querySelector('.bpace').textContent=fmtV(pc);
   });
 }
 

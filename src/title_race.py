@@ -22,14 +22,37 @@ import config
 RACES = [
     ("hr", "홈런", "💣", "bat"),
     ("hit", "안타", "🅗", "bat"),
+    ("rbi", "타점", "🎯", "bat"),
+    ("run", "득점", "⚡", "bat"),
+    ("tb", "루타", "📏", "bat"),
     ("sb", "도루", "🏃", "bat"),
+    ("walk", "볼넷", "👁️", "bat"),
     ("bk", "삼진", "🙈", "bat"),      # 타자 삼진(많이 당한 순 · 불명예 부문)
     ("win", "다승", "🏆", "pit"),
     ("save", "세이브", "🔒", "pit"),
     ("hold", "홀드", "🤝", "pit"),
     ("pk", "탈삼진", "🔥", "pit"),    # 투수 탈삼진
+    ("inn", "이닝", "🐎", "pit"),     # 내부는 아웃카운트(3=1이닝), 표시만 이닝
+    ("phr", "피홈런", "🎢", "pit"),   # 피홈런(많이 맞은 순 · 불명예 부문)
     ("lose", "패배", "💀", "pit"),
 ]
+
+
+def _inn_to_outs(s) -> int:
+    """이닝 문자열('6 ⅓' / '6 ⅔' / '6') → 아웃카운트(6⅓=19). 잘못된 값은 0."""
+    s = str(s or "").strip()
+    if not s:
+        return 0
+    thirds = 0
+    if "⅓" in s:
+        thirds = 1; s = s.replace("⅓", "")
+    elif "⅔" in s:
+        thirds = 2; s = s.replace("⅔", "")
+    s = s.strip()
+    try:
+        return int(s) * 3 + thirds if s else thirds
+    except ValueError:
+        return thirds
 _WLS = {"승": "win", "세": "save", "홀": "hold", "패": "lose"}
 TOP_N = 10                 # 표에 노출할 순위 수
 SERIES_N = 10             # 레이싱 차트에 그릴 라인 수(톱10 전부)
@@ -119,7 +142,9 @@ def build_title_race(games: list) -> dict:
         bp = _bat_path(gid)
         if bp.exists():
             for r in json.loads(bp.read_text(encoding="utf-8")):
-                for src, code in (("hr", "hr"), ("hit", "hit"), ("sb", "sb"), ("kk", "bk")):
+                for src, code in (("hr", "hr"), ("hit", "hit"), ("rbi", "rbi"),
+                                  ("run", "run"), ("tb", "tb"), ("sb", "sb"),
+                                  ("bb", "walk"), ("kk", "bk")):
                     v = int(r.get(src, 0) or 0)
                     if v:
                         bump(code, str(r["pcode"]), r.get("name", ""), r.get("team", ""), v, di)
@@ -127,9 +152,16 @@ def build_title_race(games: list) -> dict:
         pp = _pit_path(gid)
         if pp.exists():
             for r in json.loads(pp.read_text(encoding="utf-8")):
-                v = int(r.get("kk", 0) or 0)
-                if v:
-                    bump("pk", str(r["pcode"]), r.get("name", ""), r.get("team", ""), v, di)
+                pc, nm, tm = str(r["pcode"]), r.get("name", ""), r.get("team", "")
+                kk = int(r.get("kk", 0) or 0)
+                if kk:
+                    bump("pk", pc, nm, tm, kk, di)
+                phr = int(r.get("hr", 0) or 0)
+                if phr:
+                    bump("phr", pc, nm, tm, phr, di)
+                outs = _inn_to_outs(r.get("inn"))
+                if outs:
+                    bump("inn", pc, nm, tm, outs, di)
         # 투수 결정 누적(다승·세이브·홀드·패배)
         for d in _fetch_decisions(gid, sess):
             bump(d["dec"], d["pcode"], d["name"], d["team"], 1, di)
