@@ -899,12 +899,12 @@
   "spHome": "페덱",
   "predAwayPre": 3.1,
   "predHomePre": 4.7,
-  "predAway": 3.1,
-  "predHome": 4.7,
-  "winAway": 44,
-  "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 3.0,
+  "predHome": 4.2,
+  "winAway": 45,
+  "winHome": 55,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260829LGLT02026": {
   "date": "2026-08-29",
@@ -916,12 +916,12 @@
   "spHome": "김진욱",
   "predAwayPre": 4.8,
   "predHomePre": 4.3,
-  "predAway": 4.8,
-  "predHome": 4.3,
-  "winAway": 52,
-  "winHome": 48,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.0,
+  "predHome": 4.4,
+  "winAway": 53,
+  "winHome": 47,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260829NCHH02026": {
   "date": "2026-08-29",
@@ -933,12 +933,12 @@
   "spHome": "박준영",
   "predAwayPre": 6.6,
   "predHomePre": 5.5,
-  "predAway": 6.6,
+  "predAway": 6.2,
   "predHome": 5.5,
-  "winAway": 55,
-  "winHome": 45,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "winAway": 53,
+  "winHome": 47,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260829SKHT02026": {
   "date": "2026-08-29",
@@ -950,12 +950,12 @@
   "spHome": "올러",
   "predAwayPre": 3.8,
   "predHomePre": 4.5,
-  "predAway": 3.8,
-  "predHome": 4.5,
-  "winAway": 47,
-  "winHome": 53,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 3.6,
+  "predHome": 4.7,
+  "winAway": 46,
+  "winHome": 54,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260829WOOB02026": {
   "date": "2026-08-29",
@@ -967,11 +967,11 @@
   "spHome": "곽빈",
   "predAwayPre": 2.7,
   "predHomePre": 4.4,
-  "predAway": 2.7,
-  "predHome": 4.4,
+  "predAway": 2.8,
+  "predHome": 4.2,
   "winAway": 44,
   "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  }
 }
