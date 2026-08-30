@@ -113,15 +113,32 @@ def _platoon_adj(bat_hand: str, sp_hand: str) -> float:
     return -(1 - p_same) * gap if same else +p_same * gap
 
 
+WRC_MIN_MATURE_PA = 15000   # 이 총PA 미만이면 시즌 극초반 → 직전 성숙 파일로 폴백
+
+
 def load_lineup_wrc(season: int = None):
     """최신 batters_*.csv → (wrc_by_pcode, team_base). team_base=팀 상위9(PA) PA가중 wRC+.
-    네트워크 없이 로컬 캐시만 사용(빈번한 today 빌드용). 없으면 ({}, {})."""
+    네트워크 없이 로컬 캐시만 사용(빈번한 today 빌드용). 없으면 ({}, {}).
+
+    콜드스타트: batters CSV는 날짜별로 쌓인다. 새 시즌 최신 파일이 아직 얇으면
+    (총 PA 부족) 뒤로 스캔해 '표본이 성숙한 최신 파일'(=직전 시즌 말)로 폴백 →
+    개막 후 몇 주는 작년 wRC+를 쓰다가, 새 시즌 표본이 차면 자동 전환."""
     import glob
     import pandas as pd
     files = sorted(glob.glob(f"{config.DATA_DIR}/batters_*.csv"))
     if not files:
         return {}, {}
-    df = pd.read_csv(files[-1]).dropna(subset=["pcode", "wrc_plus_pure", "team_code"])
+
+    def _read(p):
+        return pd.read_csv(p).dropna(subset=["pcode", "wrc_plus_pure", "team_code"])
+
+    df = _read(files[-1])
+    if df["n_pa"].sum() < WRC_MIN_MATURE_PA:
+        for p in reversed(files[:-1]):
+            d = _read(p)
+            if d["n_pa"].sum() >= WRC_MIN_MATURE_PA:
+                df = d
+                break
     df["pcode"] = df["pcode"].astype(int).astype(str)
     wrc_by_p = dict(zip(df["pcode"], df["wrc_plus_pure"].astype(float)))
     base = {}
