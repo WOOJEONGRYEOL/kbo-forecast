@@ -157,10 +157,45 @@ def lineup_multiplier(batters: list, wrc_by_p: dict, team_base: float,
     return mult, detail
 
 
-def team_offense(games: list) -> tuple:
-    """팀별 시즌 득점/경기(RS/G)와 리그 평균. 반환 (rsg{team}, lg_rpg)."""
+OFF_PRIOR_K = 30       # 콜드스타트: 전 시즌 prior 유사표본 수(백테스트 K≈20~40)
+OFF_PRIOR_CAP = 60     # 이 경기수부터 prior 영향 0 → 이후 현행과 동일(dormant)
+
+
+def _prior_weight(gp: float) -> float:
+    """경기수에 따라 0으로 테이퍼되는 prior 유사표본 가중(콜드스타트 전용)."""
+    return OFF_PRIOR_K * max(0.0, 1.0 - gp / OFF_PRIOR_CAP)
+
+
+def prior_team_rates(season: int):
+    """전 시즌(season-1) 팀 RS/G와 리그 RS/G. 없으면 None(폴백=현행 동작)."""
+    import naver_games
+    try:
+        g = naver_games.filter_official_teams(naver_games.filter_regular_season(
+            naver_games.fetch_season_games(season - 1)))
+    except Exception:
+        return None
     rs, gp = defaultdict(float), defaultdict(int)
-    n = 0
+    for x in g:
+        if x.get("statusCode") not in _FINISHED or x.get("cancel"):
+            continue
+        h, a = x.get("homeTeamCode"), x.get("awayTeamCode")
+        hs, as_ = x.get("homeTeamScore"), x.get("awayTeamScore")
+        if None in (h, a, hs, as_):
+            continue
+        rs[h] += hs; gp[h] += 1
+        rs[a] += as_; gp[a] += 1
+    if not gp:
+        return None
+    return ({t: rs[t] / gp[t] for t in gp}, sum(rs.values()) / sum(gp.values()))
+
+
+def team_offense(games: list, prior=None) -> tuple:
+    """팀별 시즌 득점/경기(RS/G)와 리그 평균. 반환 (rsg{team}, lg_rpg).
+
+    prior=(전시즌 RS/G dict, 전시즌 리그 RS/G)가 주어지면, 경기수가 적을수록 각 팀
+    RS/G를 '전 시즌 자기 값' 쪽으로 수축(콜드스타트 개선, 실증 검증됨). 영향은
+    OFF_PRIOR_CAP 경기에서 0으로 테이퍼 → 시즌 중반 이후엔 현행과 완전히 동일."""
+    rs, gp = defaultdict(float), defaultdict(int)
     for g in games:
         if g.get("statusCode") != "RESULT" or g.get("cancel"):
             continue
@@ -170,7 +205,19 @@ def team_offense(games: list) -> tuple:
             continue
         rs[h] += hs; gp[h] += 1
         rs[a] += as_; gp[a] += 1
-        n += 1
+    if prior:
+        prs, plg = prior
+        tot_rs, tot_gp = sum(rs.values()), sum(gp.values())
+        avg_gp = (tot_gp / len(gp)) if gp else 0.0
+        kl = _prior_weight(avg_gp)
+        lg = (tot_rs + plg * kl) / (tot_gp + kl) if (tot_gp + kl) else plg
+        rsg = {}
+        for t in set(gp) | set(prs):
+            g_t = gp.get(t, 0)
+            ke = _prior_weight(g_t)
+            denom = ke + g_t
+            rsg[t] = (prs.get(t, plg) * ke + rs.get(t, 0.0)) / denom if denom else plg
+        return rsg, lg
     rsg = {t: rs[t] / gp[t] for t in rs if gp[t]}
     lg = (sum(rs.values()) / sum(gp.values())) if gp else 4.8
     return rsg, lg
@@ -474,7 +521,7 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     PREGAME = {"BEFORE", "READY"}
 
     # 공유 컨텍스트(한 번만 계산)
-    rsg, lg = team_offense(games)
+    rsg, lg = team_offense(games, prior=prior_team_rates(config.SEASON))
     lg_ra9 = lg
     ps = _pitcher_stats(box)
     rotation = identify_rotation(box)
