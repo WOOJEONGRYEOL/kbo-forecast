@@ -1021,7 +1021,7 @@
   "winAway": 50,
   "winHome": 50,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260830NCHH02026": {
   "date": "2026-08-30",
@@ -1038,7 +1038,7 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260830SKHT02026": {
   "date": "2026-08-30",
@@ -1072,6 +1072,6 @@
   "winAway": 43,
   "winHome": 57,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  }
 }
