@@ -1016,12 +1016,12 @@
   "spHome": "나균안",
   "predAwayPre": 4.9,
   "predHomePre": 4.9,
-  "predAway": 4.9,
+  "predAway": 4.8,
   "predHome": 4.9,
   "winAway": 50,
   "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260830NCHH02026": {
   "date": "2026-08-30",
@@ -1033,12 +1033,12 @@
   "spHome": "황준서",
   "predAwayPre": 6.2,
   "predHomePre": 6.9,
-  "predAway": 6.2,
-  "predHome": 6.9,
-  "winAway": 47,
-  "winHome": 53,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 6.5,
+  "predHome": 7.0,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260830SKHT02026": {
   "date": "2026-08-30",
@@ -1068,10 +1068,10 @@
   "predAwayPre": 3.0,
   "predHomePre": 4.7,
   "predAway": 3.0,
-  "predHome": 4.7,
+  "predHome": 4.9,
   "winAway": 43,
   "winHome": 57,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  }
 }
