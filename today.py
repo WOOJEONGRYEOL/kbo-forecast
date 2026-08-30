@@ -25,6 +25,7 @@ import dashboard
 
 def main():
     t0 = time.time()
+    config.SEASON = naver_games.resolve_season()   # 시즌 자동감지(개막 첫 경기부터 전환)
     games = naver_games.fetch_season_games(config.SEASON)
     games = naver_games.filter_regular_season(games)
     games = naver_games.filter_official_teams(games)

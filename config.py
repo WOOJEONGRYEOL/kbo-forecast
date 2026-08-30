@@ -12,7 +12,21 @@ config.py — 파이프라인 전체에서 쓰는 상수 모음
 # ──────────────────────────────────────────────
 
 # 분석할 시즌 (KBO 정규시즌 연도)
-SEASON = 2026
+# ─ 정적 기본값: 환경변수 KBO_SEASON > 날짜 추정(4월~=올해, 1~3월=직전).
+#   이 값은 '네트워크 없이' 정해지는 안전한 기본값일 뿐이고, 실제 빌드
+#   (today.py·main.py·players.py)는 naver_games.resolve_season()으로
+#   '정규시즌에서 실제 치러진 경기가 있는 최신 연도'를 감지해 덮어쓴다.
+#   → 시범경기/미개막 스케줄로는 넘어가지 않고, 정규 개막 첫 경기부터 전환.
+import os as _os
+import datetime as _dt
+
+
+def _date_default_season() -> int:
+    d = _dt.date.today()
+    return d.year if d.month >= 4 else d.year - 1
+
+
+SEASON = int(_os.environ.get("KBO_SEASON") or 0) or _date_default_season()
 
 # KBO 정규시즌이 열리는 달 (3월 개막 ~ 10월 폐막)
 # 경기결과를 달 단위로 수집할 때 이 범위를 순회합니다.

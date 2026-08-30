@@ -177,6 +177,33 @@ def filter_regular_season(games: list[dict]) -> list[dict]:
     return regular
 
 
+def resolve_season(verbose: bool = True) -> int:
+    """실제로 반영할 시즌을 감지한다(시범경기와 혼동 없이).
+
+    규칙: 환경변수 KBO_SEASON이 있으면 그 값. 없으면 올해부터 '정규시즌에서
+      실제 치러진(RESULT/ENDED) 경기가 있는 최신 연도'를 고른다.
+        · 시범경기는 filter_regular_season이 제외 → 개막 전엔 안 넘어감.
+        · '치러진' 경기를 요구 → 미개막 스케줄(BEFORE)만 있으면 직전 시즌 유지.
+        · 정규 개막 첫 경기가 나오는 순간 새 시즌으로 전환.
+    """
+    import os
+    import datetime
+    env = os.environ.get("KBO_SEASON")
+    if env:
+        return int(env)
+    year = datetime.date.today().year
+    for cand in (year, year - 1):
+        try:
+            reg = filter_regular_season(fetch_season_games(cand))
+        except Exception:
+            continue
+        if any(g.get("statusCode") in ("RESULT", "ENDED") for g in reg):
+            if verbose and cand != config.SEASON:
+                print(f"  → 시즌 자동감지: {cand} (정규 치러진 경기 확인)")
+            return cand
+    return year - 1
+
+
 def filter_official_teams(games: list[dict]) -> list[dict]:
     """
     정규 10개 구단이 아닌 팀이 낀 경기를 제거합니다.

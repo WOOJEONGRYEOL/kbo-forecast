@@ -38,8 +38,8 @@ import standings_sim
 def main() -> None:
     # ── 명령줄 옵션 파싱 ──
     parser = argparse.ArgumentParser(description="KBO 단기 전력 예측")
-    parser.add_argument("--season", type=int, default=config.SEASON,
-                        help=f"분석 시즌 (기본 {config.SEASON})")
+    parser.add_argument("--season", type=int, default=None,
+                        help="분석 시즌 (미지정 시 자동감지: 정규 개막 첫 경기부터 전환)")
     parser.add_argument("--window", type=int, default=config.ROLLING_WINDOW,
                         help=f"최근 N경기 윈도우 (기본 {config.ROLLING_WINDOW})")
     parser.add_argument("--backtest", action="store_true",
@@ -57,6 +57,9 @@ def main() -> None:
                         help="--skill-backtest에 쓸 시즌들 "
                              "(기본: 스케일이 안정적인 2021~2025)")
     args = parser.parse_args()
+    if args.season is None:
+        args.season = naver_games.resolve_season()
+    config.SEASON = args.season
 
     # 백테스트 모드: 경기 로그만 있으면 되므로 여기서 끝냅니다
     if args.backtest:

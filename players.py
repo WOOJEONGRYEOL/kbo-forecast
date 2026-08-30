@@ -46,8 +46,11 @@ def _print_screen(title: str, df, cols: list[str], limit: int = 10) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="KBO 선수 개인 평가")
-    parser.add_argument("--season", type=int, default=config.SEASON)
+    parser.add_argument("--season", type=int, default=None)
     args = parser.parse_args()
+    if args.season is None:
+        args.season = naver_games.resolve_season()
+    config.SEASON = args.season
 
     # ── 1. 데이터 수집 ──
     print(f"\n[1/3] {args.season} 시즌 데이터 수집")
