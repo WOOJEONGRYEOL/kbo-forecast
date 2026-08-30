@@ -1021,7 +1021,10 @@
   "winAway": 47,
   "winHome": 53,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 7,
+  "actualAway": 10,
+  "correct": false
  },
  "20260830WOOB02026": {
   "date": "2026-08-30",
@@ -1038,6 +1041,9 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 15,
+  "actualAway": 1,
+  "correct": true
  }
 }
