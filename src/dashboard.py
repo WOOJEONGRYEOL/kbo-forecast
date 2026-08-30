@@ -909,27 +909,41 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         log = json.loads(Path(log_path).read_text(encoding="utf-8"))
     except Exception:
         log = {}
-    done = [e for e in log.values() if e.get("actualHome") is not None]
-    graded = [e for e in done if e["actualHome"] != e["actualAway"]]   # 무승부 제외
-    n = len(graded)
-    hits = sum(1 for e in graded if e.get("correct"))
-    rate = round(100 * hits / n) if n else 0
-    # 브라이어 스코어(승률 캘리브레이션): (홈승확률 − 실제홈승) 제곱 평균. 0.25=동전
-    briers = [((e.get("winHome", 50) / 100) - (1 if e["actualHome"] > e["actualAway"] else 0)) ** 2
-              for e in graded]
-    brier = round(sum(briers) / len(briers), 3) if briers else None
-    # 기대득점 총합 평균절대오차
-    tot_err = [abs((e.get("predHome", 0) + e.get("predAway", 0)) - (e["actualHome"] + e["actualAway"]))
-               for e in done]
-    mae_tot = round(sum(tot_err) / len(tot_err), 2) if tot_err else None
+    cur_season = config.SEASON
 
-    kpis = (
-        '<div class="kpis">'
-        f'<div class="kpi"><div class="v">{n}</div><div class="l">판정 경기(승부)</div></div>'
-        f'<div class="kpi"><div class="v" style="color:var(--green)">{rate}%</div><div class="l">승부 적중률 ({hits}/{n})</div></div>'
-        f'<div class="kpi"><div class="v">{brier if brier is not None else "–"}</div><div class="l">브라이어(↓좋음·0.25=동전)</div></div>'
-        f'<div class="kpi"><div class="v">{mae_tot if mae_tot is not None else "–"}</div><div class="l">총득점 평균오차</div></div>'
-        '</div>')
+    def _season_of(e):
+        d = e.get("date", "")
+        return int(d[:4]) if len(d) >= 4 and d[:4].isdigit() else None
+
+    def _stats(entries):
+        dn = [e for e in entries if e.get("actualHome") is not None]
+        gr = [e for e in dn if e["actualHome"] != e["actualAway"]]     # 무승부 제외
+        hh = sum(1 for e in gr if e.get("correct"))
+        br = [((e.get("winHome", 50) / 100) - (1 if e["actualHome"] > e["actualAway"] else 0)) ** 2
+              for e in gr]
+        te = [abs((e.get("predHome", 0) + e.get("predAway", 0)) - (e["actualHome"] + e["actualAway"]))
+              for e in dn]
+        return {"n": len(gr), "hits": hh, "rate": round(100 * hh / len(gr)) if gr else 0,
+                "brier": round(sum(br) / len(br), 3) if br else None,
+                "mae": round(sum(te) / len(te), 2) if te else None}
+
+    all_entries = list(log.values())
+    cur_entries = [e for e in all_entries if _season_of(e) == cur_season]
+    done = [e for e in all_entries if e.get("actualHome") is not None]        # 통산(캘리브레이션용)
+    graded = [e for e in done if e["actualHome"] != e["actualAway"]]
+    cur_done = [e for e in cur_entries if e.get("actualHome") is not None]    # 올 시즌(경기 로그용)
+
+    def _kpi_block(label, st):
+        return (
+            f'<div style="margin:2px 0 12px"><div style="font-size:12px;color:var(--muted);'
+            f'font-weight:700;margin-bottom:5px">{label}</div><div class="kpis">'
+            f'<div class="kpi"><div class="v">{st["n"]}</div><div class="l">판정 경기(승부)</div></div>'
+            f'<div class="kpi"><div class="v" style="color:var(--green)">{st["rate"]}%</div><div class="l">승부 적중률 ({st["hits"]}/{st["n"]})</div></div>'
+            f'<div class="kpi"><div class="v">{st["brier"] if st["brier"] is not None else "–"}</div><div class="l">브라이어(↓좋음·0.25=동전)</div></div>'
+            f'<div class="kpi"><div class="v">{st["mae"] if st["mae"] is not None else "–"}</div><div class="l">총득점 평균오차</div></div>'
+            '</div></div>')
+
+    kpis = _kpi_block(f"올 시즌 {cur_season}", _stats(cur_entries)) + _kpi_block("통산", _stats(all_entries))
 
     # 캘리브레이션: 예측 우세팀 확신도 구간별 실제 적중률
     def bucket(conf):
@@ -948,7 +962,7 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         f'<tr><td>{k}</td><td>0</td><td>–</td></tr>'
         for k, v in [(k, cal[k]) for k in order])
     cal_tbl = (
-        '<div class="card"><h2>확신도별 적중률 (캘리브레이션)</h2>'
+        '<div class="card"><h2>확신도별 적중률 (캘리브레이션 · 통산)</h2>'
         '<p class="hint">예측이 더 세게 밀어준 팀(확신도=우세팀 승률)이 실제로 이긴 비율. '
         '확신도가 높을수록 적중률도 높아야 잘 보정된 것.</p>'
         '<div class="scroll"><table><tr><th>우세팀 승률</th><th>경기</th><th>실제 적중</th></tr>'
@@ -959,7 +973,7 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         u = logos.get(code, "")
         return f'<img class="logo" src="{u}" alt="">' if u else ""
     rows = []
-    for e in sorted(done, key=lambda x: (x.get("date", ""), x.get("gameId", "")), reverse=True):
+    for e in sorted(cur_done, key=lambda x: (x.get("date", ""), x.get("gameId", "")), reverse=True):
         aa, ah = e["actualAway"], e["actualHome"]
         pa, ph = e.get("predAway", "–"), e.get("predHome", "–")
         favw = max(e.get("winHome", 50), e.get("winAway", 50))
@@ -979,7 +993,7 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
             f'<td><b>{aa} : {ah}</b></td>'
             f'<td>{verd}</td><td>{lu}</td></tr>')
     log_tbl = (
-        '<div class="card"><h2>경기별 예측 vs 실제</h2>'
+        f'<div class="card"><h2>올 시즌 {cur_season} 경기별 예측 vs 실제</h2>'
         '<p class="hint">예측=라인업 반영 후 기대 스코어(원정:홈)와 우세팀 승률 · 실제=최종 스코어 · '
         '판정 ✓적중/✗빗나감/무승부 · 라인업 ✅반영/⏳미반영</p>'
         '<div class="scroll"><table>'
@@ -987,8 +1001,9 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         + ("".join(rows) if rows else '<tr><td colspan="7" style="color:var(--muted)">아직 결과가 쌓이지 않았습니다</td></tr>')
         + '</table></div></div>')
 
-    intro = ('<div class="card"><h2>누적 성적</h2>'
-             '<p class="hint">라인업 반영 후 기대 스코어로 매긴 승부 예측을 실제 결과와 대조한 누적 기록입니다. '
+    intro = ('<div class="card"><h2>성적 요약 — 올 시즌 · 통산</h2>'
+             '<p class="hint">라인업 반영 후 기대 스코어로 매긴 승부 예측을 실제 결과와 대조한 기록입니다. '
+             '<b>올 시즌</b>과 <b>통산(전 시즌 합산)</b>을 함께 표시합니다. '
              '<b>단일 경기 정직한 천장은 ~56%</b>라, 55~57%면 모델이 제 역할을 하는 것입니다.</p>'
              + kpis + '</div>')
     html = (_PRED_TEMPLATE.replace("__BODY__", intro + cal_tbl + log_tbl)
