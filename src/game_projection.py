@@ -183,15 +183,24 @@ def _prior_weight(gp: float) -> float:
     return OFF_PRIOR_K * max(0.0, 1.0 - gp / OFF_PRIOR_CAP)
 
 
+def _blend_rate(cur: float, prior, gp: float) -> float:
+    """현재 rate를 전 시즌 rate 쪽으로 경기수 테이퍼 수축. gp>=CAP이면 cur 그대로."""
+    if prior is None:
+        return cur
+    ke = _prior_weight(gp)
+    denom = ke + gp
+    return (prior * ke + cur * gp) / denom if denom else prior
+
+
 def prior_team_rates(season: int):
-    """전 시즌(season-1) 팀 RS/G와 리그 RS/G. 없으면 None(폴백=현행 동작)."""
+    """전 시즌(season-1) 팀 RS/G·RA/G와 리그 RS/G. 없으면 None(폴백=현행 동작)."""
     import naver_games
     try:
         g = naver_games.filter_official_teams(naver_games.filter_regular_season(
             naver_games.fetch_season_games(season - 1)))
     except Exception:
         return None
-    rs, gp = defaultdict(float), defaultdict(int)
+    rs, ra, gp = defaultdict(float), defaultdict(float), defaultdict(int)
     for x in g:
         if x.get("statusCode") not in _FINISHED or x.get("cancel"):
             continue
@@ -199,11 +208,13 @@ def prior_team_rates(season: int):
         hs, as_ = x.get("homeTeamScore"), x.get("awayTeamScore")
         if None in (h, a, hs, as_):
             continue
-        rs[h] += hs; gp[h] += 1
-        rs[a] += as_; gp[a] += 1
+        rs[h] += hs; ra[h] += as_; gp[h] += 1
+        rs[a] += as_; ra[a] += hs; gp[a] += 1
     if not gp:
         return None
-    return ({t: rs[t] / gp[t] for t in gp}, sum(rs.values()) / sum(gp.values()))
+    return {"rs": {t: rs[t] / gp[t] for t in gp},
+            "ra": {t: ra[t] / gp[t] for t in gp},
+            "lg": sum(rs.values()) / sum(gp.values())}
 
 
 def team_offense(games: list, prior=None) -> tuple:
@@ -223,7 +234,7 @@ def team_offense(games: list, prior=None) -> tuple:
         rs[h] += hs; gp[h] += 1
         rs[a] += as_; gp[a] += 1
     if prior:
-        prs, plg = prior
+        prs, plg = prior["rs"], prior["lg"]
         tot_rs, tot_gp = sum(rs.values()), sum(gp.values())
         avg_gp = (tot_gp / len(gp)) if gp else 0.0
         kl = _prior_weight(avg_gp)
@@ -400,7 +411,8 @@ _FINISHED = {"RESULT", "ENDED"}   # 종료 경기(스코어 확정) 상태
 _DYN_FROM = "2026-08-26"
 
 
-def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base):
+def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base,
+                 prior_ra=None, gp_team=None):
     """하루치(day) 경기들을 기대 스코어 dict 리스트로. 공유 컨텍스트는 인자로 받는다."""
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
     # 더블헤더: 같은 팀이 오늘 2경기 이상이면 나중 경기(들)가 2차전(피로) — (gameId, 팀) 집합
@@ -426,6 +438,10 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         # 상대 이 경기 실점력(선발+가용불펜)
         pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9)
         pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9)
+        # 콜드스타트: 게임 RA9를 전 시즌 팀 RA/G 쪽으로 경기수 테이퍼 수축(60경기서 0=현행)
+        if prior_ra is not None and gp_team is not None:
+            pitchH = _blend_rate(pitchH, prior_ra.get(h), gp_team.get(h, 0))
+            pitchA = _blend_rate(pitchA, prior_ra.get(a), gp_team.get(a, 0))
         oH, oA = rsg.get(h, lg), rsg.get(a, lg)
         # 지수(리그평균=1.0)로 만들고 수축(회귀). 극단 팀을 평균 쪽으로 당김.
         def idx(v, base):
@@ -538,15 +554,27 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     PREGAME = {"BEFORE", "READY"}
 
     # 공유 컨텍스트(한 번만 계산)
-    rsg, lg = team_offense(games, prior=prior_team_rates(config.SEASON))
+    prior = prior_team_rates(config.SEASON)
+    rsg, lg = team_offense(games, prior=prior)
     lg_ra9 = lg
     ps = _pitcher_stats(box)
     rotation = identify_rotation(box)
     pfs = park_factors(games)
     wrc_by_p, team_base = load_lineup_wrc()
+    # 콜드스타트(투수): 전 시즌 팀 RA/G와 당시즌 팀 소화경기 → 게임 RA9를 수축
+    prior_ra = prior["ra"] if prior else None
+    gp_team = defaultdict(int)
+    for g in games:
+        if g.get("statusCode") == "RESULT" and not g.get("cancel") \
+                and g.get("homeTeamScore") is not None and g.get("awayTeamScore") is not None:
+            if g.get("homeTeamCode"):
+                gp_team[g["homeTeamCode"]] += 1
+            if g.get("awayTeamCode"):
+                gp_team[g["awayTeamCode"]] += 1
 
     def day_of(d):
-        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base)
+        return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base,
+                            prior_ra, gp_team)
 
     def wd_label(d):
         w = "월화수목금토일"[datetime.date.fromisoformat(d).weekday()]
