@@ -943,7 +943,11 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
             f'<div class="kpi"><div class="v">{st["mae"] if st["mae"] is not None else "–"}</div><div class="l">총득점 평균오차</div></div>'
             '</div></div>')
 
-    kpis = _kpi_block(f"올 시즌 {cur_season}", _stats(cur_entries)) + _kpi_block("통산", _stats(all_entries))
+    seasons = {s for s in (_season_of(e) for e in done) if s is not None}
+    multi = len(seasons) > 1                    # 새 시즌이 분리된 뒤에만 통산 노출
+    kpis = _kpi_block(f"올 시즌 {cur_season}", _stats(cur_entries))
+    if multi:
+        kpis += _kpi_block("통산", _stats(all_entries))
 
     # 캘리브레이션: 예측 우세팀 확신도 구간별 실제 적중률
     def bucket(conf):
@@ -1001,10 +1005,12 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         + ("".join(rows) if rows else '<tr><td colspan="7" style="color:var(--muted)">아직 결과가 쌓이지 않았습니다</td></tr>')
         + '</table></div></div>')
 
-    intro = ('<div class="card"><h2>성적 요약 — 올 시즌 · 통산</h2>'
-             '<p class="hint">라인업 반영 후 기대 스코어로 매긴 승부 예측을 실제 결과와 대조한 기록입니다. '
-             '<b>올 시즌</b>과 <b>통산(전 시즌 합산)</b>을 함께 표시합니다. '
-             '<b>단일 경기 정직한 천장은 ~56%</b>라, 55~57%면 모델이 제 역할을 하는 것입니다.</p>'
+    head = "성적 요약 — 올 시즌 · 통산" if multi else "성적 요약"
+    extra = ' <b>올 시즌</b>과 <b>통산(전 시즌 합산)</b>을 함께 표시합니다.' if multi else ''
+    intro = (f'<div class="card"><h2>{head}</h2>'
+             '<p class="hint">라인업 반영 후 기대 스코어로 매긴 승부 예측을 실제 결과와 대조한 기록입니다.'
+             + extra +
+             ' <b>단일 경기 정직한 천장은 ~56%</b>라, 55~57%면 모델이 제 역할을 하는 것입니다.</p>'
              + kpis + '</div>')
     html = (_PRED_TEMPLATE.replace("__BODY__", intro + cal_tbl + log_tbl)
             .replace("__STAMP__", _gen_stamp()))
