@@ -81,37 +81,31 @@
   </h1>
   <div class="subtitle"><span id="cyc" class="cyc" aria-hidden="true">🍗</span> 치맥 들고 방구석 머니볼</div>
   <div class="byline">Cooked by 야구우~ 부장</div>
-  <div class="sub"><span id="lastUpdated"></span>네이버 스포츠(경기결과) + KBO Talent(kbostuff.app) 데이터</div>
+  <div class="sub"><span id="lastUpdated"></span></div>
   <div class="cards">
     <a class="card" href="data/dashboard.html">
       <div class="ico">📊</div>
       <h2>팀 단기 전력</h2>
-      <p>피타고리안 기대승률·괴리율·모멘텀. 경기 수 슬라이더, 선발 로테이션 토글, 시즌 흐름.</p>
     </a>
     <a class="card" href="data/players.html">
       <div class="ico">🧢</div>
       <h2>선수 평가</h2>
-      <p>투수 구위×성적 사분면·구종 아스널, 타자 5툴 레이더·BABIP 운, 공격×수비 WAR, 불펜 리더보드.</p>
     </a>
     <a class="card" href="data/title_race.html">
       <div class="ico">🏁</div>
       <h2>타이틀 레이스</h2>
-      <p>홈런·안타·도루·삼진·다승·세이브·홀드·탈삼진·패배 top10과 시즌 페이스. 순위 다툼을 레이싱 차트로.</p>
     </a>
     <a class="card" href="data/history.html">
       <div class="ico">🏆</div>
       <h2>역대 기록</h2>
-      <p>1982~현재 전 시즌. 시즌·포지션별 순위와 통산 WAR 리더보드(GOAT). 데이터: Statiz.</p>
     </a>
     <a class="card" href="data/today.html">
       <div class="ico">🔮</div>
       <h2>오늘의 경기</h2>
-      <p>예고선발·팀 공격력·가용 불펜(3연투 제외)으로 오늘 경기 기대 스코어·승리확률. 확률·기대값이지 예언은 아님.</p>
     </a>
     <a class="card" href="data/predictions.html">
       <div class="ico">📈</div>
       <h2>예측 성적표</h2>
-      <p>지난 예측 vs 실제 결과 누적 대조. 승부 적중률·브라이어·확신도별 캘리브레이션·경기별 로그.</p>
     </a>
   </div>
   <div class="foot">
@@ -129,7 +123,7 @@
         if (d && d.stamp) {
           const latest = d.latest ? ' · ' + d.latest + ' 경기까지 반영' : '';
           document.getElementById('lastUpdated').textContent =
-            '🕗 최종 갱신 ' + d.stamp + latest + ' · ';
+            '🕗 최종 갱신 ' + d.stamp + latest;
         }
       })
       .catch(() => {});
