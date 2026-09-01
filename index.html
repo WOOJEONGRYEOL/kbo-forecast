@@ -18,8 +18,8 @@
     clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   .subtitle { color:var(--green); font-size:19px; font-weight:800; text-align:center; margin:0;
     letter-spacing:.2px; word-break:keep-all; }
-  .cyc { display:inline-block; font-size:23px; vertical-align:-4px; margin-right:3px;
-    transition:opacity .22s ease, transform .22s ease; }
+  .cyc { display:inline-block; width:30px; text-align:center; font-size:23px; vertical-align:-4px;
+    margin-right:2px; transition:opacity .22s ease, transform .22s ease; }
   .tag { color:var(--green); font-size:17px; letter-spacing:.3px; text-align:center; margin-top:4px;
     font-weight:600; word-break:keep-all; line-height:1.5; }
   .tag .cl { display:inline-block; white-space:nowrap; }
@@ -138,14 +138,14 @@
     (function () {
       const cyc = document.getElementById('cyc');
       if (!cyc) return;
-      const icons = ['🍗', '🍺', '<span style="font-family:Georgia,\'Times New Roman\',serif;font-weight:700;font-size:.92em">√x̄</span>'];
+      const icons = ['🍗', '🍺', '🧠'];
       let i = 0;
       setInterval(function () {
         i = (i + 1) % icons.length;
         cyc.style.opacity = '0';
         cyc.style.transform = 'scale(.55) rotate(-12deg)';
         setTimeout(function () {
-          cyc.innerHTML = icons[i];
+          cyc.textContent = icons[i];
           cyc.style.opacity = '1';
           cyc.style.transform = 'scale(1) rotate(0)';
         }, 200);
