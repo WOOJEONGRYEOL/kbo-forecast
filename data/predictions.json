@@ -1044,7 +1044,10 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "READY"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 1,
+  "correct": true
  },
  "20260901HTNC02026": {
   "date": "2026-09-01",
@@ -1061,7 +1064,10 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "READY"
+  "status": "RESULT",
+  "actualHome": 7,
+  "actualAway": 2,
+  "correct": false
  },
  "20260901LGOB02026": {
   "date": "2026-09-01",
@@ -1078,7 +1084,10 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "READY"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 3,
+  "correct": true
  },
  "20260901LTSS02026": {
   "date": "2026-09-01",
@@ -1095,7 +1104,10 @@
   "winAway": 49,
   "winHome": 51,
   "lineupReady": true,
-  "status": "READY"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 0,
+  "correct": true
  },
  "20260901SKWO02026": {
   "date": "2026-09-01",
@@ -1112,6 +1124,9 @@
   "winAway": 49,
   "winHome": 51,
   "lineupReady": true,
-  "status": "READY"
+  "status": "RESULT",
+  "actualHome": 0,
+  "actualAway": 4,
+  "correct": false
  }
 }
