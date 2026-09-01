@@ -80,7 +80,7 @@
     </svg>
   </h1>
   <div class="subtitle"><span id="cyc" class="cyc" aria-hidden="true">🍗</span> 치맥 들고 방구석 머니볼</div>
-  <div class="byline">🧑‍🍳 Cooked by 야구우~ 부장</div>
+  <div class="byline">Cooked by 야구우~ 부장</div>
   <div class="sub"><span id="lastUpdated"></span>네이버 스포츠(경기결과) + KBO Talent(kbostuff.app) 데이터</div>
   <div class="cards">
     <a class="card" href="data/dashboard.html">
@@ -138,14 +138,14 @@
     (function () {
       const cyc = document.getElementById('cyc');
       if (!cyc) return;
-      const icons = ['🍗', '🍺', '💻'];
+      const icons = ['🍗', '🍺', '<span style="font-family:Georgia,\'Times New Roman\',serif;font-weight:700;font-size:.92em">√x̄</span>'];
       let i = 0;
       setInterval(function () {
         i = (i + 1) % icons.length;
         cyc.style.opacity = '0';
         cyc.style.transform = 'scale(.55) rotate(-12deg)';
         setTimeout(function () {
-          cyc.textContent = icons[i];
+          cyc.innerHTML = icons[i];
           cyc.style.opacity = '1';
           cyc.style.transform = 'scale(1) rotate(0)';
         }, 200);
