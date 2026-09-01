@@ -611,7 +611,7 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     sections = []
     if any(g["gameDate"] == today and not g.get("cancel") for g in games):
         sections.append({"date": today, "kind": "today",
-                         "label": f"오늘의 경기 · {wd_label(today)}", "games": day_of(today)})
+                         "label": f"오늘의 승부 · {wd_label(today)}", "games": day_of(today)})
     else:
         # 휴식일: 마지막 경기일(결과) + 다음 경기일(예고)
         past = [g["gameDate"] for g in games

@@ -133,7 +133,7 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="players.html">🧢 선수 평가</a>
   <a class="active" href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 경기</a>
+  <a href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
 </nav>
 <h1>🏁 시즌 타이틀 레이스</h1>
@@ -809,7 +809,7 @@ def _projection_card(proj, logos) -> str:
     """오늘의 기대 스코어 카드(서버렌더). proj=game_projection.project_games() 결과."""
     if not proj:
         return ""
-    sections = proj.get("sections") or ([{"kind": "today", "label": "오늘의 경기",
+    sections = proj.get("sections") or ([{"kind": "today", "label": "오늘의 승부",
                                           "games": proj.get("games") or []}]
                                         if proj.get("games") else [])
     if not any(s.get("games") for s in sections):
@@ -826,7 +826,7 @@ def _projection_card(proj, logos) -> str:
 
 _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>오늘의 경기 · GPT 베이스볼</title>
+<title>오늘의 승부 · GPT 베이스볼</title>
 <style>
   :root{--bg:#0e1117;--card:#161b25;--line:#232a38;--text:#e8ecf3;--muted:#8a94a8;--green:#3ecf8e;}
   *{box-sizing:border-box}
@@ -848,10 +848,10 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="players.html">🧢 선수 평가</a>
   <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
-  <a class="active" href="today.html">🔮 오늘의 경기</a>
+  <a class="active" href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
 </nav>
-<h1>⚾ 오늘의 경기</h1>
+<h1>⚾ 오늘의 승부</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
 __CARD__
 </div></body></html>"""
@@ -893,7 +893,7 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="players.html">🧢 선수 평가</a>
   <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 경기</a>
+  <a href="today.html">🔮 오늘의 승부</a>
   <a class="active" href="predictions.html">📈 예측 성적표</a>
 </nav>
 <h1>📈 예측 성적표</h1>
@@ -1343,7 +1343,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a href="players.html">🧢 선수 평가</a>
   <a href="title_race.html">🏁 타이틀 레이스</a>
   <a href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 경기</a>
+  <a href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>

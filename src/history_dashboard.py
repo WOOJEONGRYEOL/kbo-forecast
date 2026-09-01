@@ -262,7 +262,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="players.html">🧢 선수 평가</a>
   <a href="title_race.html">🏁 타이틀 레이스</a>
   <a class="active" href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 경기</a>
+  <a href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
 </div>
 <h1>🏆 KBO 역대 기록</h1>
