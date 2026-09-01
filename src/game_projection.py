@@ -27,7 +27,14 @@ WIN_SCALE = 5.5          # 승률 로지스틱 스케일(단일경기는 분산�
 # 아래 날짜부터 적용(그 전 경기는 5.5 유지 — 과거 예측·성적 소급 변경 없음).
 WIN_SCALE_NEW = 6.5
 _WINSCALE_FROM = "2026-08-27"
+HOME_WP_ADV = 0.035     # 업셋 나이브용 홈 승률 가산(강도만 반영한 기대승률)
 PREVIEW_URL = config.NAVER_API_BASE + "/{gid}/preview"
+
+
+def _log5(pa: float, pb: float) -> float:
+    """승률 pa인 팀이 pb인 팀을 이길 확률(Bill James log5)."""
+    d = pa + pb - 2 * pa * pb
+    return 0.5 if d == 0 else (pa - pa * pb) / d
 
 
 def _get(url):
@@ -412,7 +419,7 @@ _DYN_FROM = "2026-08-26"
 
 
 def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base,
-                 prior_ra=None, gp_team=None):
+                 prior_ra=None, gp_team=None, team_wpct=None):
     """하루치(day) 경기들을 기대 스코어 dict 리스트로. 공유 컨텍스트는 인자로 받는다."""
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
     # 더블헤더: 같은 팀이 오늘 2경기 이상이면 나중 경기(들)가 2차전(피로) — (gameId, 팀) 집합
@@ -480,13 +487,26 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
 
         # ── 업셋 지수: 매치업 요소(선발·불펜피로·구장·일정)가 '공격 약팀'에게
         #    순위 기반 나이브 예측 대비 얼마나 승산을 더 주나 ──
-        naiveH = 1 / (1 + math.exp(-((lg * oH_i * HOME_BOOST) - (lg * oA_i / HOME_BOOST)) / ws))
-        ud_home = oH_i < oA_i                       # 홈이 공격 약팀?
+        # 언더독 = 시즌 승률(순위) 하위팀. 나이브 = 강도(승률)+홈만 반영한 기대승률.
+        wp_h = team_wpct.get(h, 0.5) if team_wpct else 0.5
+        wp_a = team_wpct.get(a, 0.5) if team_wpct else 0.5
+        naiveH = min(0.99, max(0.01, _log5(wp_h, wp_a) + HOME_WP_ADV))
+        ud_home = wp_h < wp_a                       # 홈이 시즌 강도 약팀?
         ud_win = round((pH2 if ud_home else 1 - pH2) * 100)
         ud_naive = round((naiveH if ud_home else 1 - naiveH) * 100)
-        upset_lift = ud_win - ud_naive              # 매치업이 약팀에게 더 준 승산(%p)
+        upset_lift = ud_win - ud_naive              # 매치업이 하위팀에게 더 준 승산(%p)
         underdog = h if ud_home else a
-        is_upset = dyn and ud_win >= 45 and upset_lift >= 3
+        # 2단계 배지(하위팀 관점 · ud_naive=강도+홈만 본 기대승률):
+        #   predict = 강도상 지는 게 정상(≤45%)인데 이기는 예측(≥50%)
+        #   close   = 뚜렷한 하위팀(≤42%)이 접전(45~49%)까지 따라붙음
+        if not dyn or wp_h == wp_a:
+            upset_kind = ""
+        elif ud_win >= 50 and ud_naive <= 45:
+            upset_kind = "predict"
+        elif ud_win >= 45 and ud_naive <= 42:
+            upset_kind = "close"
+        else:
+            upset_kind = ""
         # 업셋 사유(약팀 관점): 어떤 요소가 도왔나
         ur = []
         favp = pA_i if ud_home else pH_i            # 약팀이 상대할 실점력(상대 투수진)
@@ -524,8 +544,8 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
             "multHome": round(multH, 3), "multAway": round(multA, 3),
             "spHandHome": spHand_home, "spHandAway": spHand_away,
             "bpOutHome": outH, "bpOutAway": outA,
-            # 업셋(공격 약팀이 매치업 덕에 순위 예상보다 승산 큼)
-            "upset": is_upset, "underdog": underdog,
+            # 업셋: 시즌 하위팀이 이기는 예측(predict)/접전(close) — 순위 하위팀 관점
+            "upsetKind": upset_kind, "underdog": underdog,
             "underdogName": config.TEAM_NAMES.get(underdog, underdog),
             "underdogWin": ud_win, "upsetLift": upset_lift,
             "upsetWhy": " · ".join(ur),
@@ -564,17 +584,25 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     # 콜드스타트(투수): 전 시즌 팀 RA/G와 당시즌 팀 소화경기 → 게임 RA9를 수축
     prior_ra = prior["ra"] if prior else None
     gp_team = defaultdict(int)
+    wins = defaultdict(int)
     for g in games:
         if g.get("statusCode") == "RESULT" and not g.get("cancel") \
                 and g.get("homeTeamScore") is not None and g.get("awayTeamScore") is not None:
-            if g.get("homeTeamCode"):
-                gp_team[g["homeTeamCode"]] += 1
-            if g.get("awayTeamCode"):
-                gp_team[g["awayTeamCode"]] += 1
+            h, a = g.get("homeTeamCode"), g.get("awayTeamCode")
+            hs, as_ = g["homeTeamScore"], g["awayTeamScore"]
+            if h:
+                gp_team[h] += 1
+            if a:
+                gp_team[a] += 1
+            if hs > as_ and h:
+                wins[h] += 1
+            elif as_ > hs and a:
+                wins[a] += 1
+    team_wpct = {t: wins[t] / gp_team[t] for t in gp_team if gp_team[t]}   # 시즌 승률(업셋 언더독 판정)
 
     def day_of(d):
         return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base,
-                            prior_ra, gp_team)
+                            prior_ra, gp_team, team_wpct)
 
     def wd_label(d):
         w = "월화수목금토일"[datetime.date.fromisoformat(d).weekday()]

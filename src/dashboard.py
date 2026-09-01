@@ -634,7 +634,7 @@ _CALC_GUIDE_HTML = r"""
 <p style="margin:0 0 6px"><b style="color:var(--text)">⑩ 업셋 다이내미즘</b>(2026-08-26~) — 강팀이 늘 이긴다는 뻔함을 줄이려, <b>실증(experiments/)으로 근거가 확인된 신호만</b> 얹음:<br>
 · <b>불펜 누적 피로</b>: 최근 2일 투구가 쌓인 불펜은 오늘 실점력↑. 실측 완전휴식 RA9 4.69 vs 최근 등판 5.00(+0.3~0.4) → 완만하게(상한 +10%) 반영.<br>
 · <b>더블헤더 2차전</b>: 같은 날 2경기째면 자기 공격 −15%(실측 −0.85점). <span style="opacity:.75">※ 휴식일·연속 원정·이동 거리는 검증상 유의한 효과가 없어 <b>넣지 않음</b>.</span><br>
-· <b>🔥 업셋 배지</b>: 공격 약팀의 승률이 <b>순위 기반 나이브 예측(공격+홈만)</b>보다 +3%p 이상 높고 45%+면 표시 — "오늘 이 약팀 해볼 만"을 사유와 함께. <b>적중률은 거의 안 오르지만</b>(천장 56%) 서사·다양성을 살림.</p>
+· <b>업셋 배지(2단계)</b>: <b>시즌 승률 하위팀</b> 관점. 하위팀이 <b>이기는 예측(≥50%)</b>이면 <b>🔥 업셋 예측</b>, <b>45~49%</b>면서 매치업(선발·불펜피로·구장)이 순위 기대(승률+홈)보다 <b>+3%p↑</b> 밀어주면 <b>⚔️ 접전 주목</b> — 사유와 함께. <b>적중률은 거의 안 오르지만</b>(천장 56%) 서사·다양성을 살림.</p>
 
 <p style="margin:8px 0 0;color:#ffb454"><b>⚠️ 정직한 한계</b> — 단일 경기 예측의 정직한 천장은 ~56%(experiments 검증). '맞히기'가 아니라 <b>왜 이런 스코어인지</b>를 숫자로 서술하는 도구입니다.</p>
 </div></details>"""
@@ -742,13 +742,17 @@ def _one_game_card(g, logos) -> str:
                            'color:#ffb454;font-weight:700">● 경기 중</div>')
         else:
             result_line = ''
-        # 업셋 배지 — 공격 약팀이 매치업(선발·불펜피로·구장·일정) 덕에 순위 예상보다 승산 큼
+        # 업셋 배지(2단계) — 시즌 하위팀 관점
+        #   predict: 하위팀이 이기는 예측(≥50%) / close: 접전(45~49%)에서 매치업 도움
         upset_badge = ''
-        if g.get("upset"):
+        kind = g.get("upsetKind", "")
+        if kind:
             why = g.get("upsetWhy", "")
+            icon, label, color = (("🔥", "업셋 예측", "#ff7a59") if kind == "predict"
+                                  else ("⚔️", "접전 주목", "#ffb454"))
             upset_badge = (
-                '<div style="text-align:center;margin:1px 0 3px;font-size:11px;font-weight:700;color:#ffb454">'
-                f'🔥 업셋 주목 — {g["underdogName"]} {g["underdogWin"]}%'
+                f'<div style="text-align:center;margin:1px 0 3px;font-size:11px;font-weight:700;color:{color}">'
+                f'{icon} {label} — {g["underdogName"]} {g["underdogWin"]}%'
                 f'<span style="font-weight:400;opacity:.85"> (순위 예상 +{g["upsetLift"]}%p'
                 f'{" · " + why if why else ""})</span></div>')
         return (
