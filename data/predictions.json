@@ -1137,14 +1137,14 @@
   "homeName": "KT 위즈",
   "spAway": "류현진",
   "spHome": "소형준",
-  "predAwayPre": 4.6,
-  "predHomePre": 5.9,
-  "predAway": 4.6,
-  "predHome": 5.9,
+  "predAwayPre": 4.7,
+  "predHomePre": 5.7,
+  "predAway": 4.7,
+  "predHome": 5.8,
   "winAway": 45,
   "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260902HTNC02026": {
   "date": "2026-09-02",
@@ -1154,14 +1154,14 @@
   "homeName": "NC 다이노스",
   "spAway": "시라카와",
   "spHome": "토다",
-  "predAwayPre": 6.0,
-  "predHomePre": 5.6,
-  "predAway": 6.0,
+  "predAwayPre": 5.9,
+  "predHomePre": 5.9,
+  "predAway": 6.1,
   "predHome": 5.6,
-  "winAway": 51,
-  "winHome": 49,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260902LGOB02026": {
   "date": "2026-09-02",
@@ -1173,12 +1173,12 @@
   "spHome": "최승용",
   "predAwayPre": 5.1,
   "predHomePre": 4.8,
-  "predAway": 5.1,
+  "predAway": 5.4,
   "predHome": 4.8,
-  "winAway": 51,
-  "winHome": 49,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260902LTSS02026": {
   "date": "2026-09-02",
@@ -1188,14 +1188,14 @@
   "homeName": "삼성 라이온즈",
   "spAway": "박세웅",
   "spHome": "최원태",
-  "predAwayPre": 4.5,
-  "predHomePre": 6.4,
-  "predAway": 4.5,
-  "predHome": 6.4,
-  "winAway": 43,
-  "winHome": 57,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAwayPre": 4.3,
+  "predHomePre": 6.2,
+  "predAway": 4.4,
+  "predHome": 5.8,
+  "winAway": 45,
+  "winHome": 55,
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260902SKWO02026": {
   "date": "2026-09-02",
@@ -1205,13 +1205,13 @@
   "homeName": "키움 히어로즈",
   "spAway": "김건우",
   "spHome": "하영민",
-  "predAwayPre": 5.2,
-  "predHomePre": 4.9,
-  "predAway": 5.2,
-  "predHome": 4.9,
+  "predAwayPre": 5.0,
+  "predHomePre": 4.5,
+  "predAway": 4.8,
+  "predHome": 4.6,
   "winAway": 51,
   "winHome": 49,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "STARTED"
  }
 }
