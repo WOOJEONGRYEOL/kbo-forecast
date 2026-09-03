@@ -1244,7 +1244,10 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 13,
+  "actualAway": 11,
+  "correct": true
  },
  "20260903SKWO02026": {
   "date": "2026-09-03",
@@ -1261,7 +1264,10 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 2,
+  "correct": false
  },
  "20260903LGOB02026": {
   "date": "2026-09-03",
