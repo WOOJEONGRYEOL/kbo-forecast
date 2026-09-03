@@ -22,7 +22,17 @@ LOG="$FC/statiz_crawler/output/today.log"
     git rebase --continue 2>/dev/null || git merge --abort 2>/dev/null || true
   fi
 
-  "$PY" today.py || { echo "⚠️ today.py 실패"; exit 0; }
+  # 네트워크(DNS) 준비 대기 + 재시도 — launchd가 네트워크 채 안 올라온 시점에
+  #   실행되거나 일시적 DNS 해석 실패로 today.py가 죽는 것을 방지.
+  ok=0
+  for attempt in 1 2 3 4; do
+    if ! "$PY" -c "import socket; socket.gethostbyname('api-gw.sports.naver.com')" 2>/dev/null; then
+      echo "  (DNS 미준비 ${attempt}/4 — 90s 대기 후 재시도)"; sleep 90; continue
+    fi
+    if "$PY" today.py; then ok=1; break; fi
+    echo "  (today.py 실패 ${attempt}/4 — 60s 대기 후 재시도)"; sleep 60
+  done
+  [ "$ok" = 1 ] || { echo "⚠️ today.py 실패(재시도 소진 — DNS/네트워크 확인)"; exit 0; }
   git checkout -- data/last_updated.json 2>/dev/null || true   # today.py는 안 쓰는 파일
 
   git add -f data/today.html data/predictions.json data/predictions.html
