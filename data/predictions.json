@@ -1237,14 +1237,14 @@
   "homeName": "KT 위즈",
   "spAway": "왕옌청",
   "spHome": "고영표",
-  "predAwayPre": 4.6,
+  "predAwayPre": 4.9,
   "predHomePre": 6.0,
-  "predAway": 4.6,
-  "predHome": 6.0,
-  "winAway": 45,
-  "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.8,
+  "predHome": 5.7,
+  "winAway": 47,
+  "winHome": 53,
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260903LGOB02026": {
   "date": "2026-09-03",
@@ -1254,14 +1254,14 @@
   "homeName": "두산 베어스",
   "spAway": "박시원",
   "spHome": "곽빈",
-  "predAwayPre": 3.4,
+  "predAwayPre": 3.5,
   "predHomePre": 5.3,
-  "predAway": 3.4,
+  "predAway": 3.7,
   "predHome": 5.3,
-  "winAway": 43,
-  "winHome": 57,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "winAway": 44,
+  "winHome": 56,
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260903LTSS02026": {
   "date": "2026-09-03",
@@ -1271,14 +1271,14 @@
   "homeName": "삼성 라이온즈",
   "spAway": "비슬리",
   "spHome": "원태인",
-  "predAwayPre": 4.3,
-  "predHomePre": 6.2,
-  "predAway": 4.3,
-  "predHome": 6.2,
-  "winAway": 43,
-  "winHome": 57,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAwayPre": 4.1,
+  "predHomePre": 6.1,
+  "predAway": 4.0,
+  "predHome": 6.1,
+  "winAway": 42,
+  "winHome": 58,
+  "lineupReady": true,
+  "status": "STARTED"
  },
  "20260903SKWO02026": {
   "date": "2026-09-03",
@@ -1288,13 +1288,13 @@
   "homeName": "키움 히어로즈",
   "spAway": "이로운",
   "spHome": "박준현",
-  "predAwayPre": 5.5,
-  "predHomePre": 4.9,
-  "predAway": 5.5,
-  "predHome": 4.9,
-  "winAway": 52,
-  "winHome": 48,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAwayPre": 5.4,
+  "predHomePre": 4.6,
+  "predAway": 5.4,
+  "predHome": 4.7,
+  "winAway": 53,
+  "winHome": 47,
+  "lineupReady": true,
+  "status": "STARTED"
  }
 }
