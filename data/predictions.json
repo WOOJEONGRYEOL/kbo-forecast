@@ -1409,26 +1409,6 @@
   "actualAway": 3,
   "correct": false
  },
- "20260905SSLG02026": {
-  "date": "2026-09-05",
-  "away": "SS",
-  "home": "LG",
-  "awayName": "삼성 라이온즈",
-  "homeName": "LG 트윈스",
-  "spAway": "이승현",
-  "spHome": "톨허스트",
-  "predAwayPre": 5.0,
-  "predHomePre": 5.9,
-  "predAway": 4.7,
-  "predHome": 6.0,
-  "winAway": 45,
-  "winHome": 55,
-  "lineupReady": true,
-  "status": "RESULT",
-  "actualHome": 3,
-  "actualAway": 4,
-  "correct": false
- },
  "20260905HHLT02026": {
   "date": "2026-09-05",
   "away": "HH",
@@ -1508,5 +1488,25 @@
   "actualHome": 3,
   "actualAway": 2,
   "correct": true
+ },
+ "20260905SSLG02026": {
+  "date": "2026-09-05",
+  "away": "SS",
+  "home": "LG",
+  "awayName": "삼성 라이온즈",
+  "homeName": "LG 트윈스",
+  "spAway": "이승현",
+  "spHome": "톨허스트",
+  "predAwayPre": 4.9,
+  "predHomePre": 5.5,
+  "predAway": 4.6,
+  "predHome": 5.5,
+  "winAway": 47,
+  "winHome": 53,
+  "lineupReady": true,
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 4,
+  "correct": false
  }
 }
