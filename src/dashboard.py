@@ -729,8 +729,10 @@ def _one_game_card(g, logos) -> str:
         if st in ("RESULT", "ENDED") and ah is not None and aa is not None:
             if ah == aa:
                 mk, col = "무승부", "var(--muted)"
+            elif eH == eA:
+                mk, col = "판정 보류(기대 동점)", "var(--muted)"
             else:
-                correct = (eH >= eA) == (ah > aa)
+                correct = (eH > eA) == (ah > aa)
                 mk = "예측 적중 ✓" if correct else "예측 빗나감 ✗"
                 col = "#3ecf8e" if correct else "#e5484d"
             result_line = (f'<div style="text-align:center;margin-top:6px;font-size:12px">'
@@ -788,9 +790,10 @@ def _section_block(sec, logos) -> str:
     n_ready = sum(1 for g in games if g.get("lineupReady"))
     # 판정된(종료·승부난) 경기가 있으면 적중 요약, 없으면 라인업 반영 현황
     graded = [g for g in games if g.get("status") in ("RESULT", "ENDED")
-              and g.get("actualHome") is not None and g["actualHome"] != g["actualAway"]]
+              and g.get("actualHome") is not None and g["actualHome"] != g["actualAway"]
+              and g.get("erHomeLU", g["erHome"]) != g.get("erAwayLU", g["erAway"])]  # 기대 동점 제외
     if graded:
-        hit = sum(1 for g in graded if (g.get("erHomeLU", g["erHome"]) >= g.get("erAwayLU", g["erAway"]))
+        hit = sum(1 for g in graded if (g.get("erHomeLU", g["erHome"]) > g.get("erAwayLU", g["erAway"]))
                   == (g["actualHome"] > g["actualAway"]))
         tag = f'<b style="color:#3ecf8e">예측 적중 {hit}/{len(graded)}</b>'
     elif n_ready:
@@ -921,7 +924,8 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
 
     def _stats(entries):
         dn = [e for e in entries if e.get("actualHome") is not None]
-        gr = [e for e in dn if e["actualHome"] != e["actualAway"]]     # 무승부 제외
+        # 무승부·기대점수 동점(correct=None=보류)은 분모에서 제외
+        gr = [e for e in dn if e["actualHome"] != e["actualAway"] and e.get("correct") is not None]
         hh = sum(1 for e in gr if e.get("correct"))
         br = [((e.get("winHome", 50) / 100) - (1 if e["actualHome"] > e["actualAway"] else 0)) ** 2
               for e in gr]
@@ -988,6 +992,8 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         favn = e["homeName"] if e.get("winHome", 50) >= e.get("winAway", 50) else e["awayName"]
         if aa == ah:
             verd = '<span style="color:var(--muted)">무</span>'
+        elif e.get("correct") is None:                       # 기대점수 동점 = 판정 보류
+            verd = '<span style="color:var(--muted)" title="기대 스코어 동점 — 판정 보류">–</span>'
         elif e.get("correct"):
             verd = '<span class="ok">✓</span>'
         else:

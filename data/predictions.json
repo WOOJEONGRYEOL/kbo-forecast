@@ -1227,7 +1227,7 @@
   "status": "RESULT",
   "actualHome": 6,
   "actualAway": 9,
-  "correct": false
+  "correct": null
  },
  "20260903HHKT02026": {
   "date": "2026-09-03",
@@ -1567,7 +1567,7 @@
   "status": "RESULT",
   "actualHome": 8,
   "actualAway": 3,
-  "correct": true
+  "correct": null
  },
  "20260906OBSK02026": {
   "date": "2026-09-06",
@@ -1587,7 +1587,7 @@
   "status": "RESULT",
   "actualHome": 9,
   "actualAway": 16,
-  "correct": false
+  "correct": null
  },
  "20260906SSLG02026": {
   "date": "2026-09-06",
