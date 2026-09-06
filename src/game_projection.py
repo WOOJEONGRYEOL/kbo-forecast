@@ -666,9 +666,10 @@ def _lineup_catchup(today, day_of):
 
 
 def _apply_frozen(sections):
-    """시작·종료된 경기의 표시 예측을 predictions.json의 '경기 전 마지막 값'으로 덮어쓴다.
-    경기 후 자기 결과가 시즌 입력에 되먹임돼 재계산값이 흔들리는 것을 막고,
-    오늘의 경기 카드와 예측 성적표가 동일한 사전 예측을 보이게 한다."""
+    """freeze된(=풀라인업 반영본을 확정 저장한) 경기, 또는 이미 시작된 경기의 표시
+    예측을 predictions.json의 확정값으로 덮어쓴다. freeze 시점은 '첫 풀라인업 캡처'라,
+    라인업이 뜬 뒤에는 경기 전이라도 값이 더 움직이지 않는다(당일 팀폼·파크 재계산으로
+    흔들리는 것을 막음). 오늘의 경기 카드와 예측 성적표가 동일한 확정 예측을 보이게 한다."""
     import json
     try:
         log = json.loads(open(_PREDLOG_PATH, encoding="utf-8").read())
@@ -677,13 +678,15 @@ def _apply_frozen(sections):
     PRE = {"BEFORE", "READY"}
     for sec in sections:
         for g in sec.get("games", []):
-            if g.get("status") in PRE:
-                continue                       # 경기 전이면 라이브 재계산 그대로
             e = log.get(g.get("gameId"))
             if not e or e.get("predHome") is None:
                 continue                       # 저장된 사전 예측 없으면 재계산 유지
-            if (not e.get("lineupReady")) and g.get("lineupReady"):
-                continue                       # 저장본 라인업 미반영·지금 반영 가능 → 라이브 유지(늦캡처)
+            started = g.get("status") not in PRE
+            locked = bool(e.get("lineupReady"))   # 풀라인업 반영본을 이미 확정(freeze)함
+            if not locked and not started:
+                continue                       # 잠금 전·경기 전 → 라이브 재계산 그대로(예측 다듬기)
+            if (not locked) and g.get("lineupReady"):
+                continue                       # 저장본 미반영·지금 라인업 가능 → 이 빌드는 라이브(곧 잠김)
             g["erAway"] = e.get("predAwayPre", g["erAway"])
             g["erHome"] = e.get("predHomePre", g["erHome"])
             g["erAwayLU"] = e.get("predAway", g.get("erAwayLU"))
@@ -699,9 +702,11 @@ def _apply_frozen(sections):
 
 def save_prediction_log(projections: dict, games: list, path: str = None) -> str:
     """경기별 예측(반영 전/후)+실제 결과를 data/predictions.json에 누적 저장.
-    · 예측은 '경기 전(BEFORE/READY)'일 때만 갱신 → 첫 구 시점의 마지막 값으로 고정.
-      경기가 시작되면 갱신하지 않아, 그 경기 결과가 시즌 입력에 되먹임돼 예측이
-      흔들리는 자기오염을 막는다. (표시는 _apply_frozen이 같은 고정값을 보여줌)
+    · 예측은 '첫 풀라인업(양 팀 9명) 캡처' 시점의 값으로 고정(freeze)한다. 잠금 전에는
+      매 빌드 갱신해 예측을 다듬고, 라인업이 확정되면 그 값으로 저장·잠근 뒤 더는
+      갱신하지 않는다 → 라인업 발표 후 당일 팀폼·파크 재계산으로 값이 흔들리거나,
+      경기 결과가 시즌 입력에 되먹임되는 자기오염을 막는다.
+      (표시는 _apply_frozen이 같은 고정값을 보여줌)
     · 실제 결과는 종료(RESULT/ENDED) 시 채우고, 날짜가 지난 뒤에도 games 전체를 훑어
       로그에 있는 미완료 경기의 결과를 뒤늦게 backfill한다.
     반환: 저장 경로."""
@@ -741,11 +746,14 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
         # 라인업 늦캡처: 시작 후(어제 경기 포함)라도 '저장본은 라인업 미반영인데 지금 확정
         #   라인업이 있으면' 1회 보정. 라인업은 사전 입력(경기 결과와 무관)이라 예측 성격
         #   유지, CI가 라인업 발표~첫 구·밤 빌드를 놓쳐도 반영을 살린다.
-        lineup_late = (not e.get("lineupReady")) and g.get("lineupReady")
-        # 당일·예정은 pregame일 때(또는 미기록 1회) 갱신 → 첫 구 시점 고정.
-        #   최근 2일 종료 경기는 '라인업 늦캡처'만 1회 예외로 갱신(그 외 자기결과 오염 방지).
-        if (g.get("date", "") >= today and (pregame or not have)) \
-                or (g.get("date", "") >= lo and lineup_late):
+        locked = bool(e.get("lineupReady"))         # 이미 풀라인업 반영본을 확정(freeze)함
+        lineup_late = (not locked) and g.get("lineupReady")
+        # freeze 시점 = '첫 풀라인업 캡처'. 잠금 전에는 매 빌드 갱신(예측을 계속 다듬음),
+        #   풀라인업(양 팀 9명)이 뜬 빌드에서 그 값으로 저장→잠금, 이후엔 갱신하지 않는다.
+        #   시작 후라도 로그가 아직 라인업 미반영이고 지금 확정 라인업이 있으면 1회 늦캡처(잠금).
+        if not locked and (
+                (g.get("date", "") >= today and (pregame or not have))
+                or (g.get("date", "") >= lo and lineup_late)):
             e.pop("frozen", None)               # 구버전 잔재 정리
             e.update({
                 "date": g["date"], "away": g["away"], "home": g["home"],
