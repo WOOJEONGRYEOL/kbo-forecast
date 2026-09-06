@@ -695,6 +695,17 @@ def _one_game_card(g, logos) -> str:
         offA = (f'RS/G {c["offAway"]}×라인업 {g.get("multAway")}' if lu_on else f'RS/G {c["offAway"]}')
         offH = (f'RS/G {c["offHome"]}×라인업 {g.get("multHome")}' if lu_on else f'RS/G {c["offHome"]}')
         basis = '라인업 반영 후' if lu_on else '라인업 반영 전(팀 시즌 공격력)'
+        # 선발 설명: DIPS 구위 보정이 적용된 경기는 '생RA9 → 구위 보정'을 드러냄(새 방법 가시화).
+        #   구위(k_stuff, 100=리그평균)는 운 독립 지표라 생 RA9보다 실점을 잘 예측(experiments/dips_*).
+        def _sp_str(side, name):
+            adj, kn, inn = c[f"sp{side}Ra9"], sn(c[f"sp{side}Known"]), c[f"sp{side}Inn"]
+            raw, stf = c.get(f"sp{side}Raw"), c.get(f"sp{side}Stuff")
+            nm = name or "?"
+            if stf is not None and raw is not None:
+                return (f'선발 {nm} 생RA9 {raw}→구위 {stf} 보정 '
+                        f'<b style="color:var(--text)">{adj}</b>{kn}·평균 {inn}이닝')
+            return f'선발 {nm} RA9 {adj}{kn}·평균 {inn}이닝'
+        spHomeStr, spAwayStr = _sp_str("Home", g["spHome"]), _sp_str("Away", g["spAway"])
         detail = ('' if not c else
                   '<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">계산 근거 ▾</summary>'
                   '<div style="font-size:11px;color:var(--muted);line-height:1.75;margin-top:4px">'
@@ -702,10 +713,10 @@ def _one_game_card(g, logos) -> str:
                   + f'<div style="opacity:.7;margin-bottom:2px">아래 값은 <b>{basis}</b> 기준(위 헤드라인과 동일)</div>'
                   # 원정 → 홈 순서(스코어 표기와 동일). 자기 공격 × 상대 실점.
                   + f'원정 <b style="color:var(--text)">{eA}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 원정공격 {oiA}({offA}) '
-                  f'× 홈실점 {c["pIdxHome"]}[선발 {g["spHome"] or "?"} RA9 {c["spHomeRa9"]}{sn(c["spHomeKnown"])}·평균 {c["spHomeInn"]}이닝 '
+                  f'× 홈실점 {c["pIdxHome"]}[{spHomeStr} '
                   f'＋ 불펜 {c["bpHome"]}·{c["bpHomeInn"]}이닝 → {c["pitchHome"]}] ÷ 홈보정 {c["boost"]}<br>'
                   f'홈 <b style="color:var(--text)">{eH}</b> = 리그 {c["lg"]} × 구장 {c["park"]} × 홈공격 {oiH}({offH}) '
-                  f'× 원정실점 {c["pIdxAway"]}[선발 {g["spAway"] or "?"} RA9 {c["spAwayRa9"]}{sn(c["spAwayKnown"])}·평균 {c["spAwayInn"]}이닝 '
+                  f'× 원정실점 {c["pIdxAway"]}[{spAwayStr} '
                   f'＋ 불펜 {c["bpAway"]}·{c["bpAwayInn"]}이닝 → {c["pitchAway"]}] × 홈보정 {c["boost"]}<br>'
                   # 업셋 다이내미즘(불펜 누적 피로·일정 에너지) — 값이 있을 때만
                   + (f'<span style="opacity:.85">업셋 요소 — 불펜 피로 홈×{c.get("fatHome",1)}·원정×{c.get("fatAway",1)}'

@@ -480,6 +480,10 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         stf = starter_stuff if (starter_stuff and day >= _STUFF_FROM) else {}
         pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9, stf.get(sp["home"][1]))
         pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9, stf.get(sp["away"][1]))
+        # 설명 패널용: DIPS 보정 시 '생 RA9 → 구위 보정'을 드러내려 원본값·구위를 보관.
+        rawH = (ps.get(sp["home"][1]) or {}).get("ra9") if spH_known else None
+        rawA = (ps.get(sp["away"][1]) or {}).get("ra9") if spA_known else None
+        stuffH, stuffA = stf.get(sp["home"][1]), stf.get(sp["away"][1])
         # 콜드스타트: 게임 RA9를 전 시즌 팀 RA/G 쪽으로 경기수 테이퍼 수축(60경기서 0=현행)
         if prior_ra is not None and gp_team is not None:
             pitchH = _blend_rate(pitchH, prior_ra.get(h), gp_team.get(h, 0))
@@ -589,9 +593,13 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
                 "offHome": r2(oH), "offAway": r2(oA), "oIdxHome": r2(oH_i), "oIdxAway": r2(oA_i),
                 "oIdxHomeLU": r2(oHi2), "oIdxAwayLU": r2(oAi2),  # 라인업 반영 공격지수
                 "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "spHomeInn": spH_inn,
+                "spHomeRaw": r2(rawH) if rawH else None,          # 생 RA9(구위 보정 전)
+                "spHomeStuff": round(stuffH, 1) if stuffH else None,  # 재센터 구위(100=리그평균)
                 "bpHome": r2(bpH), "bpHomeInn": r2(9 - spH_inn), "fatHome": fatH,
                 "pitchHome": r2(pitchH), "pIdxHome": r2(pH_i),
                 "spAwayRa9": r2(spA_ra9), "spAwayKnown": spA_known, "spAwayInn": spA_inn,
+                "spAwayRaw": r2(rawA) if rawA else None,
+                "spAwayStuff": round(stuffA, 1) if stuffA else None,
                 "bpAway": r2(bpA), "bpAwayInn": r2(9 - spA_inn), "fatAway": fatA,
                 "pitchAway": r2(pitchA), "pIdxAway": r2(pA_i),
                 "enHome": enH, "enAway": enA, "enWhyHome": enWhyH, "enWhyAway": enWhyA,
