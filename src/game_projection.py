@@ -28,6 +28,15 @@ WIN_SCALE = 5.5          # 승률 로지스틱 스케일(단일경기는 분산�
 WIN_SCALE_NEW = 6.5
 _WINSCALE_FROM = "2026-08-27"
 HOME_WP_ADV = 0.035     # 업셋 나이브용 홈 승률 가산(강도만 반영한 기대승률)
+# ── DIPS: 선발 '구위'(운 독립)로 생 RA9를 보정 ──
+#   생 RA9는 BABIP·수비·시퀀싱 운이 껴 자기 다음 등판 실점조차 잘 못 맞힌다(r≈+0.04).
+#   구위(k_stuff, 투구수가중·리그재센터)는 운 독립이라 예측력이 크다(r≈-0.10).
+#   experiments/dips_starter·dips_gamelevel 검증: 게임레벨 2/3 폴드 Brier·정확도 개선,
+#   스프레드↑(같은 RA9 선발을 구위로 가름 = 다이내미즘). 단 공격적 반영은 과신(2025 폴드)
+#   → 보수 블렌드(STUFF_W) + WIN_SCALE 유지로 캘리브레이션. 교차검증서 전 폴드 net +Brier.
+STUFF_A, STUFF_B = 24.7846, -0.1939   # stuff_implied_RA9 = A + B·구위 (2023~25 적합)
+STUFF_W = 0.35                        # 생RA9 ↔ 구위기대RA9 블렌드 가중(교차검증 안전값)
+_STUFF_FROM = "2026-09-07"            # 이 날짜부터 적용(과거 예측 소급 변경 없음)
 PREVIEW_URL = config.NAVER_API_BASE + "/{gid}/preview"
 
 
@@ -154,6 +163,26 @@ def load_lineup_wrc(season: int = None):
         w = g["n_pa"].clip(lower=1)
         base[str(tc)] = float((g["wrc_plus_pure"] * w).sum() / w.sum())
     return wrc_by_p, base
+
+
+def load_starter_stuff(season: int = None):
+    """pcode → 시즌누적(투구수가중·리그재센터) 선발 구위 k_stuff. 로컬 캐시만. 없으면 {}.
+    DIPS: 생 RA9보다 '이 경기 선발 실점'을 잘 예측(experiments/dips_starter). 실패 시 조용히
+    {} 반환 → _game_ra9는 생 RA9로 그대로 폴백(안전)."""
+    import kbostuff_client as kc
+    try:
+        gl = kc.fetch_pitching_game_log(season if season is not None else config.SEASON)
+        gl = gl.dropna(subset=["k_stuff_v2", "n_pitches"]).copy()
+    except Exception:
+        return {}
+    if gl.empty:
+        return {}
+    gl["pitcher_pcode"] = gl["pitcher_pcode"].astype(str)
+    base = kc.daily_league_stuff(gl)                      # 리그 일별 평균 제거(스케일 드리프트)
+    gl["ks"] = gl["k_stuff_v2"] - gl["game_date"].map(base) + 100.0
+    wsum = (gl["ks"] * gl["n_pitches"]).groupby(gl["pitcher_pcode"]).sum()
+    psum = gl.groupby("pitcher_pcode")["n_pitches"].sum()
+    return {p: float(wsum[p] / psum[p]) for p in psum.index if psum[p] >= 200}
 
 
 def lineup_multiplier(batters: list, wrc_by_p: dict, team_base: float,
@@ -396,12 +425,17 @@ def available_bullpen(box, team, rotation, asof, lg_ra9, ps=None, exclude=None, 
     return ra9, out_info, round(fat_idx, 3)
 
 
-def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9):
+def _game_ra9(sp_pcode, ps, bp_ra9, lg_ra9, sp_stuff=None):
     """선발(평균 소화이닝) + 불펜(9−선발이닝) 혼합 RA9.
+    sp_stuff(재센터 구위)가 주어지면 DIPS 보정: 생 RA9를 '구위 기대 RA9'로 보수 블렌드.
     반환 (혼합, 선발RA9, 선발기록여부, 선발이닝)."""
     sp = ps.get(str(sp_pcode)) if sp_pcode else None
     known = bool(sp and sp["ra9"] and sp["outs"] >= 30)
     sp_ra9 = sp["ra9"] if known else lg_ra9
+    # DIPS: 알려진 선발이고 구위가 있으면 구위기대RA9로 보수 블렌드(같은 RA9도 구위로 가름).
+    if known and sp_stuff is not None:
+        stuff_ra9 = STUFF_A + STUFF_B * sp_stuff
+        sp_ra9 = (1 - STUFF_W) * sp_ra9 + STUFF_W * stuff_ra9
     # 선발별 평균 소화이닝 반영(있으면), 없으면 기본값. 3.5~7.0이닝으로 제한.
     if sp and sp.get("start_outs_avg"):
         sp_inn = max(3.5, min(7.0, sp["start_outs_avg"] / 3))
@@ -419,7 +453,7 @@ _DYN_FROM = "2026-08-26"
 
 
 def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base,
-                 prior_ra=None, gp_team=None, team_wpct=None):
+                 prior_ra=None, gp_team=None, team_wpct=None, starter_stuff=None):
     """하루치(day) 경기들을 기대 스코어 dict 리스트로. 공유 컨텍스트는 인자로 받는다."""
     todays = [g for g in games if g.get("gameDate") == day and not g.get("cancel")]
     # 더블헤더: 같은 팀이 오늘 2경기 이상이면 나중 경기(들)가 2차전(피로) — (gameId, 팀) 집합
@@ -442,9 +476,10 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         dyn = day >= _DYN_FROM                     # 업셋 다이내미즘 적용 여부(날짜 컷오프)
         bpH, outH, fatH = available_bullpen(box, h, rotation, day, lg_ra9, ps=ps, exclude=[sp["home"][1]], fatigue=dyn)
         bpA, outA, fatA = available_bullpen(box, a, rotation, day, lg_ra9, ps=ps, exclude=[sp["away"][1]], fatigue=dyn)
-        # 상대 이 경기 실점력(선발+가용불펜)
-        pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9)
-        pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9)
+        # 상대 이 경기 실점력(선발+가용불펜). DIPS 구위 보정은 _STUFF_FROM 이후만(소급 방지).
+        stf = starter_stuff if (starter_stuff and day >= _STUFF_FROM) else {}
+        pitchH, spH_ra9, spH_known, spH_inn = _game_ra9(sp["home"][1], ps, bpH, lg_ra9, stf.get(sp["home"][1]))
+        pitchA, spA_ra9, spA_known, spA_inn = _game_ra9(sp["away"][1], ps, bpA, lg_ra9, stf.get(sp["away"][1]))
         # 콜드스타트: 게임 RA9를 전 시즌 팀 RA/G 쪽으로 경기수 테이퍼 수축(60경기서 0=현행)
         if prior_ra is not None and gp_team is not None:
             pitchH = _blend_rate(pitchH, prior_ra.get(h), gp_team.get(h, 0))
@@ -581,6 +616,7 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
     rotation = identify_rotation(box)
     pfs = park_factors(games)
     wrc_by_p, team_base = load_lineup_wrc()
+    starter_stuff = load_starter_stuff(config.SEASON)     # DIPS: 선발 구위(운 독립) 보정용
     # 콜드스타트(투수): 전 시즌 팀 RA/G와 당시즌 팀 소화경기 → 게임 RA9를 수축
     prior_ra = prior["ra"] if prior else None
     gp_team = defaultdict(int)
@@ -602,7 +638,7 @@ def project_games(games: list, box, ref_date: str = None) -> dict:
 
     def day_of(d):
         return _project_day(d, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, team_base,
-                            prior_ra, gp_team, team_wpct)
+                            prior_ra, gp_team, team_wpct, starter_stuff)
 
     def wd_label(d):
         w = "월화수목금토일"[datetime.date.fromisoformat(d).weekday()]
