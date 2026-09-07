@@ -364,8 +364,20 @@ def collect_season_batting(games: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(all_rows)
 
 
+def _too_stale(last_date, league_last, recent_days: int) -> bool:
+    """선수의 마지막 출전(last_date)이 리그 최근 경기일(league_last)보다 recent_days를
+    넘게 지났으면 True. 퇴출·2군 강등 등으로 오래 안 나온 선수의 '옛 최근10경기'가
+    현재 폼처럼 순위보드에 남는 것을 막는다."""
+    import datetime as _dt
+    try:
+        return (_dt.date.fromisoformat(str(league_last))
+                - _dt.date.fromisoformat(str(last_date))).days > recent_days
+    except Exception:
+        return False
+
+
 def recent_form(bat_df: pd.DataFrame, window: int = 10, min_pa: int = 15,
-                min_season_pa: int = 80) -> dict:
+                min_season_pa: int = 80, recent_days: int = 14) -> dict:
     """최근 window경기 타격 원자료(최근·시즌 합계)를 선수별로 반환.
 
     지표(OPS/타율/장타율)·Δ·랭킹은 대시보드(JS)에서 토글로 계산하도록,
@@ -376,10 +388,13 @@ def recent_form(bat_df: pd.DataFrame, window: int = 10, min_pa: int = 15,
     out = {"window": window, "minPa": min_pa, "players": []}
     if bat_df is None or bat_df.empty:
         return out
+    league_last = bat_df["date"].max()          # 리그 최근 경기일(스테일 기준)
     for pcode, g in bat_df.groupby("pcode"):
         if not pcode:
             continue
         g = g.sort_values("date")
+        if _too_stale(g["date"].iloc[-1], league_last, recent_days):
+            continue                            # 오래 안 나온 선수(2군·퇴출) 제외
         s = {k: int(g[k].sum()) for k in ("ab", "hit", "bb", "tb")}
         if s["ab"] + s["bb"] < min_season_pa:
             continue
@@ -400,7 +415,8 @@ def recent_form(bat_df: pd.DataFrame, window: int = 10, min_pa: int = 15,
 
 def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
                       role: str = "relief", window: int = 10, min_app: int = 5,
-                      min_recent_outs: int = 12, min_season_outs: int = 30) -> dict:
+                      min_recent_outs: int = 12, min_season_outs: int = 30,
+                      recent_days: int = 14) -> dict:
     """최근 window등판 투수 원자료(최근·시즌 합계)를 투수별로 반환.
 
     role="relief" → 선발 로테이션 제외(불펜), "start" → 로테이션만(선발).
@@ -412,6 +428,7 @@ def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
         return out
     df = box.copy()
     df["outs"] = df["inn"].map(_innings_to_outs)
+    league_last = df["date"].max()              # 리그 최근 경기일(스테일 기준)
     # 현재 역할 판정: 시즌 누적 선발수(identify_rotation)가 아니라 '최근 역할'로.
     #   그 경기 첫 투수 = 실제 선발. 최근 등판이 선발이거나 최근 5등판 중 선발 2회+면 선발,
     #   아니면 불펜. (시즌 초 선발 뒤 지금은 불펜인 투수를 relief 카드에 포함시키기 위함)
@@ -427,6 +444,8 @@ def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
         if not pcode:
             continue
         g = g.sort_values("date")
+        if _too_stale(g["date"].iloc[-1], league_last, recent_days):
+            continue                            # 오래 안 나온 투수(2군·퇴출) 제외
         started = [(str(gid), str(pcode)) in starter_pairs for gid in g["game_id"]]
         is_starter = (started[-1] if started else False) or sum(started[-5:]) >= 2
         if (role == "start") != is_starter:   # 역할 불일치 제외
@@ -446,7 +465,8 @@ def recent_pitch_form(box: pd.DataFrame, rotation: pd.DataFrame = None,
     return out
 
 
-def hit_streaks(bat_df: pd.DataFrame, min_streak: int = 5, top: int = 15) -> dict:
+def hit_streaks(bat_df: pd.DataFrame, min_streak: int = 5, top: int = 15,
+                recent_days: int = 14) -> dict:
     """현재 진행 중인 연속 안타/출루 행진.
 
     - 안타 행진: 최근 경기부터, '타수 있고 무안타'면 끊김. 타석 없는 경기(대주자 등)는 유지.
@@ -456,10 +476,13 @@ def hit_streaks(bat_df: pd.DataFrame, min_streak: int = 5, top: int = 15) -> dic
     out = {"minStreak": min_streak, "hit": [], "onbase": []}
     if bat_df is None or bat_df.empty:
         return out
+    league_last = bat_df["date"].max()          # 리그 최근 경기일(스테일 기준)
     for pcode, g in bat_df.groupby("pcode"):
         if not pcode:
             continue
         recs = g.sort_values("date").to_dict("records")
+        if _too_stale(recs[-1]["date"], league_last, recent_days):
+            continue                            # 오래 안 나온 선수(2군·퇴출) 제외 — 옛 행진 배제
         hs = 0
         for r in reversed(recs):
             if r["hit"] >= 1:
