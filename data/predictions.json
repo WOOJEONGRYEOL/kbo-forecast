@@ -1624,7 +1624,7 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 6,
   "actualAway": 4,
   "correct": true
@@ -1644,7 +1644,7 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 3,
   "actualAway": 6,
   "correct": false
