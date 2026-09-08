@@ -37,6 +37,14 @@ HOME_WP_ADV = 0.035     # 업셋 나이브용 홈 승률 가산(강도만 반영
 STUFF_A, STUFF_B = 24.7846, -0.1939   # stuff_implied_RA9 = A + B·구위 (2023~25 적합)
 STUFF_W = 0.35                        # 생RA9 ↔ 구위기대RA9 블렌드 가중(교차검증 안전값)
 _STUFF_FROM = "2026-09-07"            # 이 날짜부터 적용(과거 예측 소급 변경 없음)
+# ── 공격판 DIPS: 베이스 팀 공격을 생 RS/G → '운 벗긴 wRC+ 기대득점'으로 ──
+#   생 RS/G는 시퀀싱·클러치 운이 껴 '이 경기 득점' 예측이 약함(r≈+0.07). wRC+(park·운
+#   보정)는 성분 기반이라 조금 더 낫다(experiments/offense_metric: OPS r≈+0.09, 승부
+#   3폴드 전부 RS/G≥, acc 평균 +~1%p·Brier 중립·절대 나빠지지 않음). 기대RS/G = lg×wRC+/100.
+#   라인업 발표 시 multiplier(라인업wRC+/팀wRC+)와 곱해져 '오늘 9명 wRC+/100'로 자연 수렴.
+_OFF_FROM = "2026-09-08"              # 이 날짜부터 적용(과거 예측 소급 변경 없음). 없으면 RS/G 폴백.
+OFF_W = 0.5                          # 생RS/G ↔ wRC+기대RS/G 블렌드 가중. top-9 wRC+는 팀 OPS보다
+                                     # 스프레드가 커(과신 위험) 검증한 완만한 수준으로 보수 블렌드.
 PREVIEW_URL = config.NAVER_API_BASE + "/{gid}/preview"
 
 
@@ -488,7 +496,15 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
         if prior_ra is not None and gp_team is not None:
             pitchH = _blend_rate(pitchH, prior_ra.get(h), gp_team.get(h, 0))
             pitchA = _blend_rate(pitchA, prior_ra.get(a), gp_team.get(a, 0))
-        oH, oA = rsg.get(h, lg), rsg.get(a, lg)
+        # 베이스 팀 공격: 운 벗긴 wRC+ 기대득점. team_base=팀 상위9 wRC+라 리그평균이 100이
+        #   아니라 ~110+(주전은 평균 이상) → 리그 상위9 평균(lg_wrc)으로 정규화해야 스케일이 맞다.
+        #   기대RS/G = lg × (팀상위9wRC+ / 리그상위9평균). wRC+ 없으면 생 RS/G 폴백.
+        #   라인업 발표 시 multiplier(라인업wRC+/팀상위9)와 곱해져 'lg×오늘9명/리그평균'으로 수렴.
+        lg_wrc = (sum(team_base.values()) / len(team_base)) if team_base else 100.0
+        wrcH = team_base.get(h) if (team_base and day >= _OFF_FROM) else None
+        wrcA = team_base.get(a) if (team_base and day >= _OFF_FROM) else None
+        oH = (1 - OFF_W) * rsg.get(h, lg) + OFF_W * (lg * wrcH / lg_wrc) if wrcH else rsg.get(h, lg)
+        oA = (1 - OFF_W) * rsg.get(a, lg) + OFF_W * (lg * wrcA / lg_wrc) if wrcA else rsg.get(a, lg)
         # 지수(리그평균=1.0)로 만들고 수축(회귀). 극단 팀을 평균 쪽으로 당김.
         def idx(v, base):
             return 1 + (v / base - 1) * SHRINK
@@ -592,6 +608,8 @@ def _project_day(day, games, box, rsg, lg, lg_ra9, ps, rotation, pfs, wrc_by_p, 
                 "lg": r2(lg), "boost": HOME_BOOST, "park": pf, "stadium": g.get("stadium"),
                 "offHome": r2(oH), "offAway": r2(oA), "oIdxHome": r2(oH_i), "oIdxAway": r2(oA_i),
                 "oIdxHomeLU": r2(oHi2), "oIdxAwayLU": r2(oAi2),  # 라인업 반영 공격지수
+                "wrcHome": round(100 * wrcH / lg_wrc) if wrcH else None,  # 팀 공격력(리그평균=100 정규화)
+                "wrcAway": round(100 * wrcA / lg_wrc) if wrcA else None,
                 "spHomeRa9": r2(spH_ra9), "spHomeKnown": spH_known, "spHomeInn": spH_inn,
                 "spHomeRaw": r2(rawH) if rawH else None,          # 생 RA9(구위 보정 전)
                 "spHomeStuff": round(stuffH, 1) if stuffH else None,  # 재센터 구위(100=리그평균)

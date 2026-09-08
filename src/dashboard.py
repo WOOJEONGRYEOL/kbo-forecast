@@ -692,8 +692,12 @@ def _one_game_card(g, logos) -> str:
         lu_on = g.get("lineupReady")
         oiA = c.get("oIdxAwayLU") if lu_on else c["oIdxAway"]
         oiH = c.get("oIdxHomeLU") if lu_on else c["oIdxHome"]
-        offA = (f'RS/G {c["offAway"]}×라인업 {g.get("multAway")}' if lu_on else f'RS/G {c["offAway"]}')
-        offH = (f'RS/G {c["offHome"]}×라인업 {g.get("multHome")}' if lu_on else f'RS/G {c["offHome"]}')
+        # 베이스 공격: wRC+ 기대득점(운 벗긴 지표)이면 'wRC+ X→기대 Y', 아니면 'RS/G Y'.
+        def _off_str(side, mult_key):
+            v, wrc = c[f"off{side}"], c.get(f"wrc{side}")
+            lead = f'wRC+ {wrc}→기대 {v}' if wrc is not None else f'RS/G {v}'
+            return f'{lead}×라인업 {g.get(mult_key)}' if lu_on else lead
+        offA, offH = _off_str("Away", "multAway"), _off_str("Home", "multHome")
         basis = '라인업 반영 후' if lu_on else '라인업 반영 전(팀 시즌 공격력)'
         # 선발 설명: DIPS 구위 보정이 적용된 경기는 '생RA9 → 구위 보정'을 드러냄(새 방법 가시화).
         #   구위(k_stuff, 100=리그평균)는 운 독립 지표라 생 RA9보다 실점을 잘 예측(experiments/dips_*).
