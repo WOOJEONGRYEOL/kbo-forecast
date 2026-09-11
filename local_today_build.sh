@@ -13,14 +13,13 @@ LOG="$FC/statiz_crawler/output/today.log"
 
 {
   echo "$(date '+%F %T') === today 빌드 시작 ==="
-  # 생성물 로컬 변경은 폐기(원격/재생성이 최신) → pull 충돌 방지. 소스는 안 건드림.
+  # 생성물 로컬 변경 폐기 후, 항상 main 브랜치로 강제 재부착 + origin 정렬.
+  #   detached HEAD(과거 수동 git 작업 잔재)·stale main 때문에 저녁 빌드가 통째로
+  #   푸시 실패하던 문제의 근본 해결 — 매 빌드가 origin/main HEAD에서 새로 시작한다.
+  #   (소스는 origin에 있으므로 안 건드림. 생성물은 아래 today.py가 재생성.)
   git checkout -- data/ 2>/dev/null || true
-  git pull --rebase --autostash origin main || echo "(pull 경고 — 계속)"
-  if git ls-files -u | grep -q .; then
-    echo "(병합 충돌 → 원격 data/ 기준 정리)"
-    git checkout --theirs -- data/ 2>/dev/null; git add data/ 2>/dev/null
-    git rebase --continue 2>/dev/null || git merge --abort 2>/dev/null || true
-  fi
+  git fetch origin main -q 2>/dev/null || echo "(fetch 경고 — 계속)"
+  git checkout -B main origin/main 2>/dev/null || echo "⚠️ main 재부착 실패(수동 확인 필요)"
 
   # 네트워크(DNS) 준비 대기 + 재시도 — launchd가 네트워크 채 안 올라온 시점에
   #   실행되거나 일시적 DNS 해석 실패로 today.py가 죽는 것을 방지.
@@ -41,8 +40,13 @@ LOG="$FC/statiz_crawler/output/today.log"
   else
     git commit -m "chore: today 라인업 반영 갱신 (로컬 $(date +%FT%H:%M))" \
       || { echo "⚠️ 커밋 실패"; exit 0; }
-    git push origin main && echo "푸시 완료" \
-      || echo "⚠️ 푸시 실패(키체인 잠김/원격 갱신 확인)"
+    pushed=0
+    for pi in 1 2 3; do
+      if git push origin main; then pushed=1; echo "푸시 완료"; break; fi
+      echo "  (푸시 재시도 ${pi} — 원격 갱신 반영 후)"
+      git pull --rebase -X theirs origin main 2>/dev/null || true
+    done
+    [ "$pushed" = 1 ] || echo "⚠️ 푸시 실패(재시도 소진 — 인증/원격 확인)"
   fi
   echo "$(date '+%F %T') === 종료 ==="
 } >> "$LOG" 2>&1
