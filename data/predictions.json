@@ -1957,14 +1957,17 @@
   "homeName": "KT 위즈",
   "spAway": "네일",
   "spHome": "대니엘",
-  "predAwayPre": 4.7,
+  "predAwayPre": 4.6,
   "predHomePre": 5.4,
-  "predAway": 4.5,
+  "predAway": 4.3,
   "predHome": 5.5,
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 2,
+  "correct": true
  },
  "20260912LGSS02026": {
   "date": "2026-09-12",
@@ -1977,11 +1980,14 @@
   "predAwayPre": 4.4,
   "predHomePre": 5.9,
   "predAway": 4.2,
-  "predHome": 5.2,
+  "predHome": 5.1,
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 4,
+  "correct": false
  },
  "20260912LTWO02026": {
   "date": "2026-09-12",
@@ -1994,11 +2000,14 @@
   "predAwayPre": 4.1,
   "predHomePre": 4.2,
   "predAway": 3.8,
-  "predHome": 4.4,
+  "predHome": 4.3,
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 0,
+  "actualAway": 8,
+  "correct": false
  },
  "20260912NCOB02026": {
   "date": "2026-09-12",
@@ -2008,13 +2017,16 @@
   "homeName": "두산 베어스",
   "spAway": "구창모",
   "spHome": "잭로그",
-  "predAwayPre": 4.5,
-  "predHomePre": 4.9,
-  "predAway": 4.5,
-  "predHome": 4.7,
+  "predAwayPre": 4.6,
+  "predHomePre": 5.0,
+  "predAway": 4.6,
+  "predHome": 4.8,
   "winAway": 49,
   "winHome": 51,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 9,
+  "actualAway": 10,
+  "correct": false
  }
 }
