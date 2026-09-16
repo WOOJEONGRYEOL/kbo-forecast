@@ -2221,7 +2221,10 @@
   "winAway": 49,
   "winHome": 51,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 9,
+  "correct": false
  },
  "20260916SKLT02026": {
   "date": "2026-09-16",
@@ -2238,7 +2241,10 @@
   "winAway": 56,
   "winHome": 44,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 4,
+  "correct": true
  },
  "20260916SSOB02026": {
   "date": "2026-09-16",
@@ -2255,6 +2261,9 @@
   "winAway": 54,
   "winHome": 46,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 1,
+  "correct": false
  }
 }
