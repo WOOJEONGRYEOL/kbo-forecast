@@ -2268,39 +2268,5 @@
   "actualHome": 3,
   "actualAway": 1,
   "correct": false
- },
- "20260917SKNC02026": {
-  "date": "2026-09-17",
-  "away": "SK",
-  "home": "NC",
-  "awayName": "SSG 랜더스",
-  "homeName": "NC 다이노스",
-  "spAway": "이로운",
-  "spHome": "라일리",
-  "predAwayPre": 4.2,
-  "predHomePre": 5.7,
-  "predAway": 4.2,
-  "predHome": 5.7,
-  "winAway": 44,
-  "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
- },
- "20260917WOHT02026": {
-  "date": "2026-09-17",
-  "away": "WO",
-  "home": "HT",
-  "awayName": "키움 히어로즈",
-  "homeName": "KIA 타이거즈",
-  "spAway": "안우진",
-  "spHome": "올러",
-  "predAwayPre": 3.3,
-  "predHomePre": 5.6,
-  "predAway": 3.3,
-  "predHome": 5.6,
-  "winAway": 41,
-  "winHome": 59,
-  "lineupReady": false,
-  "status": "BEFORE"
  }
 }
