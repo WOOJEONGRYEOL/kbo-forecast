@@ -2199,12 +2199,12 @@
   "spHome": "류현진",
   "predAwayPre": 6.3,
   "predHomePre": 6.0,
-  "predAway": 6.3,
-  "predHome": 6.0,
-  "winAway": 51,
-  "winHome": 49,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 6.0,
+  "predHome": 5.6,
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260916LGNC02026": {
   "date": "2026-09-16",
@@ -2221,7 +2221,7 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "READY"
  },
  "20260916SKLT02026": {
   "date": "2026-09-16",
@@ -2233,12 +2233,12 @@
   "spHome": "비슬리",
   "predAwayPre": 5.3,
   "predHomePre": 3.8,
-  "predAway": 5.3,
-  "predHome": 3.8,
-  "winAway": 56,
-  "winHome": 44,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.4,
+  "predHome": 3.6,
+  "winAway": 57,
+  "winHome": 43,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260916SSOB02026": {
   "date": "2026-09-16",
@@ -2251,10 +2251,10 @@
   "predAwayPre": 4.5,
   "predHomePre": 3.6,
   "predAway": 4.5,
-  "predHome": 3.6,
-  "winAway": 54,
-  "winHome": 46,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 3.2,
+  "winAway": 55,
+  "winHome": 45,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
