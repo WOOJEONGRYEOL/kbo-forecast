@@ -2284,7 +2284,10 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 2,
+  "correct": false
  },
  "20260917WOHT02026": {
   "date": "2026-09-17",
@@ -2301,6 +2304,9 @@
   "winAway": 41,
   "winHome": 59,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 0,
+  "correct": true
  }
 }
