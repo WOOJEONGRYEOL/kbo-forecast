@@ -2317,14 +2317,14 @@
   "homeName": "KT 위즈",
   "spAway": "톨허스트",
   "spHome": "로건",
-  "predAwayPre": 4.4,
-  "predHomePre": 5.6,
+  "predAwayPre": 4.5,
+  "predHomePre": 5.5,
   "predAway": 4.4,
-  "predHome": 5.6,
-  "winAway": 45,
-  "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 5.5,
+  "winAway": 46,
+  "winHome": 54,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260918NCLT02026": {
   "date": "2026-09-18",
