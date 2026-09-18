@@ -2324,7 +2324,10 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 6,
+  "correct": null
  },
  "20260918LGKT02026": {
   "date": "2026-09-18",
