@@ -2317,12 +2317,12 @@
   "homeName": "KT 위즈",
   "spAway": "톨허스트",
   "spHome": "로건",
-  "predAwayPre": 4.5,
-  "predHomePre": 5.5,
-  "predAway": 4.5,
-  "predHome": 5.5,
-  "winAway": 46,
-  "winHome": 54,
+  "predAwayPre": 4.4,
+  "predHomePre": 5.6,
+  "predAway": 4.4,
+  "predHome": 5.6,
+  "winAway": 45,
+  "winHome": 55,
   "lineupReady": false,
   "status": "BEFORE"
  },
@@ -2335,13 +2335,13 @@
   "spAway": "이재학",
   "spHome": "로드리게스",
   "predAwayPre": 5.1,
-  "predHomePre": 5.1,
+  "predHomePre": 5.4,
   "predAway": 5.1,
-  "predHome": 5.1,
+  "predHome": 5.0,
   "winAway": 50,
   "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260918SSHH02026": {
   "date": "2026-09-18",
@@ -2351,14 +2351,14 @@
   "homeName": "한화 이글스",
   "spAway": "후라도",
   "spHome": "박준영",
-  "predAwayPre": 7.9,
+  "predAwayPre": 7.6,
   "predHomePre": 5.8,
-  "predAway": 7.9,
-  "predHome": 5.8,
+  "predAway": 7.7,
+  "predHome": 5.6,
   "winAway": 58,
   "winHome": 42,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260918WOOB02026": {
   "date": "2026-09-18",
@@ -2369,12 +2369,12 @@
   "spAway": "알칸타라",
   "spHome": "잭로그",
   "predAwayPre": 3.7,
-  "predHomePre": 4.6,
+  "predHomePre": 4.5,
   "predAway": 3.7,
-  "predHome": 4.6,
-  "winAway": 47,
-  "winHome": 53,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predHome": 4.3,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
