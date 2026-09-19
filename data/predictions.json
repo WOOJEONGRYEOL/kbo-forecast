@@ -2397,9 +2397,9 @@
   "homeName": "LG 트윈스",
   "spAway": "화이트",
   "spHome": "임찬규",
-  "predAwayPre": 5.2,
-  "predHomePre": 5.1,
-  "predAway": 4.9,
+  "predAwayPre": 5.1,
+  "predHomePre": 5.0,
+  "predAway": 4.8,
   "predHome": 5.1,
   "winAway": 49,
   "winHome": 51,
@@ -2418,13 +2418,16 @@
   "spAway": "네일",
   "spHome": "구창모",
   "predAwayPre": 5.5,
-  "predHomePre": 4.9,
+  "predHomePre": 4.8,
   "predAway": 4.8,
   "predHome": 4.6,
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 5,
+  "correct": true
  },
  "20260919OBKT02026": {
   "date": "2026-09-19",
@@ -2434,14 +2437,17 @@
   "homeName": "KT 위즈",
   "spAway": "최승용",
   "spHome": "대니엘",
-  "predAwayPre": 4.1,
-  "predHomePre": 6.4,
-  "predAway": 3.6,
-  "predHome": 6.0,
+  "predAwayPre": 4.2,
+  "predHomePre": 6.5,
+  "predAway": 3.7,
+  "predHome": 6.1,
   "winAway": 41,
   "winHome": 59,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 15,
+  "actualAway": 3,
+  "correct": true
  },
  "20260919SSLT02026": {
   "date": "2026-09-19",
@@ -2453,11 +2459,14 @@
   "spHome": "나균안",
   "predAwayPre": 5.9,
   "predHomePre": 4.9,
-  "predAway": 5.9,
+  "predAway": 5.8,
   "predHome": 4.6,
   "winAway": 55,
   "winHome": 45,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 5,
+  "actualAway": 3,
+  "correct": false
  }
 }
