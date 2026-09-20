@@ -2469,23 +2469,6 @@
   "actualAway": 3,
   "correct": false
  },
- "20260920HTNC02026": {
-  "date": "2026-09-20",
-  "away": "HT",
-  "home": "NC",
-  "awayName": "KIA 타이거즈",
-  "homeName": "NC 다이노스",
-  "spAway": "시라카와",
-  "spHome": "토다",
-  "predAwayPre": 5.8,
-  "predHomePre": 5.3,
-  "predAway": 5.3,
-  "predHome": 4.8,
-  "winAway": 52,
-  "winHome": 48,
-  "lineupReady": true,
-  "status": "STARTED"
- },
  "20260920HHLG02026": {
   "date": "2026-09-20",
   "away": "HH",
@@ -2504,6 +2487,26 @@
   "status": "RESULT",
   "actualHome": 4,
   "actualAway": 3,
+  "correct": true
+ },
+ "20260920HTNC02026": {
+  "date": "2026-09-20",
+  "away": "HT",
+  "home": "NC",
+  "awayName": "KIA 타이거즈",
+  "homeName": "NC 다이노스",
+  "spAway": "시라카와",
+  "spHome": "토다",
+  "predAwayPre": 5.8,
+  "predHomePre": 5.2,
+  "predAway": 5.3,
+  "predHome": 4.8,
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": true,
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 8,
   "correct": true
  },
  "20260920OBKT02026": {
