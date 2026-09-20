@@ -2521,7 +2521,7 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 9,
   "actualAway": 8,
   "correct": true
@@ -2541,7 +2541,10 @@
   "winAway": 57,
   "winHome": 43,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "ENDED",
+  "actualHome": 13,
+  "actualAway": 6,
+  "correct": false
  },
  "20260920WOSK02026": {
   "date": "2026-09-20",
