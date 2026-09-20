@@ -2521,7 +2521,10 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "ENDED",
+  "actualHome": 9,
+  "actualAway": 8,
+  "correct": true
  },
  "20260920SSLT02026": {
   "date": "2026-09-20",
@@ -2555,6 +2558,9 @@
   "winAway": 47,
   "winHome": 53,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 10,
+  "actualAway": 5,
+  "correct": true
  }
 }
