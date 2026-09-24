@@ -2724,7 +2724,7 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260924NCKT02026": {
   "date": "2026-09-24",
@@ -2741,7 +2741,7 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260924SSSK02026": {
   "date": "2026-09-24",
@@ -2758,6 +2758,6 @@
   "winAway": 54,
   "winHome": 46,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  }
 }
