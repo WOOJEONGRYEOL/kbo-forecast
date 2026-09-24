@@ -2717,14 +2717,17 @@
   "homeName": "LG 트윈스",
   "spAway": "로드리게스",
   "spHome": "톨허스트",
-  "predAwayPre": 4.2,
+  "predAwayPre": 4.3,
   "predHomePre": 4.9,
   "predAway": 4.2,
   "predHome": 4.8,
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 6,
+  "correct": false
  },
  "20260924NCKT02026": {
   "date": "2026-09-24",
@@ -2734,14 +2737,17 @@
   "homeName": "KT 위즈",
   "spAway": "송명기",
   "spHome": "대니엘",
-  "predAwayPre": 4.5,
-  "predHomePre": 6.4,
-  "predAway": 4.4,
-  "predHome": 6.0,
-  "winAway": 44,
-  "winHome": 56,
+  "predAwayPre": 4.3,
+  "predHomePre": 6.6,
+  "predAway": 4.2,
+  "predHome": 6.1,
+  "winAway": 43,
+  "winHome": 57,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 2,
+  "correct": true
  },
  "20260924SSSK02026": {
   "date": "2026-09-24",
@@ -2752,12 +2758,15 @@
   "spAway": "후라도",
   "spHome": "김민준",
   "predAwayPre": 5.5,
-  "predHomePre": 4.7,
+  "predHomePre": 4.6,
   "predAway": 5.6,
   "predHome": 4.6,
   "winAway": 54,
   "winHome": 46,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 5,
+  "correct": true
  }
 }
