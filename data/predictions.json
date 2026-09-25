@@ -2779,12 +2779,12 @@
   "spHome": "구창모",
   "predAwayPre": 5.4,
   "predHomePre": 5.3,
-  "predAway": 5.4,
-  "predHome": 5.3,
+  "predAway": 5.0,
+  "predHome": 5.1,
   "winAway": 50,
   "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260925LTOB02026": {
   "date": "2026-09-25",
