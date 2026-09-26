@@ -2797,14 +2797,17 @@
   "homeName": "NC 다이노스",
   "spAway": "황준서",
   "spHome": "토다",
-  "predAwayPre": 5.8,
+  "predAwayPre": 5.6,
   "predHomePre": 6.4,
-  "predAway": 5.3,
-  "predHome": 6.3,
+  "predAway": 5.2,
+  "predHome": 6.2,
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 2,
+  "correct": true
  },
  "20260926LGHT02026": {
   "date": "2026-09-26",
@@ -2816,12 +2819,15 @@
   "spHome": "네일",
   "predAwayPre": 4.4,
   "predHomePre": 5.5,
-  "predAway": 4.4,
+  "predAway": 4.3,
   "predHome": 5.0,
-  "winAway": 48,
-  "winHome": 52,
+  "winAway": 47,
+  "winHome": 53,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 5,
+  "actualAway": 1,
+  "correct": true
  },
  "20260926WOKT02026": {
   "date": "2026-09-26",
@@ -2831,13 +2837,16 @@
   "homeName": "KT 위즈",
   "spAway": "안우진",
   "spHome": "고영표",
-  "predAwayPre": 3.9,
-  "predHomePre": 5.9,
-  "predAway": 3.7,
-  "predHome": 5.6,
-  "winAway": 43,
-  "winHome": 57,
+  "predAwayPre": 4.0,
+  "predHomePre": 5.8,
+  "predAway": 3.8,
+  "predHome": 5.5,
+  "winAway": 44,
+  "winHome": 56,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 10,
+  "correct": false
  }
 }
