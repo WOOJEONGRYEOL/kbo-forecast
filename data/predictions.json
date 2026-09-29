@@ -2919,12 +2919,12 @@
   "spHome": "페덱",
   "predAwayPre": 4.2,
   "predHomePre": 7.5,
-  "predAway": 4.2,
-  "predHome": 7.5,
-  "winAway": 38,
-  "winHome": 62,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.1,
+  "predHome": 7.0,
+  "winAway": 39,
+  "winHome": 61,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260929KTHT02026": {
   "date": "2026-09-29",
@@ -2936,12 +2936,12 @@
   "spHome": "올러",
   "predAwayPre": 4.2,
   "predHomePre": 5.2,
-  "predAway": 4.2,
-  "predHome": 5.2,
+  "predAway": 4.0,
+  "predHome": 5.1,
   "winAway": 46,
   "winHome": 54,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260929LGSK02026": {
   "date": "2026-09-29",
@@ -2953,12 +2953,12 @@
   "spHome": "아빌라",
   "predAwayPre": 4.0,
   "predHomePre": 5.1,
-  "predAway": 4.0,
-  "predHome": 5.1,
+  "predAway": 4.1,
+  "predHome": 5.0,
   "winAway": 46,
   "winHome": 54,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260929NCOB02026": {
   "date": "2026-09-29",
@@ -2970,12 +2970,12 @@
   "spHome": "벤자민",
   "predAwayPre": 4.1,
   "predHomePre": 5.9,
-  "predAway": 4.1,
-  "predHome": 5.9,
-  "winAway": 43,
-  "winHome": 57,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.0,
+  "predHome": 5.6,
+  "winAway": 44,
+  "winHome": 56,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20260929WOLT02026": {
   "date": "2026-09-29",
@@ -2987,11 +2987,11 @@
   "spHome": "박세웅",
   "predAwayPre": 4.6,
   "predHomePre": 5.6,
-  "predAway": 4.6,
-  "predHome": 5.6,
-  "winAway": 46,
-  "winHome": 54,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.7,
+  "predHome": 5.3,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
