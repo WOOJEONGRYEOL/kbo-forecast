@@ -3024,7 +3024,11 @@
   "winAway": 47,
   "winHome": 53,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 2,
+  "frozen": true,
+  "correct": true
  },
  "20260930KTHT02026": {
   "date": "2026-09-30",
@@ -3041,7 +3045,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": true
  },
  "20260930LGSK02026": {
   "date": "2026-09-30",
@@ -3058,7 +3066,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": false
  },
  "20260930NCOB02026": {
   "date": "2026-09-30",
@@ -3075,7 +3087,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 5,
+  "frozen": true,
+  "correct": false
  },
  "20260930WOLT02026": {
   "date": "2026-09-30",
@@ -3092,6 +3108,78 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 8,
+  "actualAway": 6,
+  "frozen": true,
+  "correct": true
+ },
+ "20261001HHSS02026": {
+  "date": "2026-10-01",
+  "away": "HH",
+  "home": "SS",
+  "awayName": "한화 이글스",
+  "homeName": "삼성 라이온즈",
+  "spAway": "황준서",
+  "spHome": "원태인",
+  "predAwayPre": 5.0,
+  "predHomePre": 7.3,
+  "predAway": 5.0,
+  "predHome": 7.3,
+  "winAway": 41,
+  "winHome": 59,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261001KTHT02026": {
+  "date": "2026-10-01",
+  "away": "KT",
+  "home": "HT",
+  "awayName": "KT 위즈",
+  "homeName": "KIA 타이거즈",
+  "spAway": "소형준",
+  "spHome": "양현종",
+  "predAwayPre": 5.1,
+  "predHomePre": 5.1,
+  "predAway": 5.1,
+  "predHome": 5.1,
+  "winAway": 50,
+  "winHome": 50,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261001LGSK02026": {
+  "date": "2026-10-01",
+  "away": "LG",
+  "home": "SK",
+  "awayName": "LG 트윈스",
+  "homeName": "SSG 랜더스",
+  "spAway": "임찬규",
+  "spHome": "김민준",
+  "predAwayPre": 4.9,
+  "predHomePre": 5.3,
+  "predAway": 4.9,
+  "predHome": 5.3,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261001NCOB02026": {
+  "date": "2026-10-01",
+  "away": "NC",
+  "home": "OB",
+  "awayName": "NC 다이노스",
+  "homeName": "두산 베어스",
+  "spAway": "송명기",
+  "spHome": "최민석",
+  "predAwayPre": 4.3,
+  "predHomePre": 5.3,
+  "predAway": 4.3,
+  "predHome": 5.3,
+  "winAway": 46,
+  "winHome": 54,
+  "lineupReady": false,
+  "status": "BEFORE"
  }
 }
