@@ -3024,7 +3024,7 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260930KTHT02026": {
   "date": "2026-09-30",
@@ -3041,7 +3041,7 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260930LGSK02026": {
   "date": "2026-09-30",
@@ -3058,7 +3058,7 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260930NCOB02026": {
   "date": "2026-09-30",
@@ -3075,7 +3075,7 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20260930WOLT02026": {
   "date": "2026-09-30",
@@ -3092,6 +3092,6 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  }
 }
