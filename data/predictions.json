@@ -3024,7 +3024,11 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 2,
+  "frozen": true,
+  "correct": true
  },
  "20260930KTHT02026": {
   "date": "2026-09-30",
@@ -3041,7 +3045,11 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": true
  },
  "20260930LGSK02026": {
   "date": "2026-09-30",
@@ -3058,7 +3066,11 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": false
  },
  "20260930NCOB02026": {
   "date": "2026-09-30",
@@ -3075,7 +3087,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 5,
+  "frozen": true,
+  "correct": false
  },
  "20260930WOLT02026": {
   "date": "2026-09-30",
@@ -3092,7 +3108,11 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 8,
+  "actualAway": 6,
+  "frozen": true,
+  "correct": true
  },
  "20261001HHSS02026": {
   "date": "2026-10-01",
@@ -3109,7 +3129,10 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 3,
+  "actualAway": 2,
+  "correct": true
  },
  "20261001KTHT02026": {
   "date": "2026-10-01",
@@ -3126,7 +3149,10 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 5,
+  "actualAway": 7,
+  "correct": true
  },
  "20261001LGSK02026": {
   "date": "2026-10-01",
@@ -3143,7 +3169,10 @@
   "winAway": 50,
   "winHome": 50,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 5,
+  "correct": null
  },
  "20261001NCOB02026": {
   "date": "2026-10-01",
@@ -3160,6 +3189,9 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 9,
+  "actualAway": 7,
+  "correct": true
  }
 }
