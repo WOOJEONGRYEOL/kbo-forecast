@@ -3024,7 +3024,11 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 2,
+  "frozen": true,
+  "correct": true
  },
  "20260930KTHT02026": {
   "date": "2026-09-30",
@@ -3041,7 +3045,11 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": true
  },
  "20260930LGSK02026": {
   "date": "2026-09-30",
@@ -3058,7 +3066,11 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": false
  },
  "20260930NCOB02026": {
   "date": "2026-09-30",
@@ -3075,7 +3087,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 5,
+  "frozen": true,
+  "correct": false
  },
  "20260930WOLT02026": {
   "date": "2026-09-30",
@@ -3092,7 +3108,11 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 8,
+  "actualAway": 6,
+  "frozen": true,
+  "correct": true
  },
  "20261001HHSS02026": {
   "date": "2026-10-01",
@@ -3182,12 +3202,12 @@
   "homeName": "LG 트윈스",
   "spAway": "네일",
   "spHome": "카라스코",
-  "predAwayPre": 4.7,
-  "predHomePre": 4.6,
-  "predAway": 4.7,
-  "predHome": 4.6,
-  "winAway": 51,
-  "winHome": 49,
+  "predAwayPre": 4.6,
+  "predHomePre": 4.5,
+  "predAway": 4.6,
+  "predHome": 4.5,
+  "winAway": 50,
+  "winHome": 50,
   "lineupReady": false,
   "status": "BEFORE"
  },
@@ -3216,12 +3236,12 @@
   "homeName": "삼성 라이온즈",
   "spAway": "최승용",
   "spHome": "최원태",
-  "predAwayPre": 4.6,
-  "predHomePre": 6.5,
-  "predAway": 4.6,
-  "predHome": 6.5,
-  "winAway": 43,
-  "winHome": 57,
+  "predAwayPre": 4.5,
+  "predHomePre": 6.6,
+  "predAway": 4.5,
+  "predHome": 6.6,
+  "winAway": 42,
+  "winHome": 58,
   "lineupReady": false,
   "status": "BEFORE"
  },
@@ -3233,10 +3253,10 @@
   "homeName": "NC 다이노스",
   "spAway": "이로운",
   "spHome": "구창모",
-  "predAwayPre": 5.1,
-  "predHomePre": 5.7,
-  "predAway": 5.1,
-  "predHome": 5.7,
+  "predAwayPre": 5.0,
+  "predHomePre": 5.5,
+  "predAway": 5.0,
+  "predHome": 5.5,
   "winAway": 48,
   "winHome": 52,
   "lineupReady": false,
@@ -3250,10 +3270,10 @@
   "homeName": "한화 이글스",
   "spAway": "하영민",
   "spHome": "이상규",
-  "predAwayPre": 5.5,
-  "predHomePre": 6.7,
-  "predAway": 5.5,
-  "predHome": 6.7,
+  "predAwayPre": 5.4,
+  "predHomePre": 6.8,
+  "predAway": 5.4,
+  "predHome": 6.8,
   "winAway": 45,
   "winHome": 55,
   "lineupReady": false,
