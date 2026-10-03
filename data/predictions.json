@@ -3209,7 +3209,10 @@
   "winAway": 50,
   "winHome": 50,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "ENDED",
+  "actualHome": 4,
+  "actualAway": 5,
+  "correct": false
  },
  "20261003LTKT02026": {
   "date": "2026-10-03",
