@@ -3209,7 +3209,7 @@
   "winAway": 50,
   "winHome": 50,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 4,
   "actualAway": 5,
   "correct": false
