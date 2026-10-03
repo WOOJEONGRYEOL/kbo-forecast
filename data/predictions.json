@@ -3246,7 +3246,10 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "ENDED",
+  "actualHome": 6,
+  "actualAway": 4,
+  "correct": true
  },
  "20261003SKNC02026": {
   "date": "2026-10-03",
@@ -3263,7 +3266,7 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 13,
   "actualAway": 1,
   "correct": true
@@ -3283,7 +3286,7 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 2,
   "actualAway": 7,
   "correct": false
