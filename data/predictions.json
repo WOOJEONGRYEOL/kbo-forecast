@@ -3205,11 +3205,11 @@
   "predAwayPre": 4.6,
   "predHomePre": 4.5,
   "predAway": 4.6,
-  "predHome": 4.5,
+  "predHome": 4.7,
   "winAway": 50,
   "winHome": 50,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261003LTKT02026": {
   "date": "2026-10-03",
@@ -3221,12 +3221,12 @@
   "spHome": "고영표",
   "predAwayPre": 4.4,
   "predHomePre": 6.0,
-  "predAway": 4.4,
+  "predAway": 4.1,
   "predHome": 6.0,
-  "winAway": 44,
-  "winHome": 56,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "winAway": 43,
+  "winHome": 57,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261003OBSS02026": {
   "date": "2026-10-03",
@@ -3238,12 +3238,12 @@
   "spHome": "최원태",
   "predAwayPre": 4.5,
   "predHomePre": 6.6,
-  "predAway": 4.5,
-  "predHome": 6.6,
-  "winAway": 42,
-  "winHome": 58,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 4.4,
+  "predHome": 5.7,
+  "winAway": 45,
+  "winHome": 55,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261003SKNC02026": {
   "date": "2026-10-03",
@@ -3255,12 +3255,12 @@
   "spHome": "구창모",
   "predAwayPre": 5.0,
   "predHomePre": 5.5,
-  "predAway": 5.0,
+  "predAway": 4.9,
   "predHome": 5.5,
   "winAway": 48,
   "winHome": 52,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261003WOHH02026": {
   "date": "2026-10-03",
@@ -3272,11 +3272,11 @@
   "spHome": "이상규",
   "predAwayPre": 5.4,
   "predHomePre": 6.8,
-  "predAway": 5.4,
-  "predHome": 6.8,
+  "predAway": 5.5,
+  "predHome": 6.7,
   "winAway": 45,
   "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  }
 }
