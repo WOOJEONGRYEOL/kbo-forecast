@@ -3284,7 +3284,7 @@
   "spHome": "김윤식",
   "predAwayPre": 5.7,
   "predHomePre": 5.1,
-  "predAway": 5.4,
+  "predAway": 5.5,
   "predHome": 5.1,
   "winAway": 51,
   "winHome": 49,
@@ -3362,13 +3362,16 @@
   "homeName": "KT 위즈",
   "spAway": "나균안",
   "spHome": "배제성",
-  "predAwayPre": 4.3,
-  "predHomePre": 5.9,
+  "predAwayPre": 4.2,
+  "predHomePre": 5.8,
   "predAway": 4.3,
-  "predHome": 5.7,
+  "predHome": 5.6,
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 2,
+  "correct": null
  }
 }
