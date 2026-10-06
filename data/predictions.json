@@ -3024,7 +3024,11 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 2,
+  "frozen": true,
+  "correct": true
  },
  "20260930KTHT02026": {
   "date": "2026-09-30",
@@ -3041,7 +3045,11 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": true
  },
  "20260930LGSK02026": {
   "date": "2026-09-30",
@@ -3058,7 +3066,11 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": false
  },
  "20260930NCOB02026": {
   "date": "2026-09-30",
@@ -3075,7 +3087,11 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 5,
+  "frozen": true,
+  "correct": false
  },
  "20260930WOLT02026": {
   "date": "2026-09-30",
@@ -3092,7 +3108,11 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": false,
-  "status": "BEFORE"
+  "status": "RESULT",
+  "actualHome": 8,
+  "actualAway": 6,
+  "frozen": true,
+  "correct": true
  },
  "20261001HHSS02026": {
   "date": "2026-10-01",
@@ -3389,7 +3409,11 @@
   "winAway": 55,
   "winHome": 45,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 10,
+  "frozen": true,
+  "correct": true
  },
  "20261006NCLG02026": {
   "date": "2026-10-06",
@@ -3406,7 +3430,11 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 6,
+  "actualAway": 1,
+  "frozen": true,
+  "correct": true
  },
  "20261006OBLT02026": {
   "date": "2026-10-06",
@@ -3423,7 +3451,11 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 1,
+  "actualAway": 3,
+  "frozen": true,
+  "correct": true
  },
  "20261006SKHH02026": {
   "date": "2026-10-06",
@@ -3440,7 +3472,11 @@
   "winAway": 43,
   "winHome": 57,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 9,
+  "actualAway": 2,
+  "frozen": true,
+  "correct": true
  },
  "20261006SSHT02026": {
   "date": "2026-10-06",
@@ -3457,6 +3493,95 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 5,
+  "frozen": true,
+  "correct": true
+ },
+ "20261007HHWO02026": {
+  "date": "2026-10-07",
+  "away": "HH",
+  "home": "WO",
+  "awayName": "한화 이글스",
+  "homeName": "키움 히어로즈",
+  "spAway": "정우주",
+  "spHome": "김성진",
+  "predAwayPre": 6.2,
+  "predHomePre": 5.6,
+  "predAway": 6.2,
+  "predHome": 5.6,
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261007HTLT02026": {
+  "date": "2026-10-07",
+  "away": "HT",
+  "home": "LT",
+  "awayName": "KIA 타이거즈",
+  "homeName": "롯데 자이언츠",
+  "spAway": "양현종",
+  "spHome": "김태균",
+  "predAwayPre": 5.5,
+  "predHomePre": 4.9,
+  "predAway": 5.5,
+  "predHome": 4.9,
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261007NCSK02026": {
+  "date": "2026-10-07",
+  "away": "NC",
+  "home": "SK",
+  "awayName": "NC 다이노스",
+  "homeName": "SSG 랜더스",
+  "spAway": "송명기",
+  "spHome": "김민준",
+  "predAwayPre": 5.0,
+  "predHomePre": 6.2,
+  "predAway": 5.0,
+  "predHome": 6.2,
+  "winAway": 46,
+  "winHome": 54,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261007OBLG02026": {
+  "date": "2026-10-07",
+  "away": "OB",
+  "home": "LG",
+  "awayName": "두산 베어스",
+  "homeName": "LG 트윈스",
+  "spAway": "최민석",
+  "spHome": "임찬규",
+  "predAwayPre": 4.6,
+  "predHomePre": 4.5,
+  "predAway": 4.6,
+  "predHome": 4.5,
+  "winAway": 50,
+  "winHome": 50,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261007SSKT02026": {
+  "date": "2026-10-07",
+  "away": "SS",
+  "home": "KT",
+  "awayName": "삼성 라이온즈",
+  "homeName": "KT 위즈",
+  "spAway": "원태인",
+  "spHome": "소형준",
+  "predAwayPre": 5.4,
+  "predHomePre": 5.3,
+  "predAway": 5.4,
+  "predHome": 5.3,
+  "winAway": 50,
+  "winHome": 50,
+  "lineupReady": false,
+  "status": "BEFORE"
  }
 }
