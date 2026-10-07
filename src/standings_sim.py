@@ -81,11 +81,17 @@ def remaining_matchups(games: list, teams: list) -> list:
     왜곡했다(예: 1위와 승차 큰 2위에게도 과대 우승확률). 시즌 일정 피드에는
     미소화 경기가 그대로 들어 있으므로 그걸 쓰면 팀별 잔여·최종경기수가 정확해진다.
     """
+    import datetime
+    today_iso = datetime.date.today().isoformat()
     teamset = set(teams)
     out = []
     for g in games:
         if g.get("cancel") or g.get("statusCode") in _FINISHED:
             continue                              # 취소·종료 경기는 잔여 아님
+        # 과거 날짜인데 미결인 경기는 '우천 순연 원래 슬롯'(유령) — 보충은 별도 RESULT로
+        # 이미 집계됨. 잔여로 세면 팀 최종경기수가 144를 넘어 확률이 왜곡되므로 제외.
+        if g.get("gameDate", "") < today_iso:
+            continue
         h, a = g.get("homeTeamCode"), g.get("awayTeamCode")
         if h in teamset and a in teamset:
             out.append((h, a))

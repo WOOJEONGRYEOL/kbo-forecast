@@ -76,14 +76,31 @@ def fetch_month(season: int, month: int, session: requests.Session) -> list[dict
     return body["result"]["games"]
 
 
-def fetch_season_games(season: int) -> list[dict]:
+def _has_stale_pending(games: list, today_iso: str) -> bool:
+    """과거 날짜인데 아직 미결(BEFORE/READY 등)인 경기가 있나?
+    우천 순연 경기가 보충일에 치러졌는데도 캐시엔 BEFORE로 굳어 결과를 놓치는
+    상황을 잡는다. 이런 달은 캐시를 믿지 말고 재조회해 보충 결과를 반영한다."""
+    FINAL = {"RESULT", "ENDED", "CANCEL"}
+    for g in games:
+        if (g.get("gameDate", "") < today_iso and not g.get("cancel")
+                and g.get("statusCode") not in FINAL):
+            return True
+    return False
+
+
+def fetch_season_games(season: int, repair_stale: bool = False) -> list[dict]:
     """
     시즌 전체(3월~10월, 단 오늘 이후 달은 제외) 경기를 모아 리스트로 반환.
     지나간 달은 캐시를 재사용하고, 새로 받은 달은 캐시에 저장합니다.
+
+    repair_stale=True면, 지난 달 캐시라도 '과거인데 미결(BEFORE)' 경기가 남아 있으면
+    재조회한다 — 우천 순연 경기의 보충 결과가 캐시에 반영 안 돼 승패/순위가 틀어지는
+    버그 방지(일일 빌드 등 정확도 중요한 경로에서 사용). 잦은 today 빌드는 기본 False.
     """
     Path(config.DATA_DIR).mkdir(exist_ok=True)  # data/ 폴더가 없으면 생성
 
     today = date.today()
+    today_iso = today.isoformat()
     all_games: list[dict] = []
 
     # 네이버 API에 브라우저인 척하는 UA를 달아줍니다
@@ -101,7 +118,13 @@ def fetch_season_games(season: int) -> list[dict]:
         # 이번 달은 매일 경기가 추가되므로 항상 새로 받아옵니다.
         is_past_month = (season < today.year) or (month < today.month)
 
-        if is_past_month and cache.exists():
+        trust_cache = is_past_month and cache.exists()
+        if trust_cache and repair_stale:
+            cached = json.loads(cache.read_text(encoding="utf-8"))
+            if _has_stale_pending(cached, today_iso):
+                trust_cache = False          # 과거 미결 경기 → 보충 결과 반영 위해 재조회
+
+        if trust_cache:
             games = json.loads(cache.read_text(encoding="utf-8"))
             print(f"  [캐시] {season}년 {month}월: {len(games)}경기 (파일 재사용)")
         else:

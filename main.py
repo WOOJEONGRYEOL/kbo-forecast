@@ -108,7 +108,7 @@ def main() -> None:
     if args.standings_sim:
         games = naver_games.filter_official_teams(
             naver_games.filter_regular_season(
-                naver_games.fetch_season_games(args.season)))
+                naver_games.fetch_season_games(args.season, repair_stale=True)))
         team_log = naver_games.build_team_game_log(games)
         table = standings_sim.run(games, team_log)
         report.print_standings_sim(table, args.season)
@@ -116,7 +116,9 @@ def main() -> None:
 
     # ── 1단계: 경기 결과 수집 ──
     print(f"\n[1/4] {args.season} 시즌 경기 결과 수집 (네이버 스포츠 API)")
-    games = naver_games.fetch_season_games(args.season)
+    # repair_stale: 과거 월 캐시에 순연 미결 경기가 남아 보충 결과를 놓치면 승패·순위가
+    #   틀어지므로(예: 우승 확정 미반영), 그런 달은 재조회해 최신 결과를 반영한다.
+    games = naver_games.fetch_season_games(args.season, repair_stale=True)
     games = naver_games.filter_regular_season(games)  # 시범경기 제거
     games = naver_games.filter_official_teams(games)  # 올스타전 등 제외
     team_log = naver_games.build_team_game_log(games)
