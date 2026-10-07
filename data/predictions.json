@@ -3509,7 +3509,7 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20261007HTLT02026": {
   "date": "2026-10-07",
@@ -3526,7 +3526,7 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20261007NCSK02026": {
   "date": "2026-10-07",
@@ -3543,7 +3543,7 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20261007OBLG02026": {
   "date": "2026-10-07",
@@ -3560,7 +3560,7 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20261007SSKT02026": {
   "date": "2026-10-07",
@@ -3577,6 +3577,6 @@
   "winAway": 47,
   "winHome": 53,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  }
 }
