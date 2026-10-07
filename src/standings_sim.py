@@ -34,9 +34,10 @@ import pandas as pd
 
 import config
 
-PER_PAIR = 16          # KBO: 팀당 각 상대와 16경기
+PER_PAIR = 16          # KBO: 팀당 각 상대와 16경기 (remaining_from_log 백테스트용)
 TOTAL_GAMES = 144      # 팀당 정규시즌 경기 수
 PLAYOFF_CUT = 5        # 가을야구 진출선 (5위까지)
+_FINISHED = {"RESULT", "ENDED"}   # 종료(스코어 확정) 경기 상태 — 그 외(BEFORE/READY 등)는 잔여
 
 # KBO 홈 승률은 대략 0.53~0.54. 승률에 더하는 홈 어드밴티지 근사치.
 # (log5 결과에 더하고 [0,1]로 클립합니다)
@@ -71,25 +72,23 @@ def current_records(team_log: pd.DataFrame) -> pd.DataFrame:
 
 def remaining_matchups(games: list, teams: list) -> list:
     """
-    잔여 매치업을 16경기 규칙으로 복원합니다.
+    잔여 매치업을 '실제 미소화 일정'에서 그대로 가져옵니다(홈/원정 실제값).
 
     반환: [(home_team, away_team), ...] — 남은 경기 1건당 1튜플.
-      홈/원정은 각 팀쌍이 홈8·원정8이 되도록 역산합니다.
-    """
-    from collections import Counter
-    home_played = Counter()   # (home, away) -> 횟수
-    for g in _done_games(games):
-        home_played[(g["homeTeamCode"], g["awayTeamCode"])] += 1
 
-    half = PER_PAIR // 2      # 8 (팀쌍당 각 팀 홈경기 수)
+    ⚠️ 과거엔 'PER_PAIR(16)/페어' 규칙으로 역산했으나, 우천취소 미보충·불균등
+    소화로 인해 팀별 최종 경기수가 144를 넘는 '유령 경기'가 생겨 순위 확률을
+    왜곡했다(예: 1위와 승차 큰 2위에게도 과대 우승확률). 시즌 일정 피드에는
+    미소화 경기가 그대로 들어 있으므로 그걸 쓰면 팀별 잔여·최종경기수가 정확해진다.
+    """
+    teamset = set(teams)
     out = []
-    for i, a in enumerate(teams):
-        for b in teams[i + 1:]:
-            # a가 홈인 남은 경기 = 8 - (a홈 소화), b가 홈인 남은 경기 = 8 - (b홈 소화)
-            a_home_left = max(0, half - home_played[(a, b)])
-            b_home_left = max(0, half - home_played[(b, a)])
-            out += [(a, b)] * a_home_left
-            out += [(b, a)] * b_home_left
+    for g in games:
+        if g.get("cancel") or g.get("statusCode") in _FINISHED:
+            continue                              # 취소·종료 경기는 잔여 아님
+        h, a = g.get("homeTeamCode"), g.get("awayTeamCode")
+        if h in teamset and a in teamset:
+            out.append((h, a))
     return out
 
 
