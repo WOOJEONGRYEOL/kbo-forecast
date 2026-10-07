@@ -3529,7 +3529,10 @@
   "winAway": 52,
   "winHome": 48,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 12,
+  "correct": true
  },
  "20261007NCSK02026": {
   "date": "2026-10-07",
@@ -3586,7 +3589,10 @@
   "winAway": 45,
   "winHome": 55,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 9,
+  "actualAway": 3,
+  "correct": true
  },
  "20261005HTLG02026": {
   "date": "2026-10-05",
