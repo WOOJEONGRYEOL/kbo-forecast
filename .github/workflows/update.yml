@@ -30,6 +30,12 @@ jobs:
           key: kbo-data-${{ github.run_id }}
           restore-keys: kbo-data-
 
+      # 누적·권위 파일(예측 로그 등)은 캐시가 아니라 git(원격) 기준으로 되돌린다.
+      #   actions/cache가 stale한 data/predictions.json을 덮어써, 그날 슬레이트에 없는
+      #   과거 날짜(예: 10-05) 예측·결과가 통째로 유실·퇴행되던 버그 방지.
+      - name: 누적 파일 git 기준 복원
+        run: git checkout HEAD -- data/predictions.json data/predictions.html data/last_updated.json 2>/dev/null || true
+
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
