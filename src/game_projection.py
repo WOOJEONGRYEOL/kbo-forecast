@@ -784,13 +784,19 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
     def _grade(e):
         ah, aa = e.get("actualHome"), e.get("actualAway")
         ph, pa = e.get("predHome"), e.get("predAway")
-        # 무승부·미종료, 그리고 '기대 스코어 동점(예측에 방향이 없음)'은 판정 보류.
-        #   동점을 >=로 홈 승리 예측처럼 다루면 억지 적중/오답이 나오므로 제외한다.
-        if ah is None or aa is None or ah == aa or ph is None or pa is None or ph == pa:
+        # 미종료·실제 무승부만 판정 보류(방향이 아예 없음).
+        if ah is None or aa is None or ah == aa or ph is None or pa is None:
             e["correct"] = None
             return
-        # 예측 승자(반영 후 기대득점) vs 실제 승자 — 동점은 위에서 이미 걸러짐.
-        e["correct"] = bool((ph > pa) == (ah > aa))
+        # 예측 승자: 기대득점으로, 1자리에서 동점이면 더 미세한 신호로 타이브레이크.
+        #   ① 승률(홈보정·반올림 전 마진 반영) ② 승률도 동률이면 홈 어드밴티지(홈 승).
+        #   → '동점이라 채점 안 함'으로 적중률을 부풀리지 않고 전부 정직하게 채점.
+        if ph != pa:
+            pred_home_win = ph > pa
+        else:
+            wh, wa = e.get("winHome", 50), e.get("winAway", 50)
+            pred_home_win = (wh > wa) if wh != wa else True
+        e["correct"] = bool(pred_home_win == (ah > aa))
 
     # 1) 표시 슬레이트(오늘/결과/예고) + catch-up(최근 종료·라인업 미반영): 예측 업서트.
     #    당일·예정 경기만 예측 갱신 → 카드(=최신 재계산)와 로그가 항상 같은 값.
@@ -844,7 +850,7 @@ def save_prediction_log(projections: dict, games: list, path: str = None) -> str
                 e["status"] = gg.get("statusCode"); e["frozen"] = True
                 _grade(e)
 
-    # 3) 저장 전 전수 재판정 — 판정 규칙 변경(기대점수 동점=보류 등)이 과거 로그에도
+    # 3) 저장 전 전수 재판정 — 판정 규칙 변경(기대점수 동점=승률·홈보정 타이브레이크 등)이 과거 로그에도
     #    소급 반영되도록, 결과가 있는 모든 항목을 현재 규칙으로 다시 매긴다(값싼 연산).
     for e in log.values():
         if e.get("actualHome") is not None:
