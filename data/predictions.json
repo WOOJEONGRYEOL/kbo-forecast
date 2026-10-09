@@ -3709,7 +3709,7 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "ENDED",
+  "status": "RESULT",
   "actualHome": 2,
   "actualAway": 7,
   "correct": true
