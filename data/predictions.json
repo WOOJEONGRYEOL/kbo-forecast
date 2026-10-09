@@ -3721,12 +3721,12 @@
   "spHome": "김한결",
   "predAwayPre": 7.1,
   "predHomePre": 4.7,
-  "predAway": 7.1,
+  "predAway": 7.2,
   "predHome": 4.7,
   "winAway": 59,
   "winHome": 41,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261009SSSK02026": {
   "date": "2026-10-09",
@@ -3738,11 +3738,11 @@
   "spHome": "이로운",
   "predAwayPre": 6.3,
   "predHomePre": 5.4,
-  "predAway": 6.3,
-  "predHome": 5.4,
-  "winAway": 54,
-  "winHome": 46,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.6,
+  "predHome": 5.1,
+  "winAway": 52,
+  "winHome": 48,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
