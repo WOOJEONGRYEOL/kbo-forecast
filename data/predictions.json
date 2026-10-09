@@ -3704,12 +3704,12 @@
   "spHome": "구창모",
   "predAwayPre": 5.5,
   "predHomePre": 4.8,
-  "predAway": 5.5,
-  "predHome": 4.8,
-  "winAway": 52,
-  "winHome": 48,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.4,
+  "predHome": 4.5,
+  "winAway": 53,
+  "winHome": 47,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261009LGLT02026": {
   "date": "2026-10-09",
