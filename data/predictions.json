@@ -3786,7 +3786,7 @@
   "winAway": 53,
   "winHome": 47,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  },
  "20261010SKHT02026": {
   "date": "2026-10-10",
@@ -3803,6 +3803,6 @@
   "winAway": 44,
   "winHome": 56,
   "lineupReady": true,
-  "status": "READY"
+  "status": "STARTED"
  }
 }
