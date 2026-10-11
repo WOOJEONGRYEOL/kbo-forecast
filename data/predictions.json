@@ -3813,5 +3813,39 @@
   "actualHome": 8,
   "actualAway": 5,
   "correct": true
+ },
+ "20261011KTSS02026": {
+  "date": "2026-10-11",
+  "away": "KT",
+  "home": "SS",
+  "awayName": "KT 위즈",
+  "homeName": "삼성 라이온즈",
+  "spAway": "고영표",
+  "spHome": "후라도",
+  "predAwayPre": 4.9,
+  "predHomePre": 5.5,
+  "predAway": 4.9,
+  "predHome": 5.5,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": false,
+  "status": "BEFORE"
+ },
+ "20261011LTHT02026": {
+  "date": "2026-10-11",
+  "away": "LT",
+  "home": "HT",
+  "awayName": "롯데 자이언츠",
+  "homeName": "KIA 타이거즈",
+  "spAway": "김진욱",
+  "spHome": "올러",
+  "predAwayPre": 3.7,
+  "predHomePre": 5.7,
+  "predAway": 3.7,
+  "predHome": 5.7,
+  "winAway": 42,
+  "winHome": 58,
+  "lineupReady": false,
+  "status": "BEFORE"
  }
 }
