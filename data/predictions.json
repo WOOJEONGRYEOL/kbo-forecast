@@ -3869,7 +3869,10 @@
   "winAway": 51,
   "winHome": 49,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 2,
+  "actualAway": 4,
+  "correct": true
  },
  "20261012LGHT02026": {
   "date": "2026-10-12",
@@ -3886,7 +3889,10 @@
   "winAway": 48,
   "winHome": 52,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 2,
+  "correct": true
  },
  "20261012LTOB02026": {
   "date": "2026-10-12",
@@ -3903,6 +3909,9 @@
   "winAway": 46,
   "winHome": 54,
   "lineupReady": true,
-  "status": "STARTED"
+  "status": "RESULT",
+  "actualHome": 4,
+  "actualAway": 7,
+  "correct": false
  }
 }
