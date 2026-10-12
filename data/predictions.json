@@ -3913,5 +3913,22 @@
   "actualHome": 4,
   "actualAway": 7,
   "correct": false
+ },
+ "44441014OBLG02026": {
+  "date": "2026-10-14",
+  "away": "OB",
+  "home": "LG",
+  "awayName": "두산 베어스",
+  "homeName": "LG 트윈스",
+  "spAway": null,
+  "spHome": null,
+  "predAwayPre": 4.6,
+  "predHomePre": 4.9,
+  "predAway": 4.6,
+  "predHome": 4.9,
+  "winAway": 49,
+  "winHome": 51,
+  "lineupReady": false,
+  "status": "BEFORE"
  }
 }
