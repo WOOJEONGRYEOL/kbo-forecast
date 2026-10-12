@@ -3864,12 +3864,12 @@
   "spHome": "양창섭",
   "predAwayPre": 5.3,
   "predHomePre": 5.6,
-  "predAway": 5.3,
-  "predHome": 5.6,
-  "winAway": 49,
-  "winHome": 51,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.2,
+  "predHome": 4.9,
+  "winAway": 51,
+  "winHome": 49,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261012LGHT02026": {
   "date": "2026-10-12",
@@ -3881,12 +3881,12 @@
   "spHome": "양현종",
   "predAwayPre": 4.8,
   "predHomePre": 5.5,
-  "predAway": 4.8,
-  "predHome": 5.5,
-  "winAway": 47,
-  "winHome": 53,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 5.1,
+  "predHome": 5.6,
+  "winAway": 48,
+  "winHome": 52,
+  "lineupReady": true,
+  "status": "READY"
  },
  "20261012LTOB02026": {
   "date": "2026-10-12",
@@ -3898,11 +3898,11 @@
   "spHome": "이용찬",
   "predAwayPre": 3.8,
   "predHomePre": 5.1,
-  "predAway": 3.8,
-  "predHome": 5.1,
-  "winAway": 45,
-  "winHome": 55,
-  "lineupReady": false,
-  "status": "BEFORE"
+  "predAway": 3.5,
+  "predHome": 4.5,
+  "winAway": 46,
+  "winHome": 54,
+  "lineupReady": true,
+  "status": "READY"
  }
 }
