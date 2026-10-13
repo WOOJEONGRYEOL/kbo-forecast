@@ -3923,11 +3923,11 @@
   "spAway": "곽빈",
   "spHome": "카라스코",
   "predAwayPre": 4.4,
-  "predHomePre": 3.5,
+  "predHomePre": 3.9,
   "predAway": 4.4,
-  "predHome": 3.5,
-  "winAway": 53,
-  "winHome": 47,
+  "predHome": 3.9,
+  "winAway": 52,
+  "winHome": 48,
   "lineupReady": false,
   "status": "BEFORE"
  }
