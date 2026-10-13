@@ -159,6 +159,18 @@ def filter_regular_season(games: list[dict]) -> list[dict]:
       상세 API로 확인하고 결과를 data/gameflags_시즌.json 에
       캐시합니다. 4월 이후 경기는 확인 없이 통과시킵니다.
     """
+    # 0) 포스트시즌·올스타 등 '날짜로 시작하지 않는' gameId 제외 (항상 적용).
+    #    정규시즌 gameId는 YYYYMMDD로 시작하지만, 144경기 이후 가을야구는 4444…(올스타는
+    #    9999…)처럼 시리즈 코드로 시작한다. 이걸 거르지 않으면 포스트시즌이 정규 집계·순위·
+    #    잔여경기에 섞여 팀 경기수가 144를 넘는다.
+    def _is_regular_id(g):
+        gid = str(g.get("gameId", "")); d = str(g.get("gameDate", "")).replace("-", "")
+        return len(gid) >= 8 and len(d) == 8 and gid[:8] == d
+    post = [g for g in games if not _is_regular_id(g)]
+    if post:
+        games = [g for g in games if _is_regular_id(g)]
+        print(f"  → 포스트시즌·특별경기 {len(post)}건 제외 (gameId 날짜 접두 불일치)")
+
     march_games = [g for g in games if int(g["gameDate"][5:7]) <= 3]
     if not march_games:
         return games
