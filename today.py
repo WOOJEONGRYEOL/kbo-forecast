@@ -26,14 +26,22 @@ import dashboard
 def main():
     t0 = time.time()
     config.SEASON = naver_games.resolve_season()   # 시즌 자동감지(개막 첫 경기부터 전환)
-    games = naver_games.fetch_season_games(config.SEASON)
-    games = naver_games.filter_regular_season(games)
-    games = naver_games.filter_official_teams(games)
+    raw = naver_games.fetch_season_games(config.SEASON)        # 포스트시즌 포함(필터 전)
+    games = naver_games.filter_official_teams(naver_games.filter_regular_season(raw))
     box = boxscore.collect_season_pitching(games)   # 캐시 히트 위주 → 빠름
     projections = game_projection.project_games(games, box)
     game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
     dashboard.save_predictions_page()                          # 예측 성적표(누적)
     path = dashboard.save_today_page(projections)
+    # 가을야구: 포스트시즌 경기가 피드에 있으면 대진·예측·시리즈확률 페이지 갱신(라이브).
+    try:
+        import postseason, postseason_dashboard
+        st = postseason.build_postseason(games, raw, box)
+        if st and any(r["games"] or r["lower"] for r in st["rounds"]):
+            postseason_dashboard.save_postseason_page(st)
+            print("  → 가을야구 페이지 갱신 → data/postseason.html")
+    except Exception as e:
+        print(f"  (가을야구 생성 건너뜀: {e})")
     ready = sum(1 for g in projections["games"] if g.get("lineupReady"))
     n = len(projections["games"])
     print(f"  → 오늘의 경기 {n}경기 (라인업 반영 {ready}/{n}) "

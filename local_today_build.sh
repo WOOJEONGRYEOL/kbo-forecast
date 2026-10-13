@@ -34,7 +34,7 @@ LOG="$FC/statiz_crawler/output/today.log"
   [ "$ok" = 1 ] || { echo "⚠️ today.py 실패(재시도 소진 — DNS/네트워크 확인)"; exit 0; }
   git checkout -- data/last_updated.json 2>/dev/null || true   # today.py는 안 쓰는 파일
 
-  git add -f data/today.html data/predictions.json data/predictions.html
+  git add -f data/today.html data/predictions.json data/predictions.html data/postseason.html
   if git diff --cached --quiet; then
     echo "변경 없음 — 커밋 생략"
   else

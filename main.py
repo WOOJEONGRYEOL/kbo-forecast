@@ -118,8 +118,8 @@ def main() -> None:
     print(f"\n[1/4] {args.season} 시즌 경기 결과 수집 (네이버 스포츠 API)")
     # repair_stale: 과거 월 캐시에 순연 미결 경기가 남아 보충 결과를 놓치면 승패·순위가
     #   틀어지므로(예: 우승 확정 미반영), 그런 달은 재조회해 최신 결과를 반영한다.
-    games = naver_games.fetch_season_games(args.season, repair_stale=True)
-    games = naver_games.filter_regular_season(games)  # 시범경기 제거
+    raw_games = naver_games.fetch_season_games(args.season, repair_stale=True)  # 포스트시즌 포함
+    games = naver_games.filter_regular_season(raw_games)  # 시범경기·포스트시즌 제거
     games = naver_games.filter_official_teams(games)  # 올스타전 등 제외
     team_log = naver_games.build_team_game_log(games)
     n_games = len(team_log) // 2  # 행 2개 = 경기 1개
@@ -180,6 +180,15 @@ def main() -> None:
     today_path = dashboard.save_today_page(projections)
     print(f"  → 오늘의 경기 페이지: {len(projections['games'])}경기 "
           f"({projections['date']}) → {today_path}")
+    # 가을야구: 포스트시즌 경기가 피드에 있으면 대진·예측·시리즈확률 페이지 생성.
+    try:
+        import postseason, postseason_dashboard
+        st = postseason.build_postseason(games, raw_games, box)
+        if st and any(r["games"] or r["lower"] for r in st["rounds"]):
+            ps_path = postseason_dashboard.save_postseason_page(st)
+            print(f"  → 가을야구 페이지 → {ps_path}")
+    except Exception as e:
+        print(f"  (가을야구 생성 건너뜀: {e})")
     print(f"대시보드 저장 완료 → {html_path}")
     print("  (브라우저에서 열기: open " + str(html_path) + ")\n")
 
