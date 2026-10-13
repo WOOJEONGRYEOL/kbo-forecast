@@ -190,9 +190,17 @@ def project_ps_games(ctx, box, games: list) -> list:
     return out
 
 
-def matchup_winprob(ctx, box, higher: str, lower: str) -> tuple:
+# 같은 홈구장을 쓰는 팀쌍(홈 이점의 '구장 친숙도' 요소가 없음 → 홈 이점 감쇠).
+#   KBO: LG·두산은 잠실 공동 홈.
+SHARED_HOME = [frozenset({"LG", "OB"})]
+HOME_DAMP = 0.5   # 공유구장 시리즈는 홈 이점(중립 대비 편차)을 절반으로
+
+
+def matchup_winprob(ctx, box, higher: str, lower: str, shared_park: bool = False) -> tuple:
     """팀강도 기준(선발·구장 미정) 매치업 승률 → (상위홈 승률, 상위원정 승률).
-    시리즈 몬테카를로 입력용. 미래 날짜 합성경기로 양 방향 승률을 모델에서 뽑는다."""
+    시리즈 몬테카를로 입력용. 미래 날짜 합성경기로 양 방향 승률을 모델에서 뽑는다.
+    shared_park=True(잠실 공유 등)면 홈 이점의 '구장 친숙도' 요소가 없으므로, 홈/원정
+    승률을 중립(둘의 평균) 쪽으로 HOME_DAMP만큼 당겨 홈 이점을 줄인다(과신 방지)."""
     future = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
 
     def synth(home, away):
@@ -203,6 +211,10 @@ def matchup_winprob(ctx, box, higher: str, lower: str) -> tuple:
     b = _project(ctx, box, future, [synth(lower, higher)])     # 상위 원정(하위 홈)
     p_hi_home = (a[0]["winHome"] / 100.0) if a else 0.5
     p_hi_away = (b[0]["winAway"] / 100.0) if b else 0.5        # b에서 상위팀은 원정
+    if shared_park:
+        neutral = (p_hi_home + p_hi_away) / 2.0                # 홈 효과가 상쇄된 '순수 실력차'
+        p_hi_home = neutral + HOME_DAMP * (p_hi_home - neutral)
+        p_hi_away = neutral + HOME_DAMP * (p_hi_away - neutral)
     return p_hi_home, p_hi_away
 
 
@@ -241,10 +253,12 @@ def build_postseason(reg_games: list, all_games: list, box) -> dict:
         preds = project_ps_games(ctx, box, games) if games else []
         odds = None
         if lower and not decided:
-            php, hpa = matchup_winprob(ctx, box, higher, lower)
+            shared = frozenset({higher, lower}) in SHARED_HOME   # 잠실 공유 등
+            php, hpa = matchup_winprob(ctx, box, higher, lower, shared_park=shared)
             adv = series_odds(php, hpa, fmt, hi_wins=hw, lo_wins=lw)
             odds = {"higher_adv": round(adv * 100), "lower_adv": round((1 - adv) * 100),
-                    "p_hi_home": round(php * 100), "p_hi_away": round(hpa * 100)}
+                    "p_hi_home": round(php * 100), "p_hi_away": round(hpa * 100),
+                    "shared_park": shared}
         rounds_out.append({
             "key": key, "name": name, "fmt": fmt,
             "higher": higher, "higherName": nm.get(higher, higher), "higherSeed": hi_seed,
