@@ -923,6 +923,7 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 승부</a>
   <a class="active" href="predictions.html">📈 예측 성적표</a>
+  <a href="postseason.html">🍂 가을야구</a>
 </nav>
 <h1>📈 예측 성적표</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 라인업 반영 후 기대 스코어의 승부 예측을 실제 결과와 누적 대조</div>
