@@ -135,6 +135,7 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
+  <a href="postseason.html">🍂 가을야구</a>
 </nav>
 <h1>🏁 시즌 타이틀 레이스</h1>
 <div class="sub">🕗 최종 갱신 <span id="gen">불러오는 중…</span> · 부문별 top10 · 시즌 페이스 · 시즌 진행 레이싱 차트</div>
@@ -876,6 +877,7 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="history.html">🏆 역대</a>
   <a class="active" href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
+  <a href="postseason.html">🍂 가을야구</a>
 </nav>
 <h1>⚾ 오늘의 승부</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
@@ -1374,6 +1376,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <a href="history.html">🏆 역대</a>
   <a href="today.html">🔮 오늘의 승부</a>
   <a href="predictions.html">📈 예측 성적표</a>
+  <a href="postseason.html">🍂 가을야구</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
