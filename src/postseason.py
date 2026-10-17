@@ -237,14 +237,23 @@ def build_postseason(reg_games: list, all_games: list, box) -> dict:
         return None
     seeds = {i + 1: rank[i] for i in range(5)}
     nm = config.TEAM_NAMES
-    psg = postseason_games(all_games)
+    # 포스트시즌 경기(비정규·비올스타). 라운드는 gameId 접두사 대신 '대진 시드 매치업'으로
+    #   매칭한다 — 접두사는 라운드마다 달라 신뢰 불가(관측: WC=4444·준PO=3333 …).
+    def _is_reg(g):
+        gid = str(g.get("gameId", "")); d = str(g.get("gameDate", "")).replace("-", "")
+        return len(gid) >= 8 and gid[:8] == d
+    ps_all = [g for g in all_games if not _is_reg(g) and str(g.get("gameId", ""))[:4] != "9999"]
     ctx = _context(reg_games, box)
     prev_round = {"spo": "wc", "po": "spo", "ks": "po"}
     winners, rounds_out = {}, []
     for key, name, fmt, hi_seed, lo_seed in ROUNDS:
         higher = seeds[hi_seed]
         lower = seeds[lo_seed] if lo_seed is not None else winners.get(prev_round[key])
-        games = psg.get(key, [])
+        # 이 라운드 경기 = 그 대진의 두 팀이 붙는 포스트시즌 경기(접두사 무관).
+        games = ([g for g in ps_all
+                  if {g.get("homeTeamCode"), g.get("awayTeamCode")} == {higher, lower}]
+                 if lower else [])
+        games.sort(key=lambda g: (g.get("gameDate", ""), g.get("gameId", "")))
         st = series_state(games, higher, lower) if lower else {"higher_wins": 0, "lower_wins": 0}
         hw, lw = st["higher_wins"], st["lower_wins"]
         decided, winner_hi = series_decided(fmt, hw, lw) if lower else (False, None)
