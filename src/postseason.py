@@ -259,7 +259,15 @@ def build_postseason(reg_games: list, all_games: list, box) -> dict:
         decided, winner_hi = series_decided(fmt, hw, lw) if lower else (False, None)
         if decided and lower:
             winners[key] = higher if winner_hi else lower
-        preds = project_ps_games(ctx, box, games) if games else []
+        # 예보는 '완료된 경기(결과 표시) + 다음 한 경기'만. 아직 안 열린 이후 경기
+        #   (선발 미정·열릴지도 불확실)까지 미리 예보하지 않는다.
+        FIN = ("RESULT", "ENDED")
+        show = [g for g in games if g.get("statusCode") in FIN]
+        nxt = next((g for g in games
+                    if g.get("statusCode") not in FIN and not g.get("cancel")), None)
+        if nxt:
+            show.append(nxt)
+        preds = project_ps_games(ctx, box, show) if show else []
         odds = None
         if lower and not decided:
             shared = frozenset({higher, lower}) in SHARED_HOME   # 잠실 공유 등

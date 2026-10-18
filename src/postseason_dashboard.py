@@ -143,7 +143,8 @@ def _detail(rd, logos):
     games_html = ""
     if rd["games"]:
         cards = "".join(dashboard._one_game_card(g, logos) for g in rd["games"])
-        games_html = f'<div class="ghint">경기별 기대 스코어·승률</div><div class="games">{cards}</div>'
+        games_html = (f'<div class="ghint">경기별 기대 스코어·승률 (완료 경기 + 다음 경기만 · '
+                      f'이후 경기는 결과 확정 후)</div><div class="games">{cards}</div>')
     live = bool(rd["games"]) and not rd["decided"]
     return (
         f'<div class="rung{" live" if live else ""}">'
