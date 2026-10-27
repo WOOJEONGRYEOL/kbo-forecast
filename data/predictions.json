@@ -3930,5 +3930,17 @@
   "winHome": 48,
   "lineupReady": false,
   "status": "BEFORE"
+ },
+ "20251004SKNC02025": {
+  "status": "RESULT",
+  "actualHome": 7,
+  "actualAway": 1,
+  "correct": null
+ },
+ "20251004SSHT02025": {
+  "status": "RESULT",
+  "actualHome": 9,
+  "actualAway": 8,
+  "correct": null
  }
 }
