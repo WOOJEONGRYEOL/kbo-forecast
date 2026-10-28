@@ -128,13 +128,22 @@ def fetch_season_games(season: int, repair_stale: bool = False) -> list[dict]:
             games = json.loads(cache.read_text(encoding="utf-8"))
             print(f"  [캐시] {season}년 {month}월: {len(games)}경기 (파일 재사용)")
         else:
-            games = fetch_month(season, month, session)
-            cache.write_text(
-                json.dumps(games, ensure_ascii=False, indent=1), encoding="utf-8"
-            )
-            print(f"  [수집] {season}년 {month}월: {len(games)}경기")
-            # 다음 요청 전에 잠깐 쉬어 서버 부담을 줄입니다
-            time.sleep(config.REQUEST_DELAY_SEC)
+            # 현재 달 라이브 수집. 실패(네트워크 타임아웃 등) 시 이전 캐시로 폴백한다.
+            #   폴백 안 하면 예외가 fetch_season_games 전체를 죽이고, resolve_season이
+            #   이를 '경기 없음'으로 오인해 시즌을 작년으로 되돌리는 치명 버그가 난다.
+            try:
+                games = fetch_month(season, month, session)
+                cache.write_text(
+                    json.dumps(games, ensure_ascii=False, indent=1), encoding="utf-8")
+                print(f"  [수집] {season}년 {month}월: {len(games)}경기")
+                time.sleep(config.REQUEST_DELAY_SEC)
+            except Exception as e:
+                if cache.exists():
+                    games = json.loads(cache.read_text(encoding="utf-8"))
+                    print(f"  [경고] {season}년 {month}월 수집 실패({type(e).__name__}) → 캐시 재사용 {len(games)}경기")
+                else:
+                    print(f"  [경고] {season}년 {month}월 수집 실패({type(e).__name__}) · 캐시 없음 → 건너뜀")
+                    games = []
 
     for month in config.SEASON_MONTHS:
         cache = _month_cache_path(season, month)
