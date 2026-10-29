@@ -22,14 +22,57 @@ naver_games.py — 경기 결과 수집기 (네이버 스포츠 API)
 
 import calendar
 import json
+import shutil
+import subprocess
 import time
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlencode
 
 import pandas as pd
 import requests
 
 import config
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# 네이버 API GET 헬퍼 — curl(--http1.1) 우선, requests 폴백
+# ──────────────────────────────────────────────────────────────────────────
+# 2026-10 하순부터 네이버 WAF가 '파이썬 requests의 TLS 지문 + HTTP/2'를 조용히
+#   드롭하기 시작했다(TCP·TLS는 붙는데 응답 바이트가 안 와 ReadTimeout). 그 결과
+#   로컬·GitHub Actions 양쪽 모두 10월 라이브 수집이 며칠째 실패→캐시로 폴백하며
+#   포스트시즌 결과가 Oct-26 스냅샷에 굳어버렸다. 같은 요청을 'curl --http1.1 +
+#   브라우저 헤더'로 보내면 0.06초 만에 200이 온다(지문·프로토콜 우회). 그래서
+#   수집은 curl을 먼저 쓰고, curl이 없거나 실패하면 requests로 폴백한다.
+_BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+               "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36")
+_CURL = shutil.which("curl")
+
+
+def _get_json(url: str, params: dict | None = None, timeout: int | None = None) -> dict:
+    """네이버 공개 API를 GET해 JSON(dict)으로 반환. 네트워크/파싱 실패는 예외로 올린다
+    (상위의 캐시 폴백이 받도록). curl 우회를 먼저 시도하고 안 되면 requests를 쓴다."""
+    timeout = timeout or config.REQUEST_TIMEOUT_SEC
+    full = url + (("?" + urlencode(params)) if params else "")
+    headers = {
+        "User-Agent": _BROWSER_UA,
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://m.sports.naver.com/",
+    }
+    if _CURL:
+        cmd = [_CURL, "--http1.1", "-sS", "--fail", "-m", str(timeout)]
+        for k, v in headers.items():
+            cmd += ["-H", f"{k}: {v}"]
+        cmd.append(full)
+        try:
+            out = subprocess.run(cmd, capture_output=True, timeout=timeout + 5)
+            if out.returncode == 0 and out.stdout:
+                return json.loads(out.stdout)
+        except Exception:
+            pass   # 아래 requests 폴백으로 넘어간다
+    resp = requests.get(url, params=params, headers=headers, timeout=timeout)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def _month_cache_path(season: int, month: int) -> Path:
@@ -62,14 +105,7 @@ def fetch_month(season: int, month: int, session: requests.Session) -> list[dict
         "toDate": to_date,
         "size": 500,  # 한 달 최대 경기 수(약 125)보다 넉넉하게
     }
-    resp = session.get(
-        config.NAVER_API_BASE,
-        params=params,
-        timeout=config.REQUEST_TIMEOUT_SEC,
-    )
-    resp.raise_for_status()  # HTTP 에러(4xx/5xx)면 여기서 예외 발생
-
-    body = resp.json()
+    body = _get_json(config.NAVER_API_BASE, params)  # curl 우선, requests 폴백
     if not body.get("success"):
         raise RuntimeError(f"네이버 API 응답 실패: {body.get('code')}")
 
@@ -200,12 +236,8 @@ def filter_regular_season(games: list[dict]) -> list[dict]:
         # 아직 안 열린 경기는 record가 없으므로 임시로 정규시즌 취급
         if g.get("statusCode") != "RESULT":
             continue
-        resp = session.get(
-            f"{config.NAVER_API_BASE}/{gid}/record",
-            timeout=config.REQUEST_TIMEOUT_SEC,
-        )
-        resp.raise_for_status()
-        info = resp.json()["result"]["recordData"].get("gameInfo", {})
+        info = _get_json(f"{config.NAVER_API_BASE}/{gid}/record"
+                         )["result"]["recordData"].get("gameInfo", {})
         flags[gid] = str(info.get("gameFlag", "0"))
         new += 1
         time.sleep(0.3)
