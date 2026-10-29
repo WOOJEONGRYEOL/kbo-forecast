@@ -31,8 +31,24 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   h1{font-size:22px;margin:6px 0 2px;}
   .sub{color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.5;}
 
-  /* 대진표(챔스식) — 최종이 위, 아래로 내려갈수록 먼저 치르는 라운드. 연결선으로 묶음 */
-  .bk{display:flex;flex-direction:column;align-items:stretch;margin:2px 0 18px;}
+  /* 대진표 — 왼쪽 '줄기'에 라운드가 가지처럼 합류해 맨 위 트로피로 수렴(토너먼트 느낌).
+     위=한국시리즈, 아래로 갈수록 먼저 치르는 라운드. */
+  .bk{position:relative;margin:4px 0 20px;padding-left:30px;}
+  .bk::before{content:"";position:absolute;left:11px;top:34px;bottom:18px;width:2px;
+    background:linear-gradient(var(--muted),var(--gold));border-radius:2px;}
+  .bk-apex{position:relative;margin:0 0 14px -30px;display:flex;justify-content:center;}
+  .bk-apex::after{content:"";position:absolute;left:11px;bottom:-14px;width:2px;height:14px;background:var(--gold);}
+  .bk-apex .cup{background:rgba(255,207,107,.12);border:1px solid var(--gold);color:var(--gold);
+    font-weight:800;font-size:13px;border-radius:999px;padding:5px 15px;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:6px;}
+  .bk-apex .cup img{width:17px;height:17px;object-fit:contain;}
+  .bk-row{position:relative;margin:0 0 12px;}
+  .bk-row:last-child{margin-bottom:0;}
+  .bk-row::before{content:"";position:absolute;left:-19px;top:50%;width:17px;height:15px;
+    border-left:2px solid var(--muted);border-bottom:2px solid var(--muted);
+    border-bottom-left-radius:9px;transform:translateY(-15px);}
+  .bk-row::after{content:"";position:absolute;left:-23px;top:calc(50% - 4px);width:8px;height:8px;
+    border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px var(--bg);}
   .bk-node{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
   .bk-node.ks{border-color:var(--gold);box-shadow:0 0 0 1px rgba(255,207,107,.22);}
@@ -45,7 +61,6 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .bk-mu .tbd{color:var(--muted);font-weight:600;}
   .bk-mu .win{color:var(--green);font-weight:800;}
   .bk-mu .sc{color:var(--gold);font-weight:800;}
-  .bk-link{width:2px;height:16px;background:linear-gradient(var(--line),var(--muted));align-self:center;}
 
   /* 상세 */
   h2.sec{font-size:16px;margin:18px 0 8px;}
@@ -100,18 +115,27 @@ def _mu_compact(rd, logos):
 
 
 def _bracket(rounds, logos):
-    """최종(한국시리즈) 위 → 와일드카드 아래, 연결선으로 묶은 컴팩트 대진표."""
+    """왼쪽 줄기에 라운드가 가지처럼 합류 → 맨 위 트로피로 수렴하는 토너먼트 대진표.
+       순서: 한국시리즈(위) → 와일드카드(아래)."""
     order = list(reversed(rounds))     # ks, po, spo, wc
-    parts = []
-    for i, rd in enumerate(order):
+    # 트로피 꼭지(수렴점) — 우승 확정 팀이 있으면 로고·이름, 아니면 '한국시리즈 우승'.
+    ks = next((r for r in rounds if r["key"] == "ks"), None)
+    if ks and ks.get("decided") and ks.get("winner"):
+        wl = logos.get(ks["winner"], "")
+        wimg = f'<img src="{wl}" alt="">' if wl else ""
+        cup = f'🏆 {wimg}{ks["winnerName"]} 우승 ✔'
+    else:
+        cup = '🏆 한국시리즈 우승'
+    apex = f'<div class="bk-apex"><span class="cup">{cup}</span></div>'
+    rows = []
+    for rd in order:
         live = bool(rd["games"]) and not rd["decided"]
         cls = "bk-node" + (" ks" if rd["key"] == "ks" else "") + (" live" if live else "")
-        parts.append(
-            f'<div class="{cls}"><span class="bk-rn">{_ICON.get(rd["key"],"")} {rd["name"]}</span>'
-            f'<span class="bk-mu">{_mu_compact(rd, logos)}</span></div>')
-        if i < len(order) - 1:
-            parts.append('<div class="bk-link"></div>')
-    return '<div class="bk">' + "".join(parts) + '</div>'
+        rows.append(
+            f'<div class="bk-row"><div class="{cls}">'
+            f'<span class="bk-rn">{_ICON.get(rd["key"],"")} {rd["name"]}</span>'
+            f'<span class="bk-mu">{_mu_compact(rd, logos)}</span></div></div>')
+    return '<div class="bk">' + apex + "".join(rows) + '</div>'
 
 
 def _pred_block(rd):
@@ -164,8 +188,9 @@ def save_postseason_page(state: dict, logos=None, path: str = None) -> Path:
     else:
         rounds = state["rounds"]
         bracket = _bracket(rounds, logos)
-        # 상세: 상대가 정해진 라운드(활성/종료)만, 먼저 치르는 순서(와일드카드부터).
-        active = [rd for rd in rounds if rd["lower"]]
+        # 상세: 상대가 정해진 라운드(활성/종료)만. 대진표와 같이 상위 스테이지를 위로
+        #   쌓아 최신 라운드·결과를 스크롤 없이 먼저 보이게 한다(한국시리즈→와일드카드).
+        active = [rd for rd in reversed(rounds) if rd["lower"]]
         detail = ("<h2 class=\"sec\">시리즈 상세 · 경기별 예측</h2>"
                   + "".join(_detail(rd, logos) for rd in active)) if active else ""
         body = bracket + detail
