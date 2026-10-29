@@ -55,10 +55,11 @@ def _log5(pa: float, pb: float) -> float:
 
 
 def _get(url):
-    r = requests.get(url, timeout=config.REQUEST_TIMEOUT_SEC,
-                     headers={"User-Agent": config.USER_AGENT})
-    r.raise_for_status()
-    return r.json()
+    # 네이버 WAF가 파이썬 requests(TLS 지문·HTTP/2)를 조용히 드롭해 프리뷰(라인업·
+    #   예고선발) 수집이 ReadTimeout→{}로 비는 문제가 있었다. 스케줄 수집과 동일하게
+    #   curl --http1.1 우선·requests 폴백 헬퍼를 재사용한다(naver_games._get_json).
+    import naver_games
+    return naver_games._get_json(url)
 
 
 def preview_data(game_id: str) -> dict:
