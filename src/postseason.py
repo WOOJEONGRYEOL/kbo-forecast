@@ -236,6 +236,7 @@ def build_postseason(reg_games: list, all_games: list, box) -> dict:
     if len(rank) < 5:
         return None
     seeds = {i + 1: rank[i] for i in range(5)}
+    seed_of = {team: s for s, team in seeds.items()}   # 팀 → 정규 최종시드(역참조)
     nm = config.TEAM_NAMES
     # 포스트시즌 경기(비정규·비올스타). 라운드는 gameId 접두사 대신 '대진 시드 매치업'으로
     #   매칭한다 — 접두사는 라운드마다 달라 신뢰 불가(관측: WC=4444·준PO=3333 …).
@@ -280,7 +281,9 @@ def build_postseason(reg_games: list, all_games: list, box) -> dict:
             "key": key, "name": name, "fmt": fmt,
             "higher": higher, "higherName": nm.get(higher, higher), "higherSeed": hi_seed,
             "lower": lower, "lowerName": (nm.get(lower, lower) if lower else None),
-            "lowerSeed": (lo_seed if lo_seed is not None else None),
+            # 상위 라운드의 하위팀은 '이전 라운드 승자'라 lo_seed가 None이다.
+            #   실제 정규 최종시드를 역참조해 표시한다(예: PO의 하위팀=준PO 승자의 시드).
+            "lowerSeed": (seed_of.get(lower) if lower else None),
             "higherWins": hw, "lowerWins": lw, "decided": decided,
             "winner": (winners.get(key) if decided else None),
             "winnerName": (nm.get(winners[key], winners[key]) if key in winners else None),

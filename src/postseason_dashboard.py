@@ -88,8 +88,10 @@ def _mu_compact(rd, logos):
         return (f'<span class="seed">{rd["higherSeed"]}</span>{hl}{rd["higherName"]} '
                 f'<span class="vs">vs</span> <span class="tbd">승자</span>')
     ll = f'<img src="{logos.get(lcode,"")}" alt="">' if logos.get(lcode) else ""
-    base = (f'<span class="seed">{rd["higherSeed"]}</span>{hl}{rd["higherName"]} '
-            f'<span class="vs">vs</span> {ll}{rd["lowerName"]}<span class="seed">{rd["lowerSeed"]}</span>')
+    hs = f'<span class="seed">{rd["higherSeed"]}</span>' if rd.get("higherSeed") is not None else ""
+    ls = f'<span class="seed">{rd["lowerSeed"]}</span>' if rd.get("lowerSeed") is not None else ""
+    base = (f'{hs}{hl}{rd["higherName"]} '
+            f'<span class="vs">vs</span> {ll}{rd["lowerName"]}{ls}')
     if rd["decided"]:
         return base + f' <span class="win">▸ {rd["winnerName"]}</span>'
     if rd["higherWins"] or rd["lowerWins"]:
@@ -134,8 +136,10 @@ def _detail(rd, logos):
     hcode, lcode = rd["higher"], rd["lower"]
     hl = f'<img src="{logos.get(hcode,"")}" alt="">' if logos.get(hcode) else ""
     ll = f'<img src="{logos.get(lcode,"")}" alt="">' if (lcode and logos.get(lcode)) else ""
-    mu = (f'<span class="seed">{rd["higherSeed"]}위</span> {hl}{rd["higherName"]} '
-          f'<span class="vs">vs</span> {ll}{rd["lowerName"]} <span class="seed">{rd["lowerSeed"]}위</span>')
+    hs = f'<span class="seed">{rd["higherSeed"]}위</span> ' if rd.get("higherSeed") is not None else ""
+    ls = f' <span class="seed">{rd["lowerSeed"]}위</span>' if rd.get("lowerSeed") is not None else ""
+    mu = (f'{hs}{hl}{rd["higherName"]} '
+          f'<span class="vs">vs</span> {ll}{rd["lowerName"]}{ls}')
     if rd["decided"]:
         mu += f' <span class="win">→ {rd["winnerName"]} 진출 ✔</span>'
     elif rd["higherWins"] or rd["lowerWins"]:
