@@ -170,25 +170,35 @@ def main() -> None:
                                          rotation_detail=rotation_detail,
                                          standings=sim_table, team_splits=team_splits)
 
-    import game_projection                       # 오늘의 경기(별도 페이지)
-    projections = game_projection.project_games(games, box)
-    game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
-    dashboard.save_predictions_page()                          # 예측 성적표(누적)
     import title_race                                          # 시즌 타이틀 레이스
     title_race.save_title_race_json(games)                     # 부문별 누적·페이스·시계열
     dashboard.save_title_race_page()                           # 레이싱 페이지(정적)
-    today_path = dashboard.save_today_page(projections)
-    print(f"  → 오늘의 경기 페이지: {len(projections['games'])}경기 "
-          f"({projections['date']}) → {today_path}")
-    # 가을야구: 포스트시즌 경기가 피드에 있으면 대진·예측·시리즈확률 페이지 생성.
-    try:
-        import postseason, postseason_dashboard
-        st = postseason.build_postseason(games, raw_games, box)
-        if st and any(r["games"] or r["lower"] for r in st["rounds"]):
-            ps_path = postseason_dashboard.save_postseason_page(st)
-            print(f"  → 가을야구 페이지 → {ps_path}")
-    except Exception as e:
-        print(f"  (가을야구 생성 건너뜀: {e})")
+
+    # 라이브 페이지(오늘의 경기·예측 성적표·가을야구)는 '진행 중인 달'을 신선하게
+    #   받았을 때만 재생성한다. stale(네이버 수집 실패→캐시 폴백, 예: GitHub Actions)
+    #   이면 건너뛴다 — 안 그러면 완료 경기 없는 '빈' 페이지로 더 신선한 로컬 커밋을
+    #   덮어써 포스트시즌 기록이 사라지는 퇴행이 난다. 정규시즌 대시보드/타이틀레이스는
+    #   144경기가 고정이라 캐시로 재생성해도 퇴행이 없으므로 위에서 그대로 생성한다.
+    if not naver_games.LIVE_MONTH_FETCH_OK:
+        print("  [중단] 진행 중인 달 라이브 수집 실패(stale) → 오늘·성적표·가을야구 "
+              "페이지 갱신 건너뜀 (퇴행 방지)")
+    else:
+        import game_projection                   # 오늘의 경기(별도 페이지)
+        projections = game_projection.project_games(games, box)
+        game_projection.save_prediction_log(projections, games)   # 예측+실제 결과 누적 저장
+        dashboard.save_predictions_page()                          # 예측 성적표(누적)
+        today_path = dashboard.save_today_page(projections)
+        print(f"  → 오늘의 경기 페이지: {len(projections['games'])}경기 "
+              f"({projections['date']}) → {today_path}")
+        # 가을야구: 포스트시즌 경기가 피드에 있으면 대진·예측·시리즈확률 페이지 생성.
+        try:
+            import postseason, postseason_dashboard
+            st = postseason.build_postseason(games, raw_games, box)
+            if st and any(r["games"] or r["lower"] for r in st["rounds"]):
+                ps_path = postseason_dashboard.save_postseason_page(st)
+                print(f"  → 가을야구 페이지 → {ps_path}")
+        except Exception as e:
+            print(f"  (가을야구 생성 건너뜀: {e})")
     print(f"대시보드 저장 완료 → {html_path}")
     print("  (브라우저에서 열기: open " + str(html_path) + ")\n")
 

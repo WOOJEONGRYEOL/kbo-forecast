@@ -48,6 +48,14 @@ _BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36")
 _CURL = shutil.which("curl")
 
+# '진행 중인 달'(오늘이 속한 달)을 이번 실행에서 라이브로 새로 받았는가?
+#   True  = 신선한 데이터로 빌드됨 → 라이브 페이지(가을야구/오늘/성적표) 커밋 안전
+#   False = 네이버 수집 실패로 캐시 폴백 → stale. 이때 라이브 페이지를 재생성·커밋하면
+#           더 신선한 커밋(국내 IP 로컬 빌더가 올린 것)을 '빈/과거' 상태로 덮어써 퇴행한다.
+#   네이버가 GitHub(해외·클라우드) IP를 드롭해 GH Actions는 항상 False가 된다. 빌드
+#   스크립트는 이 값이 False면 라이브 페이지 생성을 건너뛴다(퇴행 방지).
+LIVE_MONTH_FETCH_OK = True
+
 
 def _get_json(url: str, params: dict | None = None, timeout: int | None = None) -> dict:
     """네이버 공개 API를 GET해 JSON(dict)으로 반환. 네트워크/파싱 실패는 예외로 올린다
@@ -135,9 +143,11 @@ def fetch_season_games(season: int, repair_stale: bool = False) -> list[dict]:
     """
     Path(config.DATA_DIR).mkdir(exist_ok=True)  # data/ 폴더가 없으면 생성
 
+    global LIVE_MONTH_FETCH_OK
     today = date.today()
     today_iso = today.isoformat()
     all_games: list[dict] = []
+    live_ok = True   # 진행 중인 달을 라이브로 받았는지(실패 폴백이면 False로)
 
     # 네이버 API에 브라우저인 척하는 UA를 달아줍니다
     session = requests.Session()
@@ -174,6 +184,8 @@ def fetch_season_games(season: int, repair_stale: bool = False) -> list[dict]:
                 print(f"  [수집] {season}년 {month}월: {len(games)}경기")
                 time.sleep(config.REQUEST_DELAY_SEC)
             except Exception as e:
+                if not is_past_month:
+                    live_ok = False      # 진행 중인 달 라이브 수집 실패 → stale 플래그
                 if cache.exists():
                     games = json.loads(cache.read_text(encoding="utf-8"))
                     print(f"  [경고] {season}년 {month}월 수집 실패({type(e).__name__}) → 캐시 재사용 {len(games)}경기")
@@ -186,6 +198,7 @@ def fetch_season_games(season: int, repair_stale: bool = False) -> list[dict]:
         if cache.exists():
             all_games.extend(json.loads(cache.read_text(encoding="utf-8")))
 
+    LIVE_MONTH_FETCH_OK = live_ok
     return all_games
 
 

@@ -27,6 +27,14 @@ def main():
     t0 = time.time()
     config.SEASON = naver_games.resolve_season()   # 시즌 자동감지(개막 첫 경기부터 전환)
     raw = naver_games.fetch_season_games(config.SEASON)        # 포스트시즌 포함(필터 전)
+    # 진행 중인 달 라이브 수집이 실패(캐시 폴백)했으면 데이터가 stale이다. 이때 라이브
+    #   페이지를 재생성·커밋하면 더 신선한 커밋(국내 IP 로컬 빌더)을 '빈/과거' 상태로
+    #   덮어써 포스트시즌 기록이 사라지는 퇴행이 난다. 네이버가 해외/클라우드 IP를
+    #   드롭해 GitHub Actions는 항상 여기 걸린다 → 아무것도 커밋 안 함(배포만).
+    if not naver_games.LIVE_MONTH_FETCH_OK:
+        print("  [중단] 진행 중인 달 라이브 수집 실패(stale) → 라이브 페이지 갱신 건너뜀 "
+              f"(퇴행 방지)  ({time.time() - t0:.1f}s)")
+        return
     games = naver_games.filter_official_teams(naver_games.filter_regular_season(raw))
     box = boxscore.collect_season_pitching(games)   # 캐시 히트 위주 → 빠름
     projections = game_projection.project_games(games, box)
