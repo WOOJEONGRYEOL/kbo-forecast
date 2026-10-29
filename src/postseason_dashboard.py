@@ -89,7 +89,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="predictions.html">📈 예측 성적표</a>
   <a class="active" href="postseason.html">🍂 가을야구</a>
 </nav>
-<h1>🍂 가을야구 — 포스트시즌 대진표</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><path d="M3 4.5 H7"/><path d="M3 9.5 H7"/><path d="M7 4.5 V9.5"/><path d="M7 7 H11"/><path d="M3 14.5 H7"/><path d="M3 19.5 H7"/><path d="M7 14.5 V19.5"/><path d="M7 17 H11"/><path d="M11 7 V17"/><path d="M11 12 H15"/><circle fill="#3ecf8e" stroke="none" cx="18.5" cy="12" r="2.5"/></svg>가을야구 — 포스트시즌 대진표</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 대진은 정규 최종순위로 확정, 맨 위가 한국시리즈<br>
 시리즈 확률은 경기별 승률의 몬테카를로 — 단기전은 분산이 큽니다(단일경기 천장 ~56%).</div>
 __BODY__

@@ -473,7 +473,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
-<h1>⚾ KBO __SEASON__ 선수 평가 대시보드</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><polygon points="12,3 20.5,9.2 17.2,19.2 6.8,19.2 3.5,9.2"/><circle fill="#3ecf8e" stroke="none" cx="12" cy="12.4" r="1.5"/></svg>KBO __SEASON__ 선수 평가 대시보드</h1>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
   투수: 구위×성적 사분면 + 구종 아스널 · 타자: BABIP운 + 5툴 레이더 + FCB 승리기여 · 리그 평균 ERA __LG_ERA__ ·
   <b>지표 이름 호버=공식, 그래프 클릭=랜덤 선수 상세</b></div>

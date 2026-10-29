@@ -137,7 +137,7 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="predictions.html">📈 예측 성적표</a>
   <a href="postseason.html">🍂 가을야구</a>
 </nav>
-<h1>🏁 시즌 타이틀 레이스</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><path d="M6 3 V21"/><path d="M6 4.5 H19 V13.5 H6"/><g fill="#3ecf8e" stroke="none"><rect x="6" y="4.5" width="3.25" height="3"/><rect x="12.5" y="4.5" width="3.25" height="3"/><rect x="9.25" y="7.5" width="3.25" height="3"/><rect x="15.75" y="7.5" width="3.25" height="3"/><rect x="6" y="10.5" width="3.25" height="3"/><rect x="12.5" y="10.5" width="3.25" height="3"/></g></svg>시즌 타이틀 레이스</h1>
 <div class="sub">🕗 최종 갱신 <span id="gen">불러오는 중…</span> · 부문별 top10 · 시즌 페이스 · 시즌 진행 레이싱 차트</div>
 <div class="card">
   <h2 id="rtitle">타이틀 레이스</h2>
@@ -888,7 +888,7 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="predictions.html">📈 예측 성적표</a>
   <a href="postseason.html">🍂 가을야구</a>
 </nav>
-<h1>⚾ 오늘의 승부</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 L15.9 15.9"/></svg>오늘의 승부</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
 __CARD__
 </div></body></html>"""
@@ -934,7 +934,7 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a class="active" href="predictions.html">📈 예측 성적표</a>
   <a href="postseason.html">🍂 가을야구</a>
 </nav>
-<h1>📈 예측 성적표</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.2 4.5 V3.4 A1.1 1.1 0 0 1 10.3 2.3 H13.7 A1.1 1.1 0 0 1 14.8 3.4 V4.5 Z"/><polyline points="8.5,13 11,15.5 15.5,10"/></svg>예측 성적표</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 라인업 반영 후 기대 스코어의 승부 예측을 실제 결과와 누적 대조</div>
 __BODY__
 </div></body></html>"""
@@ -1388,7 +1388,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
-<h1>⚾ KBO __SEASON__ 단기 전력 대시보드</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="16" y="5" width="4" height="15" rx="1"/></svg>KBO __SEASON__ 단기 전력 대시보드</h1>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
   슬라이더로 기준 경기 수를 바꾸면 표·차트가 실시간 재계산됩니다 · 데이터: 네이버 스포츠 + KBO Talent</div>
 

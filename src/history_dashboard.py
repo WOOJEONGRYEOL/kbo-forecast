@@ -266,7 +266,7 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a href="predictions.html">📈 예측 성적표</a>
   <a href="postseason.html">🍂 가을야구</a>
 </div>
-<h1>🏆 KBO 역대 기록</h1>
+<h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><path d="M8 4 H16 V7.5 A4 4 0 0 1 8 7.5 Z"/><path d="M8 4.8 H5.6 A2 2 0 0 0 8 7.4"/><path d="M16 4.8 H18.4 A2 2 0 0 1 16 7.4"/><path d="M12 11.5 V15"/><path d="M10.4 20 L11 15 H13 L13.6 20"/><path d="M9 20 H15"/></svg>KBO 역대 기록</h1>
 <div class="sub">1982~현재 전 시즌. 시즌·포지션별 순위와 통산 리더보드. 데이터: Statiz (WAR·wRC+ 등)</div>
 
 <div class="seg" id="view" style="margin-bottom:12px">
