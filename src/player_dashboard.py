@@ -500,9 +500,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card">
     <h2>ERA − FIP 양극단 — <span class="tip" data-tip="__TIP_ERAFIP__">반등 vs 하락</span></h2>
-    <p class="hint"><b style="color:#3ecf8e">초록(위)</b>: ERA≫FIP = 실력보다 억울한 투수 <b>반등 후보📈</b>.
-      <b style="color:#ffb454">주황(아래)</b>: ERA≪FIP = 운 좋게 막은 투수 <b>하락 경계📉</b>(곧 나빠질 위험).
-      · 위·아래 각 8명. 상세 피해자 목록은 아래 🛡️ 카드 참고.</p>
+    <p class="hint"><b style="color:#3ecf8e">초록(위)</b> ERA≫FIP = 억울한 투수 <b>반등 후보📈</b> ·
+      <b style="color:#ffb454">주황(아래)</b> ERA≪FIP = 운 좋게 막은 투수 <b>하락 경계📉</b>. 각 8명.</p>
     <div class="chart-box"><canvas id="gapChart"></canvas></div>
   </div>
 
@@ -532,17 +531,15 @@ _TEMPLATE = r"""<!DOCTYPE html>
     <h2>공격 × 수비 — <span class="tip" data-tip="oWAR: 공격으로 번 승리 기여. dWAR: 수비로 번 승리 기여. Statiz WAR 기준.">oWAR vs dWAR</span>
       <span style="color:var(--muted);font-weight:400">— Statiz</span></h2>
     <p class="hint">→공격 좋음 ↑수비 좋음. <b>오른쪽 위 = 공수겸장</b>, 오른쪽 아래 = 공격형(수비 구멍) ·
-      점 크기 = 타석 · <b>클릭 = 랜덤 타자</b>. kbostuff엔 없던 <b>수비 가치</b>가 처음 들어옵니다.
-      (PA≥100, 저표본 dWAR 노이즈 컷)</p>
+      점 크기 = 타석 · <b>클릭 = 랜덤 타자</b> (PA≥100).</p>
     <div class="chart-box"><canvas id="warQuadChart"></canvas></div>
     <div class="pick"><div class="pick-info" id="pick_war_info"></div></div>
   </div>
 
   <div class="card wide" id="hotcoldCard">
     <h2><span class="badge">🔥</span>불방망이 · 물방망이 <span style="color:var(--muted);font-weight:400">— 최근 <b id="hcWindow"></b>경기, 평소 대비(Δ)</span></h2>
-    <p class="hint"><b>최근 폼</b>입니다. 선택 지표의 최근 값이 시즌 평균보다 얼마나 뜨거운지(Δ)로 줄 세웁니다.
-      표본이 작아 <b>운(BABIP)</b>이 많이 섞이니 '실력'이 아니라 <b>'요즘 감'</b>으로 보세요.
-      최소 <b id="hcMinPa"></b>타석(최근) · 시즌 80타석 이상.</p>
+    <p class="hint"><b>최근 폼</b> — 선택 지표가 시즌 평균보다 얼마나 뜨거운지(Δ) 순. 표본이 작아 운이 섞이니
+      <b>'실력'이 아닌 '요즘 감'</b>으로 보세요 (최근 <b id="hcMinPa"></b>타석·시즌 80타석↑).</p>
     <div class="mseg" id="hcMetric"></div>
     <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
       <div>
@@ -560,9 +557,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide" id="bullpenFormCard">
     <h2><span class="badge">🔥</span>수호신 · 방화범 <span style="color:var(--muted);font-weight:400">— 최근 <b id="bpWindow"></b>등판, 평소 대비(Δ)</span></h2>
-    <p class="hint"><b>최근 폼</b>(불펜만, 선발 제외). 선택 지표가 시즌 평균보다 좋아졌으면 수호신, 나빠졌으면 방화 쪽입니다.
-      세이브 상황·승계주자 데이터가 없어 <b>진짜 레버리지가 아니라 '최근 실점 억제'</b> 근사이고,
-      불펜은 표본이 더 작아 <b>한 경기에 요동</b>칩니다. 최소 <b id="bpMinApp"></b>등판·최근 4이닝 이상.</p>
+    <p class="hint"><b>최근 폼</b>(불펜만) — 시즌 평균보다 좋아졌으면 수호신, 나빠졌으면 방화. 레버리지 데이터가 없어
+      <b>'최근 실점 억제' 근사</b>이고 표본이 작아 요동칩니다 (최소 <b id="bpMinApp"></b>등판·최근 4이닝↑).</p>
     <div class="mseg" id="bpMetric"></div>
     <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
       <div>
@@ -580,8 +576,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide" id="starterFormCard">
     <h2><span class="badge">🚀</span>에이스 · 붕괴 <span style="color:var(--muted);font-weight:400">— 최근 <b id="stWindow"></b>선발, 평소 대비(Δ)</span></h2>
-    <p class="hint"><b>최근 폼</b>(선발 로테이션만). 선택 지표가 시즌 평균보다 좋아졌으면 에이스, 나빠졌으면 붕괴 쪽입니다.
-      최소 <b id="stMinApp"></b>선발·최근 15이닝 이상. 표본이 작아 '최근 흐름'으로 보세요.</p>
+    <p class="hint"><b>최근 폼</b>(선발만) — 시즌 평균보다 좋아졌으면 에이스, 나빠졌으면 붕괴. 표본이 작아
+      '최근 흐름'으로 보세요 (최소 <b id="stMinApp"></b>선발·최근 15이닝↑).</p>
     <div class="mseg" id="stMetric"></div>
     <div class="hc-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
       <div>
@@ -642,8 +638,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide" id="bullpenCard">
     <h2><span class="badge">🔥</span>불펜 리더보드 <span style="color:var(--muted);font-weight:400">— 마무리·셋업 · 릴리프 WAR (Statiz)</span></h2>
-    <p class="hint">구원 등판이 선발보다 많은 투수(임시선발 1~2번 한 마무리·셋업 포함). 역할은 세이브(마무리)·홀드(셋업)로 판정.
-      <b>릴리프 WAR</b> 순. ERA와 FIP가 벌어진 투수는 회귀 후보 — ERA≪FIP는 곧 나빠질 위험, ERA≫FIP는 반등 여지.</p>
+    <p class="hint">구원 등판이 선발보다 많은 투수, <b>릴리프 WAR</b> 순 (역할은 세이브=마무리·홀드=셋업).
+      ERA≪FIP는 하락 위험, ERA≫FIP는 반등 여지.</p>
     <div class="table-scroll">
     <table><thead><tr><th>선수</th><th>팀</th><th>역할</th><th>WAR</th><th>ERA</th><th>FIP</th><th><span class="tip" data-tip="(탈삼진−볼넷)÷상대타자. 투수 실력 예측력이 가장 높은 지표.">K-BB%</span></th><th>이닝</th><th>세이브</th><th>홀드</th></tr></thead>
     <tbody id="tb_bullpen"></tbody></table>
@@ -708,9 +704,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card">
     <h2><span class="badge">🏟️</span>구장에 갇힌 타자</h2>
-    <p class="hint">홈구장 파크팩터가 리그 평균(1.00)보다 낮아 득점이 억제되는 <b>좋은 타자(wRC+ 100↑)</b>.
-      wRC+는 이미 구장 보정값이라 실력 평가엔 문제없지만, 홈런·타율 같은 <b>raw 기록</b>은 구장 탓에 눌립니다.
-      억제율이 클수록·타격이 좋을수록 손해가 큽니다. <span class="warn">파크팩터는 직전+올 시즌 평균</span>(반시즌 노이즈 완화·신구장 반영).</p>
+    <p class="hint">홈구장 파크팩터가 리그 평균(1.00)보다 낮아 <b>raw 기록(홈런·타율)이 눌리는 좋은 타자(wRC+ 100↑)</b>.
+      억제율이 클수록 손해가 큽니다 (wRC+는 이미 구장 보정 완료). <span class="warn">파크팩터는 직전+올 시즌 평균.</span></p>
     <table><thead><tr><th>__H_BAT__</th><th>팀</th><th>__H_PA__</th><th>__H_WRCE__</th><th>__H_PF__</th><th>__H_SUPP__</th></tr></thead>
     <tbody id="tb_park">__T_PARK__</tbody></table>
     __M_PARK__

@@ -846,8 +846,8 @@ def _projection_card(proj, logos) -> str:
         '<div class="card wide" id="projCard">'
         '<h2>기대 스코어 <span style="color:var(--muted);font-weight:400;font-size:13px">'
         '— 예고선발·선발이닝·가용 불펜·타순(wRC+)·좌우 반영</span></h2>'
-        '<p class="hint">숫자 밑 괄호는 예상범위(왼=원정, 오=홈) · <b>확률·기대값이지 예언이 아닙니다</b>(단일경기 천장 ~56%) · '
-        '배지 <b style="color:#3ecf8e">✅</b> 라인업 반영 / <b style="color:#ffb454">⏳</b> 발표 전. 자세한 산식은 아래 ▾</p>'
+        '<p class="hint">숫자 밑 괄호=예상범위(왼 원정·오 홈) · 배지 <b style="color:#3ecf8e">✅</b>라인업 반영 / '
+        '<b style="color:#ffb454">⏳</b>발표 전 · <b>확률이지 예언이 아닙니다</b>(단일경기 천장 ~56%). 산식은 아래 ▾</p>'
         + _CALC_GUIDE_HTML + blocks + '</div>')
 
 
@@ -1001,8 +1001,7 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
         for k, v in [(k, cal[k]) for k in order])
     cal_tbl = (
         '<div class="card"><h2>확신도별 적중률 (캘리브레이션 · 통산)</h2>'
-        '<p class="hint">예측이 더 세게 밀어준 팀(확신도=우세팀 승률)이 실제로 이긴 비율. '
-        '확신도가 높을수록 적중률도 높아야 잘 보정된 것.</p>'
+        '<p class="hint">확신도(우세팀 승률)가 높은 구간일수록 실제 적중률도 높아야 잘 보정된 모델입니다.</p>'
         '<div class="scroll"><table><tr><th>우세팀 승률</th><th>경기</th><th>실제 적중</th></tr>'
         + cal_rows + '</table></div></div>')
 
@@ -1044,9 +1043,8 @@ def save_predictions_page(logos=None, path: str = None, log_path: str = None):
     head = "성적 요약 — 올 시즌 · 통산" if multi else "성적 요약"
     extra = ' <b>올 시즌</b>과 <b>통산(전 시즌 합산)</b>을 함께 표시합니다.' if multi else ''
     intro = (f'<div class="card"><h2>{head}</h2>'
-             '<p class="hint">라인업 반영 후 기대 스코어로 매긴 승부 예측을 실제 결과와 대조한 기록입니다.'
-             + extra +
-             ' <b>단일 경기 정직한 천장은 ~56%</b>라, 55~57%면 모델이 제 역할을 하는 것입니다.</p>'
+             '<p class="hint"><b>단일 경기 정직한 천장은 ~56%</b>라, 적중률 55~57%면 모델이 제 역할을 하는 것입니다.'
+             + extra + '</p>'
              + kpis + '</div>')
     html = (_PRED_TEMPLATE.replace("__BODY__", intro + cal_tbl + log_tbl)
             .replace("__STAMP__", _gen_stamp()))
