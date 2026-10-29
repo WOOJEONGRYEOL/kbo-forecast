@@ -75,8 +75,8 @@ _TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   <a class="active" href="postseason.html">🍂 가을야구</a>
 </nav>
 <h1>🍂 가을야구 — 포스트시즌 대진표</h1>
-<div class="sub">🕗 최종 갱신 __STAMP__ · 대진은 정규 최종순위로 확정 · 맨 위가 최종 관문(한국시리즈)<br>
-시리즈 승리확률은 경기별 승률의 몬테카를로 — 단일경기 정직한 천장 ~56%, 단기전은 분산이 큽니다.</div>
+<div class="sub">🕗 최종 갱신 __STAMP__ · 대진은 정규 최종순위로 확정, 맨 위가 한국시리즈<br>
+시리즈 확률은 경기별 승률의 몬테카를로 — 단기전은 분산이 큽니다(단일경기 천장 ~56%).</div>
 __BODY__
 </div></body></html>"""
 

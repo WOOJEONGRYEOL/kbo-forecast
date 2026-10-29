@@ -560,9 +560,9 @@ def _team_style_card(logos: dict, rank_order: list | None = None,
         '<div class="card wide">'
         '<h2><span class="badge">🧬</span>팀 스타일 지문 '
         '<span style="color:var(--muted);font-weight:400">— 현재 순위순 · 리그 평균 대비 성향</span></h2>'
-        '<p class="hint">자동차 계기판식 <b>반원 다이얼</b> — <b>바늘</b>이 위(중앙=리그평균)에서 '
-        '<span style="color:#4a90d9">왼쪽(파랑)</span>·<span style="color:#e8874a">오른쪽(주황)</span> 어느 쪽으로 얼마나 기울었나로 성향을 읽습니다. '
-        '각 열 위 양극 라벨 참고. <b>다이얼에 커서를 올리면</b> 그렇게 판정한 근거 수치가 뜹니다.</p>'
+        '<p class="hint"><b>바늘</b>이 중앙(리그평균)에서 '
+        '<span style="color:#4a90d9">왼쪽</span>·<span style="color:#e8874a">오른쪽</span> 어디로 기울었나로 성향을 읽습니다(열 위 양극 라벨 참고). '
+        '커서를 올리면 근거 수치가 뜹니다.</p>'
         '<div class="table-scroll"><table class="stbl"><thead><tr>'
         '<th>팀</th>'
         '<th><span class="pl">스몰볼</span><span class="pr">빅볼</span></th>'
@@ -1383,8 +1383,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 </div>
 <h1>⚾ KBO __SEASON__ 단기 전력 대시보드</h1>
 <div class="sub"><span class="stamp">🕗 최종 갱신 __STAMP__ · <b>__LATEST__ 경기까지 반영</b></span><br>
-  데이터: 네이버 스포츠(경기결과) + KBO Talent(세이버 지표) ·
-  아래 슬라이더로 기준 경기 수를 자유롭게 바꾸면 표·차트가 실시간 재계산됩니다</div>
+  슬라이더로 기준 경기 수를 바꾸면 표·차트가 실시간 재계산됩니다 · 데이터: 네이버 스포츠 + KBO Talent</div>
 
 <div class="controls">
   <div class="ctl">
@@ -1408,10 +1407,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide">
     <h2>팀별 진단표 <span style="color:var(--muted);font-weight:400">— 현재 순위 순</span></h2>
-    <p class="hint">위에서부터 현재 시즌 순위. 괴리율 <span class="pos">+초록</span>=경기력 대비 불운(반등 후보),
-      <span class="neg">−빨강</span>=과실현(하락 경계). <b>매직/트래직</b>: 의미 있는 <b>1·2위(우승)</b>와
-      <b>5·6위(가을 막차)</b> 경쟁만 표시. 매직=그만큼 이기면 확정, 트래직=그만큼 더 지면 탈락(같은 수).
-      '자력X'=매직>잔여라 경쟁팀 패도 필요.</p>
+    <p class="hint">괴리율 <span class="pos">+초록</span>=불운(반등 후보) / <span class="neg">−빨강</span>=과실현(하락 경계).
+      <b>매직</b>=이 수만큼 이기면 순위 확정, <b>트래직</b>=이 수만큼 더 지면 탈락 (1·2위·5·6위 경쟁만 · '자력X'=경쟁팀 패배도 필요).</p>
     <div class="table-scroll">
     <table>
       <thead><tr>
@@ -1425,16 +1422,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="card wide" id="standingsSimCard">
     <h2>🎲 우승·가을야구 확률 <span style="color:var(--muted);font-weight:400">— 몬테카를로 20,000회</span></h2>
-    <p class="mc-note"><b>몬테카를로 시뮬레이션이란?</b> 남은 경기를 각 팀의 <b>실력(득실점 기반 강도)</b>대로 2만 번
-      가상으로 치러 본 뒤, 각 팀이 1위·가을야구권(5위 이내)에 든 <b>횟수의 비율</b>을 확률로 집계한 것입니다.
-      승패 <b>순위가 아니라 득실점 강도</b>로 굴리므로 — <b>현재 순위가 한 칸 낮아도 득실차가 더 좋으면 확률이 높게</b>
-      나올 수 있습니다.</p>
-    <p class="hint"><b>순위 서열 자체는 이미 현재 순위와 거의 같습니다</b>(시즌 중반 이후). 그래서 이 카드는
-      순위를 '맞히는' 게 아니라 순위표에 <b>없는 3가지</b>를 보여줍니다:
-      ① <b>우승·가을야구 진출 확률</b> ② <b>얼마나 굳었나</b>(90% 구간이 좁을수록 확정적)
-      ③ 득실점 기준으로 현재 순위와 <b>다르게 평가되는 팀</b>(<span class="pos">▲저평가</span>=반등 여지,
-      <span class="neg">▼고평가</span>=거품 주의)과 <b>불펜 운</b>(<span class="neg">🔴</span>ERA≪FIP 회귀 경계,
-      <span class="pos">🔵</span>ERA≫FIP 반등 여지 · Statiz). 잔여 매치업은 'KBO 팀당 상대별 16경기' 규칙으로 복원.</p>
+    <p class="mc-note">남은 경기를 각 팀의 <b>득실점 강도</b>대로 2만 번 치러 본 확률입니다. 순위가 아니라 강도로 굴리므로,
+      <b>현재 순위가 낮아도 득실차가 좋으면 확률이 높게</b> 나올 수 있습니다.</p>
+    <p class="hint">순위 서열은 이미 현재 순위와 거의 같으니, 이 카드는 순위표에 <b>없는 것</b>을 봅니다:
+      ① <b>우승·가을야구 확률</b> ② 90% 구간이 좁을수록 확정적
+      ③ <span class="pos">▲저평가</span>=반등 여지 / <span class="neg">▼고평가</span>=거품 주의, <b>불펜 운</b>
+      (<span class="neg">🔴</span>회귀 경계 / <span class="pos">🔵</span>반등 여지 · Statiz). 예측력은 시즌 초반일수록 큽니다.</p>
     <div class="table-scroll">
     <table>
       <thead><tr>
@@ -1443,9 +1436,6 @@ _TEMPLATE = r"""<!DOCTYPE html>
       <tbody>__STANDINGS_ROWS__</tbody>
     </table>
     </div>
-    <p class="hint" style="margin-top:8px">※ 예측력은 <b>시즌 초반일수록</b> 큽니다(운을 걷어내므로).
-      중반 이후엔 서열이 현재 순위로 수렴하니, 이 카드의 값어치는 '확률·불확실성'과 '저평가/고평가' 신호에 있습니다.
-      잔여 일정(날짜)이 안 나와도 확률엔 영향 없습니다.</p>
   </div>
 
   <div class="card">
@@ -1464,8 +1454,7 @@ __STYLE_CARD__
 
   <div class="card wide">
     <h2>시즌 흐름 — 기대승률 추이</h2>
-    <p class="hint">선택 기준으로 계산한 기대승률의 시계열(시즌 전체는 누적). 아래 로고를 클릭해 선을 켜고 끕니다.
-      <b>그래프 위에 커서를 좌우로 움직이면</b> 그 시점 <b>세로 점선</b>이 서고, 켜진 팀들의 기대승률이 <b>높은 순으로 한 줄에</b> 표시됩니다.</p>
+    <p class="hint">기대승률의 시계열. 로고를 클릭해 선을 켜고 끄고, 그래프에 커서를 올리면 그 시점 팀별 값이 순서대로 표시됩니다.</p>
     <div class="chart-box tall"><canvas id="trendChart"></canvas></div>
     <div id="trendLegend" class="logo-legend"></div>
   </div>
