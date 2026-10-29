@@ -128,14 +128,14 @@ _RACE_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .scroll{overflow-x:auto;}
 </style></head><body><div class="wrap">
 <nav>
-  <a class="home" href="../index.html">🏠</a>
-  <a href="dashboard.html">📊 팀 전력</a>
-  <a href="players.html">🧢 선수 평가</a>
-  <a class="active" href="title_race.html">🏁 타이틀 레이스</a>
-  <a href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 승부</a>
-  <a href="predictions.html">📈 예측 성적표</a>
-  <a href="postseason.html">🍂 가을야구</a>
+  <a class="home" href="../index.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></a>
+  <a href="dashboard.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="16" y="5" width="4" height="15" rx="1"/></svg>팀 전력</a>
+  <a href="players.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><polygon points="12,3 20.5,9.2 17.2,19.2 6.8,19.2 3.5,9.2"/><circle fill="currentColor" stroke="none" cx="12" cy="12.4" r="1.5"/></svg>선수 평가</a>
+  <a class="active" href="title_race.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M6 3 V21"/><path d="M6 4.5 H19 V13.5 H6"/><g fill="currentColor" stroke="none"><rect x="6" y="4.5" width="3.25" height="3"/><rect x="12.5" y="4.5" width="3.25" height="3"/><rect x="9.25" y="7.5" width="3.25" height="3"/><rect x="15.75" y="7.5" width="3.25" height="3"/><rect x="6" y="10.5" width="3.25" height="3"/><rect x="12.5" y="10.5" width="3.25" height="3"/></g></svg>타이틀 레이스</a>
+  <a href="history.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M8 4 H16 V7.5 A4 4 0 0 1 8 7.5 Z"/><path d="M8 4.8 H5.6 A2 2 0 0 0 8 7.4"/><path d="M16 4.8 H18.4 A2 2 0 0 1 16 7.4"/><path d="M12 11.5 V15"/><path d="M10.4 20 L11 15 H13 L13.6 20"/><path d="M9 20 H15"/></svg>역대</a>
+  <a href="today.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 L15.9 15.9"/></svg>오늘의 승부</a>
+  <a href="predictions.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.2 4.5 V3.4 A1.1 1.1 0 0 1 10.3 2.3 H13.7 A1.1 1.1 0 0 1 14.8 3.4 V4.5 Z"/><polyline points="8.5,13 11,15.5 15.5,10"/></svg>예측 성적표</a>
+  <a href="postseason.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M3 4.5 H7"/><path d="M3 9.5 H7"/><path d="M7 4.5 V9.5"/><path d="M7 7 H11"/><path d="M3 14.5 H7"/><path d="M3 19.5 H7"/><path d="M7 14.5 V19.5"/><path d="M7 17 H11"/><path d="M11 7 V17"/><path d="M11 12 H15"/><circle fill="currentColor" stroke="none" cx="18.5" cy="12" r="2.5"/></svg>가을야구</a>
 </nav>
 <h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><path d="M6 3 V21"/><path d="M6 4.5 H19 V13.5 H6"/><g fill="#3ecf8e" stroke="none"><rect x="6" y="4.5" width="3.25" height="3"/><rect x="12.5" y="4.5" width="3.25" height="3"/><rect x="9.25" y="7.5" width="3.25" height="3"/><rect x="15.75" y="7.5" width="3.25" height="3"/><rect x="6" y="10.5" width="3.25" height="3"/><rect x="12.5" y="10.5" width="3.25" height="3"/></g></svg>시즌 타이틀 레이스</h1>
 <div class="sub">🕗 최종 갱신 <span id="gen">불러오는 중…</span> · 부문별 top10 · 시즌 페이스 · 시즌 진행 레이싱 차트</div>
@@ -879,14 +879,14 @@ _TODAY_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin:2px 0 10px;}
 </style></head><body><div class="wrap">
 <nav>
-  <a class="home" href="../index.html">🏠</a>
-  <a href="dashboard.html">📊 팀 전력</a>
-  <a href="players.html">🧢 선수 평가</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
-  <a href="history.html">🏆 역대</a>
-  <a class="active" href="today.html">🔮 오늘의 승부</a>
-  <a href="predictions.html">📈 예측 성적표</a>
-  <a href="postseason.html">🍂 가을야구</a>
+  <a class="home" href="../index.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></a>
+  <a href="dashboard.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="16" y="5" width="4" height="15" rx="1"/></svg>팀 전력</a>
+  <a href="players.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><polygon points="12,3 20.5,9.2 17.2,19.2 6.8,19.2 3.5,9.2"/><circle fill="currentColor" stroke="none" cx="12" cy="12.4" r="1.5"/></svg>선수 평가</a>
+  <a href="title_race.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M6 3 V21"/><path d="M6 4.5 H19 V13.5 H6"/><g fill="currentColor" stroke="none"><rect x="6" y="4.5" width="3.25" height="3"/><rect x="12.5" y="4.5" width="3.25" height="3"/><rect x="9.25" y="7.5" width="3.25" height="3"/><rect x="15.75" y="7.5" width="3.25" height="3"/><rect x="6" y="10.5" width="3.25" height="3"/><rect x="12.5" y="10.5" width="3.25" height="3"/></g></svg>타이틀 레이스</a>
+  <a href="history.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M8 4 H16 V7.5 A4 4 0 0 1 8 7.5 Z"/><path d="M8 4.8 H5.6 A2 2 0 0 0 8 7.4"/><path d="M16 4.8 H18.4 A2 2 0 0 1 16 7.4"/><path d="M12 11.5 V15"/><path d="M10.4 20 L11 15 H13 L13.6 20"/><path d="M9 20 H15"/></svg>역대</a>
+  <a class="active" href="today.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 L15.9 15.9"/></svg>오늘의 승부</a>
+  <a href="predictions.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.2 4.5 V3.4 A1.1 1.1 0 0 1 10.3 2.3 H13.7 A1.1 1.1 0 0 1 14.8 3.4 V4.5 Z"/><polyline points="8.5,13 11,15.5 15.5,10"/></svg>예측 성적표</a>
+  <a href="postseason.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M3 4.5 H7"/><path d="M3 9.5 H7"/><path d="M7 4.5 V9.5"/><path d="M7 7 H11"/><path d="M3 14.5 H7"/><path d="M3 19.5 H7"/><path d="M7 14.5 V19.5"/><path d="M7 17 H11"/><path d="M11 7 V17"/><path d="M11 12 H15"/><circle fill="currentColor" stroke="none" cx="18.5" cy="12" r="2.5"/></svg>가을야구</a>
 </nav>
 <h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 L15.9 15.9"/></svg>오늘의 승부</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 예고선발·팀 공격력·가용 불펜 기반 기대 스코어·승리확률</div>
@@ -925,14 +925,14 @@ _PRED_TEMPLATE = r"""<!doctype html><html lang="ko"><head>
   img.logo{height:16px;vertical-align:-3px;}
 </style></head><body><div class="wrap">
 <nav>
-  <a class="home" href="../index.html">🏠</a>
-  <a href="dashboard.html">📊 팀 전력</a>
-  <a href="players.html">🧢 선수 평가</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
-  <a href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 승부</a>
-  <a class="active" href="predictions.html">📈 예측 성적표</a>
-  <a href="postseason.html">🍂 가을야구</a>
+  <a class="home" href="../index.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></a>
+  <a href="dashboard.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="16" y="5" width="4" height="15" rx="1"/></svg>팀 전력</a>
+  <a href="players.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><polygon points="12,3 20.5,9.2 17.2,19.2 6.8,19.2 3.5,9.2"/><circle fill="currentColor" stroke="none" cx="12" cy="12.4" r="1.5"/></svg>선수 평가</a>
+  <a href="title_race.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M6 3 V21"/><path d="M6 4.5 H19 V13.5 H6"/><g fill="currentColor" stroke="none"><rect x="6" y="4.5" width="3.25" height="3"/><rect x="12.5" y="4.5" width="3.25" height="3"/><rect x="9.25" y="7.5" width="3.25" height="3"/><rect x="15.75" y="7.5" width="3.25" height="3"/><rect x="6" y="10.5" width="3.25" height="3"/><rect x="12.5" y="10.5" width="3.25" height="3"/></g></svg>타이틀 레이스</a>
+  <a href="history.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M8 4 H16 V7.5 A4 4 0 0 1 8 7.5 Z"/><path d="M8 4.8 H5.6 A2 2 0 0 0 8 7.4"/><path d="M16 4.8 H18.4 A2 2 0 0 1 16 7.4"/><path d="M12 11.5 V15"/><path d="M10.4 20 L11 15 H13 L13.6 20"/><path d="M9 20 H15"/></svg>역대</a>
+  <a href="today.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 L15.9 15.9"/></svg>오늘의 승부</a>
+  <a class="active" href="predictions.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.2 4.5 V3.4 A1.1 1.1 0 0 1 10.3 2.3 H13.7 A1.1 1.1 0 0 1 14.8 3.4 V4.5 Z"/><polyline points="8.5,13 11,15.5 15.5,10"/></svg>예측 성적표</a>
+  <a href="postseason.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M3 4.5 H7"/><path d="M3 9.5 H7"/><path d="M7 4.5 V9.5"/><path d="M7 7 H11"/><path d="M3 14.5 H7"/><path d="M3 19.5 H7"/><path d="M7 14.5 V19.5"/><path d="M7 17 H11"/><path d="M11 7 V17"/><path d="M11 12 H15"/><circle fill="currentColor" stroke="none" cx="18.5" cy="12" r="2.5"/></svg>가을야구</a>
 </nav>
 <h1><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" fill="none" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.12em;margin-right:6px"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.2 4.5 V3.4 A1.1 1.1 0 0 1 10.3 2.3 H13.7 A1.1 1.1 0 0 1 14.8 3.4 V4.5 Z"/><polyline points="8.5,13 11,15.5 15.5,10"/></svg>예측 성적표</h1>
 <div class="sub">🕗 최종 갱신 __STAMP__ · 라인업 반영 후 기대 스코어의 승부 예측을 실제 결과와 누적 대조</div>
@@ -1377,14 +1377,14 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <body>
 
 <div class="nav">
-  <a class="home" href="../index.html">🏠</a>
-  <a class="active" href="dashboard.html">📊 팀 전력</a>
-  <a href="players.html">🧢 선수 평가</a>
-  <a href="title_race.html">🏁 타이틀 레이스</a>
-  <a href="history.html">🏆 역대</a>
-  <a href="today.html">🔮 오늘의 승부</a>
-  <a href="predictions.html">📈 예측 성적표</a>
-  <a href="postseason.html">🍂 가을야구</a>
+  <a class="home" href="../index.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></a>
+  <a class="active" href="dashboard.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="16" y="5" width="4" height="15" rx="1"/></svg>팀 전력</a>
+  <a href="players.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><polygon points="12,3 20.5,9.2 17.2,19.2 6.8,19.2 3.5,9.2"/><circle fill="currentColor" stroke="none" cx="12" cy="12.4" r="1.5"/></svg>선수 평가</a>
+  <a href="title_race.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M6 3 V21"/><path d="M6 4.5 H19 V13.5 H6"/><g fill="currentColor" stroke="none"><rect x="6" y="4.5" width="3.25" height="3"/><rect x="12.5" y="4.5" width="3.25" height="3"/><rect x="9.25" y="7.5" width="3.25" height="3"/><rect x="15.75" y="7.5" width="3.25" height="3"/><rect x="6" y="10.5" width="3.25" height="3"/><rect x="12.5" y="10.5" width="3.25" height="3"/></g></svg>타이틀 레이스</a>
+  <a href="history.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M8 4 H16 V7.5 A4 4 0 0 1 8 7.5 Z"/><path d="M8 4.8 H5.6 A2 2 0 0 0 8 7.4"/><path d="M16 4.8 H18.4 A2 2 0 0 1 16 7.4"/><path d="M12 11.5 V15"/><path d="M10.4 20 L11 15 H13 L13.6 20"/><path d="M9 20 H15"/></svg>역대</a>
+  <a href="today.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 L15.9 15.9"/></svg>오늘의 승부</a>
+  <a href="predictions.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.2 4.5 V3.4 A1.1 1.1 0 0 1 10.3 2.3 H13.7 A1.1 1.1 0 0 1 14.8 3.4 V4.5 Z"/><polyline points="8.5,13 11,15.5 15.5,10"/></svg>예측 성적표</a>
+  <a href="postseason.html"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em;margin-right:5px"><path d="M3 4.5 H7"/><path d="M3 9.5 H7"/><path d="M7 4.5 V9.5"/><path d="M7 7 H11"/><path d="M3 14.5 H7"/><path d="M3 19.5 H7"/><path d="M7 14.5 V19.5"/><path d="M7 17 H11"/><path d="M11 7 V17"/><path d="M11 12 H15"/><circle fill="currentColor" stroke="none" cx="18.5" cy="12" r="2.5"/></svg>가을야구</a>
   <button id="btnRefresh" class="refresh-btn" title="최신 경기 결과로 다시 계산합니다">🔄 지금 갱신</button>
   <span id="refreshMsg" class="refresh-msg"></span>
 </div>
