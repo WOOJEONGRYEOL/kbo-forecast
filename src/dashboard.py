@@ -654,7 +654,6 @@ def _one_game_card(g, logos) -> str:
     """경기 1개의 기대 스코어 카드 HTML."""
     if True:
         hl, al = logos.get(g["home"], ""), logos.get(g["away"], "")
-        hc, ac = TEAM_COLORS.get(g["home"], "#888"), TEAM_COLORS.get(g["away"], "#888")
         fo = lambda lst: "·".join(f'{o["name"]}({o["reason"]})' for o in lst)
         outs = []
         if g["bpOutAway"]:
@@ -780,6 +779,18 @@ def _one_game_card(g, logos) -> str:
                 f'{icon} {label} — {g["underdogName"]} {g["underdogWin"]}%'
                 f'<span style="font-weight:400;opacity:.85"> (순위 예상 +{g["upsetLift"]}%p'
                 f'{" · " + why if why else ""})</span></div>')
+        # 승리확률 바 — 팀색 2분할은 색이 비슷하면 경계가 안 보임. 우세팀만 단일색(초록)으로
+        #   채우고 열세팀 쪽은 중립 트랙 + 숫자로 표기해 시인성을 높인다(좌=원정·우=홈 유지).
+        fav_home = wH >= wA
+        _FAV, _TRK = "#3ecf8e", "rgba(255,255,255,.10)"
+        a_bg, h_bg = (_TRK, _FAV) if fav_home else (_FAV, _TRK)
+        a_tx, h_tx = ("#aeb6c6", "#0e1117") if fav_home else ("#0e1117", "#aeb6c6")
+        winbar = (
+            '<div style="display:flex;height:20px;border-radius:10px;overflow:hidden;font-size:11px;font-weight:800">'
+            f'<div style="width:{wA}%;background:{a_bg};color:{a_tx};display:flex;align-items:center;'
+            f'justify-content:flex-start;padding-left:7px">{wA}%</div>'
+            f'<div style="width:{wH}%;background:{h_bg};color:{h_tx};display:flex;align-items:center;'
+            f'justify-content:flex-end;padding-right:7px">{wH}%</div></div>')
         return (
             f'<div style="background:rgba(255,255,255,.03);border:1px solid var(--line);'
             f'border-radius:10px;padding:11px 13px">'
@@ -799,9 +810,7 @@ def _one_game_card(g, logos) -> str:
             f'{g["homeName"]}<img src="{hl}" alt="" style="width:18px;height:18px;object-fit:contain;flex:none"></span></div>'
             f'<div style="color:var(--muted);font-size:11px;text-align:center;margin:3px 0 6px">'
             f'예고 {g["spAway"] or "미정"} vs {g["spHome"] or "미정"}</div>'
-            f'<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;font-size:10px;font-weight:700;color:#0e1117">'
-            f'<div style="width:{wA}%;background:{ac};display:flex;align-items:center;justify-content:flex-start;padding-left:5px">{wA}%</div>'
-            f'<div style="width:{wH}%;background:{hc};display:flex;align-items:center;justify-content:flex-end;padding-right:5px">{wH}%</div></div>'
+            f'{winbar}'
             f'{result_line}{bp}{detail}</div>')
 
 
