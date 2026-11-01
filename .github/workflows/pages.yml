@@ -1,0 +1,42 @@
+name: Pages 배포 (동시성 제어)
+
+# GitHub Pages 기본 배포(pages-build-deployment)는 main에 push될 때마다 돌고,
+# 앞 배포가 진행 중이면 다음 배포가 400(in progress deployment)으로 '실패'한다.
+# 로컬 빌더와 봇이 15분 간격으로 자주 push해 이 충돌이 잦았다(실패 메일의 원인).
+# 전용 워크플로 + concurrency(cancel-in-progress)로 바꾸면, 겹칠 때 진행 중이던
+# 옛 배포를 '취소'(실패 아님)하고 최신 내용만 배포한다 → 실패 메일이 사라진다.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write       # Pages 배포 생성
+  id-token: write    # deploy-pages의 OIDC 인증
+
+# 같은 그룹의 이전 실행이 진행 중이면 취소하고 최신 것만 배포한다.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      # 기존 'legacy(브랜치 루트)' 배포와 동일하게 저장소 루트를 통째로 올린다.
+      # (index.html + data/*.html. 캐시 json은 .gitignore라 러너 체크아웃에 없음)
+      - name: 사이트 아티팩트 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Pages 배포
+        id: deployment
+        uses: actions/deploy-pages@v4
