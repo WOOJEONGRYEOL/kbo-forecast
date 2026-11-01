@@ -28,9 +28,10 @@ def _date_default_season() -> int:
 
 SEASON = int(_os.environ.get("KBO_SEASON") or 0) or _date_default_season()
 
-# KBO 정규시즌이 열리는 달 (3월 개막 ~ 10월 폐막)
-# 경기결과를 달 단위로 수집할 때 이 범위를 순회합니다.
-SEASON_MONTHS = range(3, 11)
+# KBO 시즌이 열리는 달 (3월 개막 ~ 10월 정규시즌 폐막, 11월 포스트시즌/한국시리즈).
+# 경기결과를 달 단위로 수집할 때 이 범위를 순회합니다. 11월을 포함해야 가을야구
+# (플레이오프·한국시리즈) 경기가 누락되지 않습니다. 12월엔 경기가 없습니다.
+SEASON_MONTHS = range(3, 12)
 
 # "최근 N경기" 이동 윈도우 크기.
 # 세이버매트릭스에서 단기 폼(momentum)을 볼 때 흔히 10경기를 씁니다.
