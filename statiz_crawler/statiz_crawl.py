@@ -375,17 +375,28 @@ async def cmd_crawl(args):
     async with make_crawler() as crawler:
         async def fetch(label, url):
             # Cloudflare 403(anti-bot)·일시 실패 대비 백오프 재시도
+            global _LOGGED_IN
             for attempt in range(1, args.retries + 2):
                 log(f"crawl: {label}" + (f" (재시도 {attempt-1})" if attempt > 1 else ""))
                 res = await crawler.arun(url=url, config=run_cfg())
                 await asyncio.sleep(args.delay)
-                if res.success and not is_login_wall(res.html or ""):
+                walled = (not res.success) or is_login_wall(res.html or "")
+                if not walled:
                     df = biggest_table(res.html or "")
                     if df.shape[0] > 0:
                         return df
-                    log("  0행")
+                    log("  0행")           # 로그인은 됐는데 데이터가 비었을 뿐 → 재로그인 불필요
                 else:
                     log(f"  실패: {(res.error_message or '로그인 벽')[:70]}")
+                    # 로그인 벽/크롤 실패 → 세션이 끊겼을 수 있다. 다음 시도 전에 세션을
+                    #   폐기하고 재로그인한다. (절전으로 멈춘 사이 JWT 만료 등. login_hook은
+                    #   컨텍스트 생성 때 1회만 돌아서, 끊긴 세션이 자동 복구되지 않는 문제 보완)
+                    try:
+                        await crawler.crawler_strategy.kill_session(SESSION)
+                    except Exception as e:
+                        log(f"  (세션 정리 경고: {type(e).__name__})")
+                    _LOGGED_IN = False     # 다음 arun이 컨텍스트 재생성 → login_hook 재로그인
+                    log("  → 세션 재생성·재로그인 예약")
                 if attempt <= args.retries:
                     wait = args.retry_wait * attempt  # 20s, 40s, ...
                     log(f"  {wait:.0f}초 대기 후 재시도...")

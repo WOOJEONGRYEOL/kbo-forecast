@@ -3,6 +3,16 @@
 #  - 오프시즌(12~2월)에는 건너뛴다 (KBO 시즌: 3~11월).
 #  - 시즌 중이면 update.sh 로 올해 데이터를 갱신한다.
 cd "$(dirname "$0")"
+
+# 절전 방지: 실행 전체를 caffeinate로 감싼다. 배터리로 밤새 잠들면 headless 크롤이
+#   수십 분씩 멈추고 그 사이 로그인 세션이 끊겨 선수 표 수집이 통째로 실패한다
+#   (-i 유휴 절전, -m 디스크 절전, -s 시스템 절전[AC 한정], -u 사용자 활동 가정).
+#   ※ 뚜껑 닫은 채 '배터리'면 클램셸 강제 절전이라 이것만으론 부족 → 전원 어댑터 권장.
+if [ -z "${STATIZ_CAFFEINATED:-}" ]; then
+    export STATIZ_CAFFEINATED=1
+    exec caffeinate -imsu "$0" "$@"
+fi
+
 [ -f ~/.statiz_env ] && source ~/.statiz_env   # 메일 앱 비밀번호(STATIZ_MAIL_*) 등 로드
 mkdir -p output
 LOG="output/cron.log"
