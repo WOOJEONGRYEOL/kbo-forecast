@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.retry.outputs.page_url || steps.deployment.outputs.page_url }}
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@v4
@@ -37,6 +37,18 @@ jobs:
         with:
           path: "."
 
+      # 업로드 직후 아티팩트 조회 API가 반영 전이라 'Found 0 artifact(s)'로 실패하는 일시 오류가
+      # 간헐적으로 있다(2026-11-24 오후 연속 발생). 1차 실패는 넘기고 잠시 후 한 번 더 시도한다.
       - name: Pages 배포
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: 재시도 전 대기
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 25
+
+      - name: Pages 배포 (재시도)
+        id: retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
